@@ -1,0 +1,87 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"minimumCMakeVersion" : 
+					{
+						"string" : "2.4.4"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "zlib",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "example::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-example-Debug-1d9c9faabc92490eb428.json",
+					"name" : "example",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "minigzip::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-minigzip-Debug-0196e910876827166c28.json",
+					"name" : "minigzip",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "zlib::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-zlib-Debug-5ef25cbdb954b18c0c55.json",
+					"name" : "zlib",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "zlibstatic::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-zlibstatic-Debug-699fcb868abb107918df.json",
+					"name" : "zlibstatic",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug",
+		"source" : "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 0
+	}
+}

@@ -1,0 +1,1 @@
+g++ --std=c++17 PVX_HttpServer.cpp PVX_DataBuilder.cpp PVX_Deflate.cpp PVX_Dictionary.cpp PVX_Encode.cpp PVX_File.cpp PVX_HttpClient.cpp PVX_HttpRequest.cpp PVX_HttpResponse.cpp PVX_HttpServer.cpp PVX_json.cpp PVX_String.cpp PVX_TcpSocket.cpp PVX_Threading.cpp PVX_WebSocket.cpp sha1.cpp 

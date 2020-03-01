@@ -1,0 +1,10 @@
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/zlib.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/zlibstatic.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/example.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/list_install_components.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/minigzip.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/rebuild_cache.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/test.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/install.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/edit_cache.dir
+D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/CMakeFiles/install/local.dir
