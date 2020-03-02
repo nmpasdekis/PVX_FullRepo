@@ -52,6 +52,7 @@ namespace PVX {
 			v8Value& operator[](const std::string& Name);
 			void Reset();
 			static void SetV8Path(const std::string& path);
+			v8Value& Ref(const std::string Name) { return RefValues[Name]; }
 		private:
 			v8Value RunCode(const v8::Local<v8::String>& Code);
 			static std::string V8Path;
@@ -59,6 +60,7 @@ namespace PVX {
 			void * PrivateData;
 			void Release();
 			void Init();
+			std::map<std::string, v8Value> RefValues;
 		};
 
 		class v8Value {
@@ -89,6 +91,7 @@ namespace PVX {
 			v8Value(const bool& v);
 			v8Value(const double& v);
 			v8Value(const int& v);
+			v8Value(const int64_t& v);
 			v8Value(const std::wstring& v);
 			v8Value(const std::string& v);
 			v8Value(const wchar_t * v);
@@ -97,6 +100,7 @@ namespace PVX {
 			v8Value(std::function<v8Value(std::vector<v8Value>&)> clb);
 			v8Value(std::function<void(const v8::FunctionCallbackInfo<v8::Value>&)> clb);
 			v8Value(std::function<v8Value()> clb);
+			v8Value(void(*clb)(const v8::FunctionCallbackInfo<v8::Value>&));
 
 			inline v8Value(const std::initializer_list<std::pair<std::wstring, v8Value>>& v) : v8Data{ v8::Object::New(v8::Isolate::GetCurrent()) } {
 				const auto& obj = v8Data.As<v8::Object>();
@@ -128,6 +132,7 @@ namespace PVX {
 			v8Value& operator=(const int& v);
 			v8Value& operator=(const std::wstring& v);
 			v8Value& operator=(const wchar_t * v);
+			v8Value& operator=(void(*v)(const v8::FunctionCallbackInfo<v8::Value>&));
 
 			bool operator!();
 			v8Value& operator&&(v8Value& v);
@@ -193,6 +198,7 @@ namespace PVX {
 			bool Boolean() const;
 			double Double() const;
 			int Integer() const;
+			int64_t Integer64() const;
 			v8Value Call(const std::vector<v8Value> & args);
 			v8Value Call(v8Value & This, const std::vector<v8Value> & args);
 			std::wstring String() const;
@@ -207,7 +213,10 @@ namespace PVX {
 
 			static v8::Local<v8::Value> FromJson(const PVX::JSON::Item & Val);
 
+			static v8Value External(void* Data);
+
 			int GetId() { return Id; }
+			void OnRelease(std::function<void()> fnc) { onDelete = fnc; }
 		protected:
 			std::map<int, v8Value> ArrayChild;
 			std::map<std::wstring, v8Value> ObjectChild;
@@ -221,6 +230,7 @@ namespace PVX {
 			v8Value& Function(std::function<v8Value(std::vector<v8Value>&)> clb);
 			v8Value& Function(std::function<void(const v8::FunctionCallbackInfo<v8::Value>&)> clb);
 
+
 			v8::Local<v8::Value> v8Data, Parent;
 			v8::Local<v8::String> StringIndex;
 			int Index = 0;
@@ -228,6 +238,8 @@ namespace PVX {
 			PVX::RefCounter Ref;
 			static int NextId;
 			int Id = [this] { return NextId++; }();
+
+			std::function<void()> onDelete = nullptr;
 		};
 
 		class AsyncEngine {

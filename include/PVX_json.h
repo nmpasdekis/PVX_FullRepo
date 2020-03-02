@@ -331,6 +331,7 @@ namespace PVX {
 			Item& operator<<(const std::wstring&);
 
 			jsElementType Type() const { return Value.GetType(); }
+			BSON_Type BsonType() const { return Value.BsonType; }
 
 			void push(const Item&);
 			Item pop();

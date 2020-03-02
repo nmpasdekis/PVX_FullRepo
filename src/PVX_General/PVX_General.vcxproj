@@ -106,6 +106,10 @@
     <ClInclude Include="..\..\include\PVX_Threading.h" />
     <ClInclude Include="..\..\include\PVX_XML.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\include\MemoryLeak.inl" />
+    <None Include="..\..\include\PVX.inl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

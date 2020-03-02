@@ -58,78 +58,79 @@ namespace PVX {
 
 		////////////////////////////////////
 
-		void NeuronLayer::AdamF(const netData & Gradient) {
-			const auto& g1 = Gradient.array();
-			if (RMSprop.cols() != Gradient.cols())RMSprop = netData::Ones(Gradient.rows(), Gradient.cols());
-			RMSprop = _RMSprop * RMSprop.array() + _iRMSprop * (g1*g1);
-			netData gr = g1 / ((Eigen::sqrt(RMSprop.array()) + 1e-8));
+		static int InitOpenMP = 0;
+		NeuronLayer::NeuronLayer(size_t nInput, size_t nOutput, LayerActivation Activation, TrainScheme Train) :
+			training{ Train },
+			activation{ Activation },
+			DeltaWeights{ netData::Zero(nOutput, nInput + 1ll) },
+			Weights{ netData::Random(nOutput, nInput + 1ll) },
+			//RMSprop{ netData::Zero(nOutput, 1ll) }
+			//RMSprop{ netData::Ones(nOutput, 1ll) }
+			RMSprop{ netData::Ones(nOutput, nInput + 1ll) }
+			//RMSprop{ netDataArray::Zero(nOutput, nInput + 1ll) }
+		{
+			if (!InitOpenMP) {
+				Eigen::initParallel();
+				Eigen::setNbThreads(8);
+				InitOpenMP = 1;
+			}
+			Id = ++NextId;
 
-			DeltaWeights = (gr * PreviousLayer->Output().transpose() * (_LearnRate * _iMomentum)) + DeltaWeights * _Momentum;
-			Weights += DeltaWeights;
-		}
-		void NeuronLayer::Adam_WeightDecayF(const netData& Gradient) {
-			auto g1 = Gradient.array();
-			if (RMSprop.cols() != Gradient.cols())RMSprop = netData::Ones(Gradient.rows(), Gradient.cols());
-			RMSprop = _RMSprop * RMSprop.array() + _iRMSprop * (g1*g1);
-			netData gr = g1 / ((Eigen::sqrt(RMSprop.array()) + 1e-8));
+			_LearnRate = __LearnRate;
+			_Momentum = __Momentum;
+			_iMomentum = __iMomentum;
+			_RMSprop = __RMSprop;
+			_iRMSprop = __iRMSprop;
+			_Dropout = __Dropout;
+			_iDropout = __iDropout;
+			_L2 = __L2;
 
-			DeltaWeights = (gr * PreviousLayer->Output().transpose() * (_LearnRate * _iMomentum)) + DeltaWeights * _Momentum;
-			Weights = Weights * (1.0f - _LearnRate * _L2 / Weights.size()) + DeltaWeights;
+			float randScale = sqrtf(2.0f / (nInput + 1));
 
-			//DeltaWeights = (gr * PreviousLayer->Output().transpose() * (_LearnRate * _iMomentum)) + DeltaWeights * _Momentum;
-			//Weights = Weights * (1.0f - _LearnRate * _L2 / Gradient.cols()) + DeltaWeights;
-		}
-
-
-		void NeuronLayer::MomentumF(const netData & Gradient) {
-			DeltaWeights = (Gradient * PreviousLayer->Output().transpose() * (_LearnRate * _iMomentum)) + DeltaWeights * _Momentum;
-			Weights += DeltaWeights;
-		}
-		void NeuronLayer::RMSpropF(const netData & Gradient) {
-			auto g1 = Gradient.array();
-			if (RMSprop.cols() != Gradient.cols())
-				RMSprop = netData::Ones(Gradient.rows(), Gradient.cols());
-			RMSprop = _RMSprop * RMSprop.array() + _iRMSprop * (g1*g1);
-			netData gr = g1 / (Eigen::sqrt(RMSprop.array()) + 1e-8);
-
-			Weights += (gr * PreviousLayer->Output().transpose() * _LearnRate);
-		}
-		void NeuronLayer::SgdF(const netData & Gradient) {
-			Weights += (Gradient * PreviousLayer->Output().transpose() * _LearnRate);
-		}
-		void NeuronLayer::AdaGradF(const netData & Gradient) {
-			auto g1 = Gradient.array();
-			if (RMSprop.cols() != Gradient.cols())
-				RMSprop = netData::Ones(Gradient.rows(), Gradient.cols());
-			RMSprop = RMSprop.array() + (g1*g1);
-			netData gr = g1 / (Eigen::sqrt(RMSprop.array()) + 1e-8);
-
-			Weights += (gr * PreviousLayer->Output().transpose() * _LearnRate);
-		}
-		void NeuronLayer::Momentum_WeightDecayF(const netData& Gradient) {
-			DeltaWeights = (Gradient * PreviousLayer->Output().transpose() * (_LearnRate * _iMomentum)) + DeltaWeights * _Momentum;
-			Weights = Weights * (1.0f - _LearnRate * _L2 / Weights.size()) + DeltaWeights;
-		}
-		void NeuronLayer::RMSprop_WeightDecayF(const netData& Gradient) {
-			auto g1 = Gradient.array();
-			if (RMSprop.cols() != Gradient.cols())
-				RMSprop = netData::Ones(Gradient.rows(), Gradient.cols());
-			RMSprop = _RMSprop * RMSprop.array() + _iRMSprop * (g1*g1);
-			netData gr = g1 / (Eigen::sqrt(RMSprop.array()) + 1e-8);
-
-			Weights = Weights * (1.0f - _LearnRate * _L2 / Weights.size()) + (gr * PreviousLayer->Output().transpose() * _LearnRate);
-		}
-		void NeuronLayer::Sgd_WeightDecayF(const netData& Gradient) {
-			Weights = Weights * (1.0f - _LearnRate * _L2 / Weights.size()) + (Gradient * PreviousLayer->Output().transpose() * _LearnRate);
-		}
-		void NeuronLayer::AdaGrad_WeightDecayF(const netData& Gradient) {
-			auto g1 = Gradient.array();
-			if (RMSprop.cols() != Gradient.cols())
-				RMSprop = netData::Ones(Gradient.rows(), Gradient.cols());
-			RMSprop = RMSprop.array() + (g1*g1);
-			netData gr = g1 / (Eigen::sqrt(RMSprop.array()) + 1e-8);
-
-			Weights = Weights * (1.0f - _LearnRate * _L2 / Weights.size()) + (gr * PreviousLayer->Output().transpose() * _LearnRate);
+			output = netData::Ones(nOutput + size_t(1), 1);
+			switch (Activation) {
+				case LayerActivation::Tanh:
+					randScale = sqrtf(1.0f / (nInput + 1));
+					Activate = Tanh;
+					Derivative = TanhDer;
+					break;
+				case LayerActivation::TanhBias:
+					randScale = sqrtf(1.0f / (nInput + 1));
+					Activate = TanhBias;
+					Derivative = TanhBiasDer;
+					break;
+				case LayerActivation::ReLU:
+					Activate = Relu;
+					Derivative = ReluDer;
+					break;
+				case LayerActivation::Sigmoid:
+					randScale = sqrtf(1.0f / (nInput + 1));
+					Activate = Sigmoid;
+					Derivative = SigmoidDer;
+					break;
+				case LayerActivation::Linear:
+					Activate = Linear;
+					Derivative = LinearDer;
+					break;
+			}
+			Weights *= randScale;
+			if (_L2>0.0f) {
+				switch (Train) {
+					case TrainScheme::Adam: updateWeights = &NeuronLayer::Adam_L2_F; break;
+					case TrainScheme::RMSprop: updateWeights = &NeuronLayer::RMSprop_L2_F; break;
+					case TrainScheme::Momentum: updateWeights = &NeuronLayer::Momentum_L2_F; break;
+					case TrainScheme::AdaGrad: updateWeights = &NeuronLayer::AdaGrad_L2_F; break;
+					case TrainScheme::Sgd: updateWeights = &NeuronLayer::Sgd_L2_F; break;
+				}
+			} else {
+				switch (Train) {
+					case TrainScheme::Adam: updateWeights = &NeuronLayer::AdamF; break;
+					case TrainScheme::RMSprop: updateWeights = &NeuronLayer::RMSpropF; break;
+					case TrainScheme::Momentum: updateWeights = &NeuronLayer::MomentumF; break;
+					case TrainScheme::AdaGrad: updateWeights = &NeuronLayer::AdaGradF; break;
+					case TrainScheme::Sgd: updateWeights = &NeuronLayer::SgdF; break;
+				}
+			}
 		}
 
 		////////////////////////////////////
@@ -222,83 +223,13 @@ namespace PVX {
 		}
 		void NeuronLayer::ResetMomentum() {
 			this->RMSprop = netData::Ones(this->RMSprop.rows(), this->RMSprop.cols());
+			//this->RMSprop = netData::Zero(this->RMSprop.rows(), this->RMSprop.cols());
 			this->DeltaWeights = netData::Zero(this->DeltaWeights.rows(), this->DeltaWeights.cols());
 			PreviousLayer->ResetMomentum();
 		}
 
 		netData& NeuronLayer::GetWeights() {
 			return Weights;
-		}
-		static int InitOpenMP = 0;
-
-		NeuronLayer::NeuronLayer(size_t nInput, size_t nOutput, LayerActivation Activation, TrainScheme Train) :
-			training{ Train },
-			activation{ Activation },
-			DeltaWeights{ netData::Zero(nOutput, nInput + 1ll) },
-			Weights{ netData::Random(nOutput, nInput + 1ll) },
-			RMSprop{ netData::Ones(nOutput, 1ll) }
-		{
-			if (!InitOpenMP) {
-				Eigen::initParallel();
-				InitOpenMP = 1;
-			}
-			Id = ++NextId;
-
-			_LearnRate = __LearnRate;
-			_Momentum = __Momentum;
-			_iMomentum = __iMomentum;
-			_RMSprop = __RMSprop;
-			_iRMSprop = __iRMSprop;
-			_Dropout = __Dropout;
-			_iDropout = __iDropout;
-			_L2 = __L2;
-
-			float randScale = sqrtf(2.0f / (nInput + 1));
-
-			output = netData::Ones(nOutput + size_t(1), 1);
-			switch (Activation) {
-			case LayerActivation::Tanh:
-				randScale = sqrtf(1.0f / (nInput + 1));
-				Activate = Tanh;
-				Derivative = TanhDer;
-				break;
-			case LayerActivation::TanhBias:
-				randScale = sqrtf(1.0f / (nInput + 1));
-				Activate = TanhBias;
-				Derivative = TanhBiasDer;
-				break;
-			case LayerActivation::ReLU:
-				Activate = Relu;
-				Derivative = ReluDer;
-				break;
-			case LayerActivation::Sigmoid:
-				randScale = sqrtf(1.0f / (nInput + 1));
-				Activate = Sigmoid;
-				Derivative = SigmoidDer;
-				break;
-			case LayerActivation::Linear:
-				Activate = Linear;
-				Derivative = LinearDer;
-				break;
-			}
-			Weights *= randScale;
-			if (_L2>0.0f) {
-				switch (Train) {
-					case TrainScheme::Adam: updateWeights = &NeuronLayer::Adam_WeightDecayF; break;
-					case TrainScheme::RMSprop: updateWeights = &NeuronLayer::RMSprop_WeightDecayF; break;
-					case TrainScheme::Momentum: updateWeights = &NeuronLayer::Momentum_WeightDecayF; break;
-					case TrainScheme::AdaGrad: updateWeights = &NeuronLayer::AdaGrad_WeightDecayF; break;
-					case TrainScheme::Sgd: updateWeights = &NeuronLayer::Sgd_WeightDecayF; break;
-				}
-			} else {
-				switch (Train) {
-					case TrainScheme::Adam: updateWeights = &NeuronLayer::AdamF; break;
-					case TrainScheme::RMSprop: updateWeights = &NeuronLayer::RMSpropF; break;
-					case TrainScheme::Momentum: updateWeights = &NeuronLayer::MomentumF; break;
-					case TrainScheme::AdaGrad: updateWeights = &NeuronLayer::AdaGradF; break;
-					case TrainScheme::Sgd: updateWeights = &NeuronLayer::SgdF; break;
-				}
-			}
 		}
 
 		NeuronLayer::NeuronLayer(const std::string& Name, size_t nInput, size_t nOutput, LayerActivation Activate, TrainScheme Train):
@@ -314,13 +245,6 @@ namespace PVX {
 		NeuronLayer::NeuronLayer(const std::string& Name, NeuralLayer_Base* inp, size_t nOutput, LayerActivation Activate, TrainScheme Train):
 			NeuronLayer(inp, nOutput, Activate, Train) {
 			name = Name;
-		}
-
-		void NeuralLayer_Base::UseDropout(int b) {
-			PVX::DeepNeuralNets::UseDropout = b;
-		}
-		void NeuralLayer_Base::OverrideParamsOnLoad(int b) {
-			OverrideOnLoad = b;
 		}
 		void NeuronLayer::FeedForward(int64_t Version) {
 			if (Version > FeedVersion) {
@@ -341,43 +265,6 @@ namespace PVX {
 				FeedIndexVersion = output.cols();
 			}
 		}
-
-		/*
-		
-		void NeuronAdder::FeedForward(int64_t Version) {
-			if (Version > FeedVersion) {
-				InputLayers[0]->FeedForward(Version);
-				output = InputLayers[0]->Output();
-				for (auto i = 1; i < InputLayers.size(); i++) {
-					InputLayers[i]->FeedForward(Version);
-					output += InputLayers[i]->Output();
-				}
-				output.row(output.rows() - 1) = netData::Ones(1, output.cols());
-				FeedVersion = Version;
-			}
-		}
-		void NeuronAdder::FeedForward(int64_t Index, int Version) {
-			if (Version > FeedVersion) {
-				FeedVersion = Version;
-				FeedIndexVersion = -1;
-			}
-			if (Index > FeedIndexVersion) {
-				FeedIndexVersion = Index;
-				InputLayers[0]->FeedForward(Index, Version);
-				const auto& pro = InputLayers[0]->Output();
-				if (pro.cols() != output.cols()) {
-					output = netData::Zero(output.rows(), pro.cols());
-				}
-				output.col(Index) = pro.col(Index);
-				for (auto i = 1; i < InputLayers.size(); i++) {
-					InputLayers[i]->FeedForward(Index, Version);
-					output.col(Index) += InputLayers[i]->Output(Index);
-				}
-				output(output.rows()-1, Index) = 1.0f;
-			}
-		}
-
-		*/
 
 		void NeuronLayer::FeedForward(int64_t Index, int64_t Version) {
 			if (Version > FeedVersion) {
@@ -413,7 +300,7 @@ namespace PVX {
 				memset(curGradient.data(), 0, sizeof(float) * curGradient.size());
 			}
 			curGradient += grad;
-			//(this->*updateWeights)(grad);
+			CorrectMat(curGradient);
 		}
 
 		void NeuronLayer::BackPropagate(const netData& Gradient, int64_t Index) {
@@ -425,6 +312,7 @@ namespace PVX {
 				memset(curGradient.data(), 0, sizeof(float) * curGradient.size());
 			}
 			curGradient += grad;
+			CorrectMat(curGradient);
 		}
 
 		void NeuronLayer::UpdateWeights() {

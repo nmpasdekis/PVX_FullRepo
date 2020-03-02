@@ -251,6 +251,35 @@ namespace PVX::DeepNeuralNets {
 		return TrainFnc(outp);
 	}
 
+	float NetContainer::Error(const netData& inp, const netData& outp, size_t BatchSize) const {
+		float Error = 0;
+		size_t cur = 0;
+		size_t rowsI = inp.rows();
+		size_t rowsO = outp.rows();
+		while (cur < size_t(inp.cols())) {
+			size_t cols = std::min(inp.cols() - cur, BatchSize);
+			Inputs[0]->Input(inp.block(0, cur, rowsI, cols));
+			FeedForward();
+			Error += cols * GetErrorFnc(outp.block(0, cur, rowsO, cols));
+			cur += BatchSize;
+		}
+		return Error / inp.cols();
+	}
+	float NetContainer::ErrorRaw(const netData& inp, const netData& outp, size_t BatchSize) const {
+		float Error = 0;
+		size_t cur = 0;
+		size_t rowsI = inp.rows();
+		size_t rowsO = outp.rows();
+		while (cur < size_t(inp.cols())) {
+			size_t cols = std::min(inp.cols() - cur, BatchSize);
+			Inputs[0]->InputRaw(inp.block(0, cur, rowsI, cols));
+			FeedForward();
+			Error += cols * GetErrorFnc(outp.block(0, cur, rowsO, cols));
+			cur += BatchSize;
+		}
+		return Error / inp.cols();
+	}
+
 	float NetContainer::Error(const netData& inp, const netData& outp) const {
 		Inputs[0]->Input(inp);
 		FeedForward();
@@ -307,21 +336,32 @@ namespace PVX::DeepNeuralNets {
 	void NetContainer::FeedForwardSoftMax() {
 		LastLayer->FeedForward(++Version);
 		auto tmp2 = LastLayer->Output();
+
+		CorrectMat(tmp2);
+
 		netData tmp = Eigen::exp(outPart(tmp2).array());
+		CorrectMat(tmp);
+
 		netData a = 1.0f / (netData::Ones(1, tmp.rows()) * tmp).array();
+		CorrectMat(a);
 		netData div = Eigen::Map<Eigen::RowVectorXf>(a.data(), a.size()).asDiagonal();
+		CorrectMat(div);
 		output = (tmp * div);
+		CorrectMat(output);
 	}
 	void NetContainer::FeedForwardStableSoftMax() {
 		LastLayer->FeedForward(++Version);
 		netData tmp = LastLayer->Output();
 		output = outPart(tmp);
+		CorrectMat(output);
 
 		for (auto i = 0; i < output.cols(); i++) {
 			auto r = output.col(i);
 			r -= netData::Constant(r.rows(), 1, r.maxCoeff());
 			r = Eigen::exp(r.array());
 			r *= 1.0f / r.sum();
+
+			CorrectMat(r);
 		}
 	}
 	

@@ -25,6 +25,7 @@ namespace PVX {
 
 		v8Value::~v8Value() {
 			if (!Ref) {
+				if (onDelete)onDelete();
 				v8Functions.erase(Id);
 				v8Functions2.erase(Id);
 				v8Functions3.erase(Id);
@@ -44,6 +45,7 @@ namespace PVX {
 		v8Value::v8Value(const v8::Local<v8::Value> & v, const v8::Local<v8::Value> & Parent, const int & Index) : v8Data{ v }, Parent{ Parent }, Index{ Index }{}
 		v8Value::v8Value(const nullptr_t& v) : v8Data{ v8::Null(v8::Isolate::GetCurrent()) } {}
 		v8Value::v8Value(const int& v) : v8Data{ v8::Int32::New(v8::Isolate::GetCurrent(), v) } {}
+		v8Value::v8Value(const int64_t& v) : v8Data{ v8::BigInt::New(v8::Isolate::GetCurrent(), v) } {}
 		v8Value::v8Value(const bool& v) : v8Data{ v8::Boolean::New(v8::Isolate::GetCurrent(), v) } {}
 		v8Value::v8Value(const double& v) : v8Data{ v8::Number::New(v8::Isolate::GetCurrent(), v) } {}
 		v8Value::v8Value(const std::wstring& v) : v8Data{ ToString(v) } {}
@@ -61,6 +63,9 @@ namespace PVX {
 		v8Value::v8Value(std::function<PVX::JSON::Item(const std::vector<PVX::JSON::Item>&)> clb) { Function(clb); }
 		v8Value::v8Value(std::function<v8Value(std::vector<v8Value>&)> clb) { Function(clb); }
 		v8Value::v8Value(std::function<void(const v8::FunctionCallbackInfo<v8::Value>&)> clb) { Function(clb); }
+		v8Value::v8Value(void(*clb)(const v8::FunctionCallbackInfo<v8::Value>&)) {
+			Function(clb);
+		}
 		v8Value::v8Value(std::function<v8Value()> clb) {
 			Function([clb](std::vector<v8Value>& Params) -> v8Value {
 				return clb;
@@ -135,6 +140,7 @@ namespace PVX {
 
 		v8Value& v8Value::SetValue(const v8Value & v) {
 			SetValue(v.GetValue());
+			onDelete = v.onDelete;
 			ArrayChild.clear();
 			for (auto& [k, v] : v.ArrayChild) {
 				(*this)[k] = v;
@@ -162,6 +168,8 @@ namespace PVX {
 		v8Value& v8Value::operator=(const int& v) { return SetValue(v); }
 		v8Value& v8Value::operator=(const std::wstring& v) { return SetValue(v); }
 		v8Value& v8Value::operator=(const wchar_t * v) { return SetValue(std::wstring(v)); }
+
+		v8Value& v8Value::operator=(void(*v)(const v8::FunctionCallbackInfo<v8::Value>&)) { return SetValue(v); }
 
 
 		bool v8Value::operator!() {
@@ -227,6 +235,7 @@ namespace PVX {
 		bool v8Value::Boolean() const { return v8Data.As<v8::Boolean>()->Value(); }
 		double v8Value::Double() const { return v8Data.As<v8::Number>()->Value(); }
 		int v8Value::Integer() const { return v8Data.As<v8::Int32>()->Value(); }
+		int64_t v8Value::Integer64() const { return v8Data.As<v8::BigInt>()->Int64Value(); }
 		v8Value v8Value::Call(const std::vector<v8Value>& args) {
 			auto params = PVX::Map(args, [](const v8Value& it) { return it.GetValue(); });
 			auto cntx = v8::Isolate::GetCurrent()->GetCurrentContext();
@@ -312,31 +321,46 @@ namespace PVX {
 		v8Value v8Value::Reduce() {
 			return PVX::Javascript::Reduce(v8Data);
 		}
+
+		static void PVX_BSON_Callback(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+
+		static void PVX_ObjectId_Callback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+			using namespace PVX::Javascript;
+			using namespace std::string_literals;
+			auto str = v8Value(args.Data())[L"Value"].String();
+			args.GetReturnValue().Set<v8::Value>(v8Value(L"ObjectId("s + str + L")").GetValue());
+		}
+
 		v8::Local<v8::Value> v8Value::FromJson(const PVX::JSON::Item & Val) {
 			auto cur = v8::Isolate::GetCurrent();
-			switch (Val.Type()) {
-				case JSON::jsElementType::Integer: {
-					return v8::Integer::New(cur, (int32_t)Val.Integer());
-				}
-				case JSON::jsElementType::Float: {
-					return v8::Number::New(cur, Val.Double());
-				}
-				case JSON::jsElementType::String: return ToString(Val.String());
-				case JSON::jsElementType::Null: return v8::Null(cur);
-				case JSON::jsElementType::Boolean: return v8::Boolean::New(cur, Val.Integer());
-				case JSON::jsElementType::Array: {
+			switch (Val.BsonType()) {
+				case JSON::BSON_Type::Int32: return v8::Integer::New(cur, (int32_t)Val.Integer());
+				case JSON::BSON_Type::Int64: return v8::BigInt::New(cur, Val.Integer());
+				case JSON::BSON_Type::Double: return v8::Number::New(cur, Val.Double());
+				case JSON::BSON_Type::Null: return v8::Null(cur);
+				case JSON::BSON_Type::String: return ToString(Val.String());
+				case JSON::BSON_Type::Boolean: return v8::Boolean::New(cur, Val.Boolean());
+				case JSON::BSON_Type::Array: {
 					v8::Local<v8::Array> ret = v8::Array::New(cur, Val.length());
 					for (auto i = 0; i < Val.length(); i++)
 						ret->Set(i, FromJson(Val[i]));
 					return ret;
 				}
-				case JSON::jsElementType::Object: {
+				case JSON::BSON_Type::Object: {
 					v8::Local<v8::Object> ret = v8::Object::New(cur);
 					Val.eachInObject([&ret](const std::wstring& Name, const JSON::Item& Value) {
 						ret->Set(ToString(Name), FromJson(Value));
 					});
-					//for (const auto &[Name, Value] : Val.Object)
-					//	ret->Set(ToString(Name), FromJson(Value));
+					return ret;
+				}
+				case JSON::BSON_Type::ObjectId: {
+					auto data = v8Value{
+						{ L"Type", v8Value(int(JSON::BSON_Type::ObjectId)) },
+						{ L"Value", v8Value(ToString(PVX::Encode::ToHex(Val.Value.Binary()))) }
+					};
+					auto ret = v8::FunctionTemplate::New(cur, PVX_BSON_Callback)->GetFunction(cur->GetCurrentContext()).ToLocalChecked();
+					ret->SetName(ToString("BSON::ObjectId"));
+					ret.As<v8::Object>()->Set(ToString("toJSON"), v8::FunctionTemplate::New(cur, PVX_ObjectId_Callback, data.GetValue())->GetFunction(cur->GetCurrentContext()).ToLocalChecked());
 					return ret;
 				}
 			}
@@ -345,7 +369,6 @@ namespace PVX {
 		bool v8Value::Has(const std::wstring & Name) {
 			return v8Data.As<v8::Object>()->Has(v8::Isolate::GetCurrent()->GetCurrentContext(), ToString(Name)).ToChecked();
 		}
-
 
 		static void PVX_FunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 			std::vector<PVX::JSON::Item> Params;
@@ -369,6 +392,10 @@ namespace PVX {
 
 		static void PVX_FunctionCallback2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 			v8Functions2[args.Data().As<v8::Int32>()->Value()](args);
+		}
+
+		v8Value External(void* Data) {
+			return (v8::Local<v8::Value>)v8::BigInt::New(v8::Isolate::GetCurrent(), int64_t(Data));
 		}
 
 		v8Value& v8Value::Function(std::function<PVX::JSON::Item(const std::vector<PVX::JSON::Item>&)> clb) {

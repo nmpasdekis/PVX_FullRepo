@@ -78,4 +78,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\include\MemoryLeak.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\include\PVX.inl">
+      <Filter>Header Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

@@ -339,15 +339,15 @@ namespace PVX {
 			return ret;
 		}
 
-		constexpr char Hex_unordered_map[]{ '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
-		constexpr char Hex_unordered_mapUpper[]{ '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
+		constexpr char Hex_map[]{ '0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f' };
+		constexpr char Hex_mapUpper[]{ '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F' };
 
 		std::string ToHex(const std::vector<unsigned char>& Data) {
 			std::string ret;
 			ret.reserve(Data.size()*2);
 			for (auto& byte: Data) {
-				ret.push_back(Hex_unordered_map[byte>>4]);
-				ret.push_back(Hex_unordered_map[byte&0x0f]);
+				ret.push_back(Hex_map[byte>>4]);
+				ret.push_back(Hex_map[byte&0x0f]);
 			}
 			return ret;
 		}
@@ -355,8 +355,8 @@ namespace PVX {
 			std::string ret;
 			ret.reserve(Data.size()*2);
 			for (auto& byte: Data) {
-				ret.push_back(Hex_unordered_mapUpper[byte>>4]);
-				ret.push_back(Hex_unordered_mapUpper[byte&0x0f]);
+				ret.push_back(Hex_mapUpper[byte>>4]);
+				ret.push_back(Hex_mapUpper[byte&0x0f]);
 			}
 			return ret;
 		}
@@ -365,8 +365,8 @@ namespace PVX {
 			std::wstring ret;
 			ret.reserve(Data.size()*2);
 			for (auto& byte: Data) {
-				ret.push_back(Hex_unordered_map[byte>>4]);
-				ret.push_back(Hex_unordered_map[byte&0x0f]);
+				ret.push_back(Hex_map[byte>>4]);
+				ret.push_back(Hex_map[byte&0x0f]);
 			}
 			return ret;
 		}
@@ -374,8 +374,8 @@ namespace PVX {
 			std::wstring ret;
 			ret.reserve(Data.size()*2);
 			for (auto& byte: Data) {
-				ret.push_back(Hex_unordered_mapUpper[byte>>4]);
-				ret.push_back(Hex_unordered_mapUpper[byte&0x0f]);
+				ret.push_back(Hex_mapUpper[byte>>4]);
+				ret.push_back(Hex_mapUpper[byte&0x0f]);
 			}
 			return ret;
 		}

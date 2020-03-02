@@ -3,7 +3,7 @@
 
 #define EIGEN_MPL2_ONLY
 
-#include <Eigen/dense>
+#include <../External/eigen-eigen-323c052e1731/Eigen/dense>
 #include <vector>
 #include <PVX_BinSaver.h>
 #include <string>
@@ -14,6 +14,7 @@
 namespace PVX {
 	namespace DeepNeuralNets {
 		using netData = Eigen::MatrixXf;
+		using netDataArray = Eigen::ArrayXf;
 
 		enum class LayerActivation {
 			Tanh,
@@ -160,11 +161,11 @@ namespace PVX {
 			void SgdF(const netData & Gradient);
 			void AdaGradF(const netData & Gradient);
 
-			void Adam_WeightDecayF(const netData& Gradient);
-			void Momentum_WeightDecayF(const netData& Gradient);
-			void RMSprop_WeightDecayF(const netData& Gradient);
-			void Sgd_WeightDecayF(const netData& Gradient);
-			void AdaGrad_WeightDecayF(const netData& Gradient);
+			void Adam_L2_F(const netData& Gradient);
+			void Momentum_L2_F(const netData& Gradient);
+			void RMSprop_L2_F(const netData& Gradient);
+			void Sgd_L2_F(const netData& Gradient);
+			void AdaGrad_L2_F(const netData& Gradient);
 
 			void(NeuronLayer::*updateWeights)(const netData & Gradient);
 			TrainScheme training;
@@ -508,6 +509,9 @@ namespace PVX {
 			float Error(const std::vector<netData>& inp, const netData& outp) const;
 			float ErrorRaw(const std::vector<netData>& inp, const netData& outp) const;
 			
+			float Error(const netData& inp, const netData& outp, size_t BatchSize) const;
+			float ErrorRaw(const netData& inp, const netData& outp, size_t BatchSize) const;
+
 			void AddTrainDataRaw(const netData& inp, const netData& outp);
 			void AddTrainDataRaw(const std::vector<netData>& inp, const netData& outp);
 			void AddTrainData(const netData& inp, const netData& outp);

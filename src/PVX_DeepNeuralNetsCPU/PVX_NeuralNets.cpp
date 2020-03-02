@@ -2,6 +2,8 @@
 #include <iostream>
 #include "PVX_NeuralNets_Util.inl"
 
+#pragma comment(lib, "PVX_General.lib")
+
 namespace PVX::DeepNeuralNets {
 	extern int UseDropout;
 	float NeuralLayer_Base::__LearnRate = 0.0001f;
@@ -67,6 +69,13 @@ namespace PVX::DeepNeuralNets {
 
 	size_t NeuralLayer_Base::BatchSize() const {
 		return output.cols();
+	}
+
+	void NeuralLayer_Base::UseDropout(int b) {
+		PVX::DeepNeuralNets::UseDropout = b;
+	}
+	void NeuralLayer_Base::OverrideParamsOnLoad(int b) {
+		OverrideOnLoad = b;
 	}
 
 	void NeuralLayer_Base::SetLearnRate(float Beta) {

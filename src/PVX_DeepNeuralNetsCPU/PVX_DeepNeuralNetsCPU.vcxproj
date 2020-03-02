@@ -44,12 +44,12 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-eigen-323c052e1731;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\..\include;$(ProjectDir)..\..\External\eigen-eigen-323c052e1731;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-eigen-323c052e1731;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\..\include;$(ProjectDir)..\..\External\eigen-eigen-323c052e1731;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -59,6 +59,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <OpenMPSupport>false</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -74,6 +75,8 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <OpenMPSupport>true</OpenMPSupport>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -93,6 +96,7 @@
     <ClCompile Include="PVX_NeuralNets_Output.cpp" />
     <ClCompile Include="PVX_NeuralNets_Recurrent.cpp" />
     <ClCompile Include="PVX_NeuralNets_UtilityLayers.cpp" />
+    <ClCompile Include="PVX_NeuralNets_TrainingCallbacks.cpp" />
     <ClCompile Include="PVX_Training.cpp" />
   </ItemGroup>
   <ItemGroup>
