@@ -25,6 +25,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_Solvers", "src\PVX_Solv
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_Mongo", "src\PVX_Mongo\PVX_Mongo.vcxproj", "{250A7CAE-C500-4CA8-9817-19DE90CD2820}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_OpenCL", "src\PVX_OpenCL\PVX_OpenCL.vcxproj", "{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -115,6 +117,12 @@ Global
 		{250A7CAE-C500-4CA8-9817-19DE90CD2820}.Release|x64.Build.0 = Release|x64
 		{250A7CAE-C500-4CA8-9817-19DE90CD2820}.Release|x86.ActiveCfg = Release|Win32
 		{250A7CAE-C500-4CA8-9817-19DE90CD2820}.Release|x86.Build.0 = Release|Win32
+		{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}.Debug|x64.ActiveCfg = Debug|x64
+		{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}.Debug|x64.Build.0 = Debug|x64
+		{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}.Debug|x86.ActiveCfg = Debug|x64
+		{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}.Release|x64.ActiveCfg = Release|x64
+		{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}.Release|x64.Build.0 = Release|x64
+		{E7EA49F9-BC89-49A2-9A6E-418E54AA647F}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
