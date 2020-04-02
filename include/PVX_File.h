@@ -209,6 +209,18 @@ namespace PVX {
 		std::string ReplaceExtension(const std::string & Filename, const std::string & NewExtension);
 		std::wstring ReplaceExtension(const std::wstring & Filename, const std::wstring & NewExtension);
 	};
+	class BinWriter {
+		FILE* fout;
+	public:
+		BinWriter(const std::string_view& Filename);
+		BinWriter(const std::wstring_view& Filename);
+		~BinWriter();
+		int Write(void* data, size_t sz);
+		template<typename T>
+		int Write(const T& data) { return Write((void*)&data, sizeof(T)); }
+		template<typename T>
+		int Write(const std::vector<T>& data) { return Write((void*)&data[0], data.size() * sizeof(T)); }
+	};
 }
 
 #endif

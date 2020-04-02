@@ -1,78 +1,21 @@
-#include <PVX_NeuralNetsCPU.h>
+#include <PVX_NeuralNetsCL.h>
 #include "PVX_NeuralNets_Util.inl"
 
 namespace PVX {
-	namespace DeepNeuralNets {
+	namespace NeuralNets {
 		auto RandomBias(size_t r, size_t c) {
-			return netData::Random(r, c).array() * 0.5f + 0.5f;
+			return clMatrix::Random(r, c, 0.0f, 1.0f);
 		}
 
 		int UseDropout = 0;
-		/////////////////////////////////////
 
-		static netData Tanh(const netData & x) {
-			return Eigen::tanh(x.array());
-		}
-		static netData TanhDer(const netData & x) {
-			auto tmp = Eigen::tanh(x.array());
-			return 1.0f - tmp * tmp;
-		}
-		static netData TanhBias(const netData & x) {
-			netData tmp = Eigen::tanh(x.array());
-			auto dt = tmp.data();
-			size_t sz = x.cols()*x.rows();
-			for (auto i = 0; i < sz; i++)
-				dt[i] = dt[i] * 0.5f + 0.5f;
-			return tmp;
-		}
-		static netData TanhBiasDer(const netData & x) {
-			auto tmp = Eigen::tanh(x.array());
-			return 0.5f * (1.0f - tmp * tmp);
-		}
-		static netData Relu(const netData & x) {
-			return x.array() * (x.array() > 0).cast<float>();
-		}
-		static netData ReluDer(const netData & x) {
-			netData ret(x.rows(), x.cols());
-			float * dt = (float*)x.data();
-			float * o = ret.data();
-			size_t sz = x.cols()*x.rows();
-			for (int i = 0; i < sz; i++) o[i] = (dt[i] > 0) ? 1.0f : 0.0001f;
-			return ret;
-		}
-		static netData Sigmoid(const netData & x) {
-			netData ex = Eigen::exp(-x.array());
-			return 1.0f / (1.0f + ex.array());
-		}
-		static netData SigmoidDer(const netData & x) {
-			netData tmp = Sigmoid(x);
-			return tmp.array() * (1.0f - tmp.array());
-		}
-		static netData Linear(const netData & x) {
-			return x;
-		}
-		static netData LinearDer(const netData & x) {
-			return netData::Ones(x.rows(), x.cols());
-		}
-
-		////////////////////////////////////
-
-		static int InitOpenMP = 0;
 		NeuronLayer::NeuronLayer(size_t nInput, size_t nOutput, LayerActivation Activation, TrainScheme Train) :
 			training{ Train },
 			activation{ Activation },
-			DeltaWeights{ netData::Zero(nOutput, nInput + 1ll) },
-			Weights{ netData::Random(nOutput, nInput + 1ll) },
-			//RMSprop{ netData::Zero(nOutput, 1ll) }
-			//RMSprop{ netData::Ones(nOutput, 1ll) }
-			RMSprop{ netData::Ones(nOutput, nInput + 1ll) }
-			//RMSprop{ netDataArray::Zero(nOutput, nInput + 1ll) }
+			DeltaWeights(nOutput, nInput + 1ll, 0.0f),
+			Weights{ clMatrix::Random(nOutput, nInput + 1ll, -1.0f, 1.0f) },
+			RMSprop{ clMatrix(nOutput, nInput + 1ll, 1.0f) }
 		{
-			if (!InitOpenMP) {
-				Eigen::initParallel();
-				Eigen::setNbThreads(8);
-				InitOpenMP = 1;
-			}
 			Id = ++NextId;
 
 			_LearnRate = __LearnRate;
@@ -86,33 +29,41 @@ namespace PVX {
 
 			float randScale = sqrtf(2.0f / (nInput + 1));
 
-			output = netData::Ones(nOutput + size_t(1), 1);
+
+			//output.Set(clMatrix(nOutput + size_t(1), 1, 1.0f));
+			output.Reset(nOutput + size_t(1), 1) = 1.0f;
 			switch (Activation) {
 				case LayerActivation::Tanh:
 					randScale = sqrtf(1.0f / (nInput + 1));
 					Activate = Tanh;
-					Derivative = TanhDer;
+					Derivative = Mul_Element_dTanh;
+					//Derivative = dTanh;
 					break;
 				case LayerActivation::TanhBias:
 					randScale = sqrtf(1.0f / (nInput + 1));
 					Activate = TanhBias;
-					Derivative = TanhBiasDer;
+					Derivative = Mul_Element_dTanhBias;
+					//Derivative = dTanhBias;
 					break;
 				case LayerActivation::ReLU:
-					Activate = Relu;
-					Derivative = ReluDer;
+					Activate = ReLU;
+					Derivative = Mul_Element_dReLU;
+					//Derivative = dReLU;
 					break;
 				case LayerActivation::Sigmoid:
 					randScale = sqrtf(1.0f / (nInput + 1));
 					Activate = Sigmoid;
-					Derivative = SigmoidDer;
+					Derivative = Mul_Element_dSigmoid;
+					//Derivative = dSigmoid;
 					break;
 				case LayerActivation::Linear:
 					Activate = Linear;
-					Derivative = LinearDer;
+					Derivative = Mul_Element_dLinear;
+					//Derivative = dLinear;
 					break;
 			}
 			Weights *= randScale;
+
 			if (_L2>0.0f) {
 				switch (Train) {
 					case TrainScheme::Adam: updateWeights = &NeuronLayer::Adam_L2_F; break;
@@ -141,7 +92,8 @@ namespace PVX {
 				if (name.size()) bin.Write("NAME", name);
 				bin.Write("ROWS", int(Weights.rows()));
 				bin.Write("COLS", int(Weights.cols()));
-				bin.Write("WGHT", Weights.data(), Weights.size());
+				auto w = Weights.ReadBlocking();
+				bin.Write("WGHT", w.data(), w.size());
 				bin.Write("RATE", _LearnRate);
 				bin.Write("MMNT", _Momentum);
 				bin.Write("RMSP", _RMSprop);
@@ -176,7 +128,7 @@ namespace PVX {
 			auto ret = new NeuronLayer(cols-1, rows, LayerActivation(act), TrainScheme(train));
 			if(Id >= 0) ret->Id = Id;
 			if (Name.size()) ret->name = Name;
-			ret->GetWeights() = Eigen::Map<netData>(Weights.data(), rows, cols);
+			ret->GetWeights().Write(Weights);
 			if (!OverrideOnLoad) {
 				ret->_Dropout = drop;
 				ret->_iDropout = 1.0f / drop;
@@ -193,7 +145,7 @@ namespace PVX {
 		NeuralLayer_Base* NeuronLayer::newCopy(const std::map<NeuralLayer_Base*,size_t>& IndexOf) {
 			auto ret = new NeuronLayer(nInput(), nOutput(), activation, training);
 
-			ret->Weights = Weights;
+			ret->Weights.CopyOf(Weights);
 			ret->_LearnRate = _LearnRate;
 			ret->_Momentum = _Momentum;
 			ret->_iMomentum = _iMomentum;
@@ -221,13 +173,12 @@ namespace PVX {
 			PreviousLayer->SetMomentum(Beta);
 		}
 		void NeuronLayer::ResetMomentum() {
-			this->RMSprop = netData::Ones(this->RMSprop.rows(), this->RMSprop.cols());
-			//this->RMSprop = netData::Zero(this->RMSprop.rows(), this->RMSprop.cols());
-			this->DeltaWeights = netData::Zero(this->DeltaWeights.rows(), this->DeltaWeights.cols());
+			this->RMSprop = 1.0f;
+			this->DeltaWeights = 0.0f;
 			PreviousLayer->ResetMomentum();
 		}
 
-		netData& NeuronLayer::GetWeights() {
+		clMatrix& NeuronLayer::GetWeights() {
 			return Weights;
 		}
 
@@ -250,16 +201,12 @@ namespace PVX {
 				PreviousLayer->FeedForward(Version);
 				const auto& inp = PreviousLayer->Output();
 				if (inp.cols() != output.cols()) {
-					output = netData::Ones(output.rows(), inp.cols());
+					output.Reset(output.rows(), inp.cols()) = 1.0f;
 				}
-				if (PVX::DeepNeuralNets::UseDropout && _Dropout < 1.0f) {
-					outPart(output) = 
-						Activate(Weights * inp).array() * 
-						(RandomBias(output.rows() - 1ll, output.cols()) < _Dropout).cast<float>() * 
-						_iDropout;
-				} else {
-					outPart(output) = Activate(Weights * inp);
-				}
+				outPart(output) = Activate(Weights * inp);
+				//dbgMat(output);
+				//CorrectMat(output);
+
 				FeedVersion = Version;
 				FeedIndexVersion = output.cols();
 			}
@@ -275,63 +222,67 @@ namespace PVX {
 				PreviousLayer->FeedForward(Index, Version);
 				const auto& pro = PreviousLayer->Output();
 				if (pro.cols() != output.cols()) {
-					output = netData::Ones(output.rows(), pro.cols());
+					//output.Set(clMatrix(output.rows(), pro.cols(), 1.0f));
+					output.Reset(output.rows(), pro.cols()) = 1.0f;
 				}
 				const auto& inp = PreviousLayer->Output(Index);
 
-				if (PVX::DeepNeuralNets::UseDropout && _Dropout < 1.0f) {
-					outPart(output, Index) =
-						Activate(Weights * inp).array() *
-						(RandomBias(output.rows() - 1ll, output.cols()) < _Dropout).cast<float>() *
-						_iDropout;
-				} else {
+				//if (PVX::NeuralNets::UseDropout && _Dropout < 1.0f) {
+				//	outPart(output, Index) =
+				//		Activate(Weights * inp).array() *
+				//		(RandomBias(output.rows() - 1ll, output.cols()) < _Dropout).cast<float>() *
+				//		_iDropout;
+				//} else {
 					outPart(output, Index) = Activate(Weights * inp);
-				}
+				//}
+
+					//auto dbg = output.ReadBlocking();
+					//dbg.size();
 			}
 		}
 
-		void NeuronLayer::BackPropagate(const netData & Gradient) {
-			netData grad = Gradient.array() * Derivative(outPart(output)).array();
-			netData prop = Weights.transpose() * grad;
+		void NeuronLayer::BackPropagate(clMatrixExpr&& Gradient) {
+			//clMatrix grad = clMatrix::Temp(Gradient.Element_Multiply(Derivative(outPart(output))));
+			clMatrix grad = clMatrix::Temp(Derivative(std::move(Gradient), outPart(output)));
+			clMatrix prop = clMatrix::Temp(Weights.Transpose() * grad);
+
 			PreviousLayer->BackPropagate(outPart(prop));
 			if (curGradient.cols()!=grad.cols()) {
-				curGradient.resizeLike(grad);
-				memset(curGradient.data(), 0, sizeof(float) * curGradient.size());
+				curGradient.Reset(grad.rows(), grad.cols()) = 0.0f;
 			}
 			curGradient += grad;
-			CorrectMat(curGradient);
 		}
 
-		void NeuronLayer::BackPropagate(const netData& Gradient, int64_t Index) {
-			netData grad = Gradient.array() * Derivative(outPart(output, Index)).array();
-			netData prop = Weights.transpose() * grad;
+		void NeuronLayer::BackPropagate(clMatrixExpr&& Gradient, int64_t Index) {
+			//clMatrix grad = Gradient.Element_Multiply(Derivative(outPart(output, Index)));
+			clMatrix grad = clMatrix::Temp(Derivative(std::move(Gradient), outPart(output, Index)));
+			clMatrix prop = clMatrix::Temp(Weights.Transpose() * grad);
+
 			PreviousLayer->BackPropagate(outPart(prop), Index);
 			if (curGradient.cols()!=grad.cols()) {
-				curGradient.resizeLike(grad);
-				memset(curGradient.data(), 0, sizeof(float) * curGradient.size());
+				curGradient.Reset(grad.rows(), grad.cols()) = 0.0f;
 			}
 			curGradient += grad;
-			CorrectMat(curGradient);
 		}
 
 		void NeuronLayer::UpdateWeights() {
 			(this->*updateWeights)(curGradient);
-			memset(curGradient.data(), 0, sizeof(float) * curGradient.size());
+			curGradient = 0.0f;
 		}
 
 		size_t NeuronLayer::nInput() const {
 			return Weights.cols() - 1;
 		}
 
-		size_t NeuronLayer::DNA(std::map<void*, WeightData>& w) {
-			if (!w.count(this)) {
-				WeightData ret;
-				ret.Weights = Weights.data();
-				ret.Count = Weights.size();
-				w[this] = ret;
-				return PreviousLayer->DNA(w) + ret.Count;
-			}
-			return 0;
-		}
+		//size_t NeuronLayer::DNA(std::map<void*, WeightData>& w) {
+		//	if (!w.count(this)) {
+		//		WeightData ret;
+		//		ret.Weights = Weights.data();
+		//		ret.Count = Weights.size();
+		//		w[this] = ret;
+		//		return PreviousLayer->DNA(w) + ret.Count;
+		//	}
+		//	return 0;
+		//}
 	}
 }

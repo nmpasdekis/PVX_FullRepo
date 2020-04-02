@@ -1,29 +1,52 @@
 #include <PVX_OpenCL.h>
 
 namespace PVX {
-	OpenCL::OpenCL(int GPU) {
+	OpenCL::OpenCL(int GPU, int skip) {
 		std::vector<cl::Platform> pl;
 		cl::Platform::get(&pl);
 		for (auto & p : pl) {
 			std::vector<cl::Device> devs;
 			p.getDevices(GPU ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_ALL, &devs);
-			if (devs.size()) {
+			if (devs.size() && !skip--) {
 				platform = p;
 				device = devs.front();
 				context = cl::Context(device);
 				Queues.push_back(cl::CommandQueue(context, device));
 				currentQueue = &Queues.back();
+				DeviceName = device.getInfo<CL_DEVICE_NAME>();
+				PlatformName = platform.getInfo<CL_PLATFORM_NAME>();
 				return;
 			}
 		}
+		throw "Device Not Found";
+	}
+	std::vector<Platform> OpenCL::Get(int GPU) {
+		std::vector<Platform> ret;
+
+		std::vector<cl::Platform> pl;
+		cl::Platform::get(&pl);
+		for (auto& p : pl) {
+			auto& pp = ret.emplace_back();
+			pp.platform = p;
+			pp.Name = p.getInfo<CL_PLATFORM_NAME>();
+			std::vector<cl::Device> devs;
+			p.getDevices(GPU ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_ALL, &devs);
+			for (auto& d : devs) {
+				auto& dd = pp.Devices.emplace_back();
+				dd.device = d;
+				dd.Name = d.getInfo<CL_DEVICE_NAME>();
+			}
+		}
+		return ret;
 	}
 
 #define IS_SPACE(x) ((x)==' '||(x)=='\t'||(x)=='\r'||(x)=='\n')
 
 #ifdef _DEBUG
-#define BUILD_OPTIONS "-g -O0"
+#define BUILD_OPTIONS
 #else
 #define BUILD_OPTIONS
+	// "-g -O0"
 #endif
 
 	int OpenCL::LoadProgram(const std::string & Source) {
@@ -56,7 +79,7 @@ namespace PVX {
 			return Names.size();
 		}
 		Errors = prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device);
-		return 0;
+		throw Errors;
 	}
 
 	Buffer OpenCL::MakeBuffer(size_t size, BufferAccess Access, const void * Data) {
@@ -85,15 +108,20 @@ namespace PVX {
 		return *currentQueue;
 	}
 	Kernel::Kernel(const cl::Kernel & k, OpenCL * p):kernel(k), Parent(p) { }
-	void Kernel::Run(const cl::NDRange & r, const std::vector<KernelParam>& Params) {
+	int Kernel::Run(const cl::NDRange & r, const std::vector<KernelParam>& Params) {
 		size_t Index = 0;
 		for (auto& p: Params) p.Apply(Index++, kernel);
-		Parent->currentQueue->enqueueNDRangeKernel(kernel, cl::NullRange, r);
+		return Parent->currentQueue->enqueueNDRangeKernel(kernel, cl::NullRange, r);
 	}
-	void Kernel::Run(const cl::NDRange & Global, const cl::NDRange & Local, const std::vector<KernelParam>& Params) {
+	int Kernel::Run(const cl::NDRange & Global, const cl::NDRange & Local, const std::vector<KernelParam>& Params) {
 		size_t Index = 0;
 		for (auto& p: Params) p.Apply(Index++, kernel);
-		Parent->currentQueue->enqueueNDRangeKernel(kernel, cl::NullRange, Global, Local);
+		return Parent->currentQueue->enqueueNDRangeKernel(kernel, cl::NullRange, Global, Local);
+	}
+	int Kernel::Run(const cl::NDRange& Global, const cl::NDRange& Local, const std::vector<KernelParam>& Params, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+		size_t Index = 0;
+		for (auto& p: Params) p.Apply(Index++, kernel);
+		return Parent->currentQueue->enqueueNDRangeKernel(kernel, cl::NullRange, Global, Local, WaitFor, ev);
 	}
 	int Kernel::WorkGroupSize() {
 		return kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(Parent->device);
@@ -105,6 +133,29 @@ namespace PVX {
 	int Buffer::Read(void * data) {
 		return Parent->currentQueue->enqueueReadBuffer(buffer, 0, 0, size, data);
 	}
+	int Buffer::ReadBlocking(void* data) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, true, 0, size, data);
+	}
+	int Buffer::Read(void* data, size_t Size) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, 0, 0, Size, data);
+	}
+	int Buffer::ReadBlocking(void* data, size_t Size) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, true, 0, Size, data);
+	}
+
+	int Buffer::Read(void* data, size_t Size, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, 0, 0, Size, data, WaitFor, ev);
+	}
+	int Buffer::ReadBlocking(void* data, size_t Size, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, true, 0, Size, data, WaitFor, ev);
+	}
+	int Buffer::Read(void* data, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, 0, 0, size, data, WaitFor, ev);
+	}
+	int Buffer::ReadBlocking(void* data, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+		return Parent->currentQueue->enqueueReadBuffer(buffer, true, 0, size, data, WaitFor, ev);
+	}
+
 	int Buffer::Write(void * data, size_t Size, size_t Offset) {
 		if(!Size) Size = this->size;
 		return Parent->currentQueue->enqueueWriteBuffer(buffer, 0, Offset, Size, data);

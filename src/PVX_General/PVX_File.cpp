@@ -792,4 +792,16 @@ namespace PVX {
 			if((bool)Files.back().File)	clb();
 		}
 	}
+	BinWriter::BinWriter(const std::string_view& Filename) :fout{0} {
+		fopen_s(&fout, Filename.data(), "wb");
+	}
+	BinWriter::BinWriter(const std::wstring_view& Filename) {
+		_wfopen_s(&fout, Filename.data(), L"wb");
+	}
+	BinWriter::~BinWriter() {
+		fclose(fout);
+	}
+	int BinWriter::Write(void* data, size_t sz) {
+		return fwrite(data, 1, sz, fout);
+	}
 }

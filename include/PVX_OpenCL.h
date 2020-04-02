@@ -40,6 +40,63 @@ namespace PVX {
 	public:
 		//Buffer(const int size=0);
 		int Read(void* data);
+		int ReadBlocking(void* data);
+		int Read(void* data, size_t Size);
+		int ReadBlocking(void* data, size_t Size);
+		int Read(void* data, const std::vector<cl::Event>* WaitFor, cl::Event* ev);
+		int ReadBlocking(void* data, const std::vector<cl::Event>* WaitFor, cl::Event* ev);
+		int Read(void* data, size_t Size, const std::vector<cl::Event>* WaitFor, cl::Event* ev);
+		int ReadBlocking(void* data, size_t Size, const std::vector<cl::Event>* WaitFor, cl::Event* ev);
+		template<typename T>
+		std::vector<T> Read() {
+			std::vector<T> ret(size/sizeof(T));
+			Read(&ret[0]);
+			return ret;
+		}
+		template<typename T>
+		std::vector<T> Read(size_t Size) {
+			std::vector<T> ret(Size);
+			Read(&ret[0], Size * sizeof(T));
+			return std::move(ret);
+		}
+		template<typename T>
+		std::vector<T> ReadBlocking() {
+			std::vector<T> ret(size/sizeof(T));
+			auto dbg = ReadBlocking(&ret[0]);
+			return std::move(ret);
+		}
+		template<typename T>
+		std::vector<T> ReadBlocking(size_t Size) {
+			std::vector<T> ret(Size);
+			ReadBlocking(&ret[0], Size * sizeof(T));
+			return std::move(ret);
+		}
+
+		template<typename T>
+		std::vector<T> Read(const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+			std::vector<T> ret(size/sizeof(T));
+			Read(&ret[0], WaitFor, ev);
+			return ret;
+		}
+		template<typename T>
+		std::vector<T> Read(size_t Size, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+			std::vector<T> ret(Size);
+			Read(&ret[0], Size * sizeof(T), WaitFor, ev);
+			return std::move(ret);
+		}
+		template<typename T>
+		std::vector<T> ReadBlocking(const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+			std::vector<T> ret(size/sizeof(T));
+			ReadBlocking(&ret[0], WaitFor, ev);
+			return std::move(ret);
+		}
+		template<typename T>
+		std::vector<T> ReadBlocking(size_t Size, const std::vector<cl::Event>* WaitFor, cl::Event* ev) {
+			std::vector<T> ret(Size);
+			ReadBlocking(&ret[0], Size * sizeof(T), WaitFor, ev);
+			return std::move(ret);
+		}
+
 		int Write(void* data, size_t Size = 0, size_t Offset = 0);
 		inline int Size() const { return size; }
 		inline BufferAccess GetAccess() const { return Access; }
@@ -69,6 +126,8 @@ namespace PVX {
 		KernelParam(const Buffer& buf) : 
 			Value{ buf() } {
 		}
+		KernelParam(const cl::Buffer& buf) :
+			Value{ buf } {}
 		template<typename T>
 		KernelParam(const T& value) : Value{ value } {
 		};
@@ -87,18 +146,33 @@ namespace PVX {
 	class Kernel {
 	public:
 		Kernel(const cl::Kernel& k, OpenCL* Parent);
-		void Run(const cl::NDRange& Global, const std::vector<KernelParam>& Params);
-		void Run(const cl::NDRange& Global, const cl::NDRange& Local, const std::vector<KernelParam>& Params);
+		int Run(const cl::NDRange& Global, const std::vector<KernelParam>& Params);
+		int Run(const cl::NDRange& Global, const cl::NDRange& Local, const std::vector<KernelParam>& Params);
+
+		int Run(const cl::NDRange& Global, const cl::NDRange& Local, const std::vector<KernelParam>& Params, 
+			const std::vector<cl::Event>* WaitFor, cl::Event* ev);
 		cl::Kernel kernel;
 		int WorkGroupSize();
 	private:
 		OpenCL* Parent;
 	};
 
+	class Device {
+	public:
+		cl::Device device;
+		std::string Name;
+	};
+
+	class Platform {
+	public:
+		cl::Platform platform;
+		std::string Name;
+		std::vector<Device> Devices;
+	};
 
 	class OpenCL {
 	public:
-		OpenCL(int GPU = 1);
+		OpenCL(int GPU = 1, int skip = 0);
 		int LoadProgram(const std::string& Source);
 		Buffer MakeBuffer(size_t ByteSize, BufferAccess Access, const void* Data = 0);
 		template<typename T>
@@ -108,6 +182,12 @@ namespace PVX {
 		Buffer MakeBuffer();
 		Kernel* GetKernel(const std::string& Name);
 		cl::CommandQueue& Queue();
+		static std::vector<Platform> Get(int GPU = 1);
+
+		inline cl::Device GetDevice() { return device; };
+		inline cl::Context GetContext() { return context; };
+		std::string PlatformName;
+		std::string DeviceName;
 	private:
 		struct KernelData {
 			cl::Program* program;
