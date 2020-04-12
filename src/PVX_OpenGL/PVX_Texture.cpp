@@ -9,6 +9,23 @@ namespace PVX::OpenGL {
 		if (!Ref&&Id)
 			glDeleteTextures(1, &Id);
 	}
+	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel) {
+		if (!Id)glGenTextures(1, &Id);
+
+		Format = GL_RGB;
+		Type = GL_FLOAT;
+		InternalFormat = Channels;
+
+		if (Channels == 4) Format = GL_RGBA;
+		else if (Channels == 1) Format = GL_LUMINANCE;
+		if (BytesPerChannel == 1) Type = GL_UNSIGNED_BYTE;
+
+		this->Width = Width;
+		this->Height = Height;
+		this->InternalFormat = InternalFormat;
+		this->Format = Format;
+		this->Type = Type;
+	}
 	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
 		Update(Width, Height, Channels, BytesPerChannel, Data);
 	}

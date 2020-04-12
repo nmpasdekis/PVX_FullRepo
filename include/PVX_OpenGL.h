@@ -202,6 +202,7 @@ namespace PVX::OpenGL {
 	public:
 		~Texture2D();
 		Texture2D();
+		Texture2D(int Width, int Height, int Channels, int BytesPerChannel);
 		Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
 		Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data);
 		void Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
