@@ -37,19 +37,21 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\..\PVX_FullRepo.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\..\PVX_FullRepo.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-eigen-323c052e1731;$(SolutionDir)External;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-eigen-323c052e1731;$(SolutionDir)External;$(ProjectDir)..\..\include;$(ProjectDir)..\..\External\eigen-eigen-323c052e1731;$(ProjectDir)..\..\External;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-eigen-323c052e1731;$(SolutionDir)External;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-eigen-323c052e1731;$(SolutionDir)External;$(ProjectDir)..\..\include;$(ProjectDir)..\..\External\eigen-eigen-323c052e1731;$(ProjectDir)..\..\External;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

@@ -182,5 +182,9 @@ namespace PVX::OpenGL {
 	Matrix4x4& Camera::GetProjectionMatrix() {
 		return *_Perspective;
 	}
-
+	void Camera::OrbitRelative(float u, float v, float Distance) {
+		Rotation.Yaw += u;
+		Rotation.Pitch += v;
+		OrbitDistance *= Distance;
+	}
 }

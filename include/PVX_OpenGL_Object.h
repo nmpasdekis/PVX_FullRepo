@@ -108,13 +108,15 @@ namespace PVX {
 		class ObjectBuilder {
 		public:
 			ObjectBuilder();
-			void Color(const Vector4D & v);
+			void Color(const Vector4D& v);
+			void Color(const Vector3D & v);
 			void Vertex(const Vector3D & v);
 			void Normal(const Vector3D & v);
 			void TexCoord(const Vector2D& v);
 			void TexCoord3D(const Vector3D & v);
 
 			void Color(float r, float g, float b, float a);
+			void Color(float r, float g, float b);
 			void Vertex(float x, float y, float z);
 			void Normal(float x, float y, float z);
 			void TexCoord(float u, float v);
@@ -136,6 +138,7 @@ namespace PVX {
 			int Flags, Mode, Count, Max, Min, Start;
 		};
 
+		InterleavedArrayObject MakeSphere(int segH, int segV);
 		InterleavedArrayObject MakeSphereUV(int segH, int segV);
 		InterleavedArrayObject MakeCube();
 		InterleavedArrayObject MakeCubeWithUV();
@@ -143,6 +146,8 @@ namespace PVX {
 		InterleavedArrayObject MakeCubeWithUV(int Width, int Height = 0);
 		InterleavedArrayObject MakeSquareWithUV();
 		InterleavedArrayObject MakeSquareWithUV_Flipped();
+		InterleavedArrayObject MakeGrid(int size = 100, float dist = 1.0f);
+		InterleavedArrayObject MakeAxis(float size = 1.0f);
 
 		std::vector<InterleavedArrayObject> LoadObj(const wchar_t* fn);
 	}

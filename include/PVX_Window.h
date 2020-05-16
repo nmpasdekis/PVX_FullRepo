@@ -104,6 +104,8 @@ namespace PVX::Windows {
 		void OnRawInput(std::function<void(const RAWINPUT&)> lmd);
 		void GetRawInput(std::function<void(const RAWINPUT&)> lmd);
 		void RegisterRawInput(bool Mouse, bool Keyboard);
+
+		void OnMouseRelative(std::function<void(int, int, int, unsigned int)> clb);
 	protected:
 		Eventer() {};
 		void* WindowData = nullptr;

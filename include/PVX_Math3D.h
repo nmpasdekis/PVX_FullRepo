@@ -276,7 +276,7 @@ namespace PVX {
 			Dual.Vec.w *= l;
 			return *this;
 		}
-		inline DualQuaternion Normalized(DualQuaternion& q) const {
+		inline DualQuaternion Normalized() const {
 			float l = 1.0f / Real.Vec.Length();
 			return {
 				Real.Vec.x * l,
@@ -289,6 +289,16 @@ namespace PVX {
 				Dual.Vec.w * l
 			};
 		}
+		//inline Matrix4x4 Matrix() const {
+		//	Matrix4x4 ret;
+		//	GetQuaternionMatrix(Real, ret);
+		//	auto t = (Dual * 2.0f) * Conjugate(Real);
+		//	ret.m30 = t.i;
+		//	ret.m31 = t.j;
+		//	ret.m32 = t.k;
+		//	ret.Vec3.Vec3 = ((Dual * 2.0f) * Conjugate(Real)).Vec.Vec3;
+		//	return ret;
+		//}
 	};
 
 #pragma warning(disable:4201)
@@ -592,6 +602,10 @@ namespace PVX {
 	inline void sincosf(float d, float* sin, float* cos) {
 		(*sin) = sinf(d);
 		(*cos) = cosf(d);
+	}
+	inline void sincosf(float d, float& sin, float& cos) {
+		sin = sinf(d);
+		cos = cosf(d);
 	}
 
 
@@ -1829,9 +1843,41 @@ namespace PVX {
 		};
 		return q1;
 	}
+	
+	inline DualQuaternion operator+(const DualQuaternion& q1, const DualQuaternion& q2) {
+		return{ 
+			q1.r_i + q2.r_i, q1.r_j + q2.r_j, q1.r_k + q2.r_k, q1.r_r + q2.r_r,
+			q1.d_i + q2.d_i, q1.d_j + q2.d_j, q1.d_k + q2.d_k, q1.d_r + q2.d_r
+		};
+	}
+	inline DualQuaternion operator-(const DualQuaternion& q1, const DualQuaternion& q2) {
+		return{
+			q1.r_i - q2.r_i, q1.r_j - q2.r_j, q1.r_k - q2.r_k, q1.r_r - q2.r_r,
+			q1.d_i - q2.d_i, q1.d_j - q2.d_j, q1.d_k - q2.d_k, q1.d_r - q2.d_r
+		};
+	}
+
+	inline DualQuaternion operator*(const DualQuaternion& dq, const float factor) {
+		return{
+			dq.r_i * factor, dq.r_j * factor, dq.r_k * factor, dq.r_r * factor,
+			dq.d_i * factor, dq.d_j * factor, dq.d_k * factor, dq.d_r * factor
+		};
+	}
 
 	inline DualQuaternion operator*(const DualQuaternion& dq1, const DualQuaternion& dq2) {
 		return {
+			dq1.r_i*dq2.r_r + dq1.r_j*dq2.r_k + dq1.r_r*dq2.r_i - dq1.r_k*dq2.r_j,
+			dq1.r_r*dq2.r_j - dq1.r_i*dq2.r_k + dq1.r_j*dq2.r_r + dq1.r_k*dq2.r_i,
+			dq1.r_r*dq2.r_k + dq1.r_i*dq2.r_j - dq1.r_j*dq2.r_i + dq1.r_k*dq2.r_r,
+			dq1.r_r*dq2.r_r - dq1.r_i*dq2.r_i - dq1.r_j*dq2.r_j - dq1.r_k*dq2.r_k,
+			dq1.d_j*dq2.r_k - dq1.d_k*dq2.r_j - dq1.r_k*dq2.d_j + dq1.r_j*dq2.d_k + dq1.d_i*dq2.r_r + dq1.r_r*dq2.d_i + dq1.d_r*dq2.r_i + dq1.r_i*dq2.d_r,
+			dq1.r_k*dq2.d_i - dq1.d_i*dq2.r_k + dq1.d_k*dq2.r_i - dq1.r_i*dq2.d_k + dq1.d_j*dq2.r_r + dq1.r_r*dq2.d_j + dq1.d_r*dq2.r_j + dq1.r_j*dq2.d_r,
+			dq1.d_i*dq2.r_j - dq1.d_j*dq2.r_i - dq1.r_j*dq2.d_i + dq1.r_i*dq2.d_j + dq1.d_k*dq2.r_r + dq1.r_r*dq2.d_k + dq1.d_r*dq2.r_k + dq1.r_k*dq2.d_r,
+			dq1.d_r*dq2.r_r - dq1.r_i*dq2.d_i - dq1.d_j*dq2.r_j - dq1.r_j*dq2.d_j - dq1.d_k*dq2.r_k - dq1.r_k*dq2.d_k - dq1.d_i*dq2.r_i + dq1.r_r*dq2.d_r
+		};
+	}
+	inline DualQuaternion operator*=(DualQuaternion& dq1, const DualQuaternion& dq2) {
+		return dq1 = {
 			dq1.r_i*dq2.r_r + dq1.r_j*dq2.r_k + dq1.r_r*dq2.r_i - dq1.r_k*dq2.r_j,
 			dq1.r_r*dq2.r_j - dq1.r_i*dq2.r_k + dq1.r_j*dq2.r_r + dq1.r_k*dq2.r_i,
 			dq1.r_r*dq2.r_k + dq1.r_i*dq2.r_j - dq1.r_j*dq2.r_i + dq1.r_k*dq2.r_r,
@@ -2342,6 +2388,16 @@ namespace PVX {
 			(-Position.x*Rotation.i - Position.y*Rotation.j - Position.z*Rotation.k)*0.5f
 		};
 	}
+
+	inline Matrix4x4 GetDualQuaternionMatrix2(const DualQuaternion& q) {
+		Matrix4x4 ret;
+		GetQuaternionMatrix(q.Real, ret);
+		auto t = (q.Dual * 2.0f) * Conjugate(q.Real);
+		ret.TranslateBefore(t.Vec.Vec3);
+		return ret;
+	}
+
+
 
 	inline Matrix4x4 GetDualQuaternionMatrix(const DualQuaternion& q) {
 		Matrix4x4 ret;

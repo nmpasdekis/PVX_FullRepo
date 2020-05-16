@@ -1,16 +1,16 @@
-#include<PVX_OpenGL.h>
+﻿#include<PVX_OpenGL.h>
 
 namespace PVX::OpenGL {
 	Shader::~Shader() {
 		if (!Ref&&Id) glDeleteShader(Id);
 	}
-	Shader::Shader(ShaderType Type, const std::string& src) : Type{ Type }, Id{ 0 } {
+	Shader::Shader(ShaderType Type, const std::string& src) : Type{ Type } {
 		Source(src);
 	}
 	void Shader::Source(const std::string& Source) {
 		char* src = (char*)Source.c_str();
 		int sz = Source.size();
-		if(!Id) Id = glCreateShader(Type);
+		if(!Id) Id = glCreateShader((unsigned int)Type);
 		glShaderSource(Id, 1, &src, &sz);
 		glCompileShader(Id);
 #ifdef _DEBUG
@@ -27,7 +27,7 @@ namespace PVX::OpenGL {
 	std::string Shader::Debug(const std::string& Source) {
 		char* src = (char*)Source.c_str();
 		int sz = Source.size();
-		if (!Id) Id = glCreateShader(Type);
+		if (!Id) Id = glCreateShader((unsigned int)Type);
 		glShaderSource(Id, 1, &src, &sz);
 		glCompileShader(Id);
 
@@ -47,10 +47,14 @@ namespace PVX::OpenGL {
 	Program::~Program() {
 		if (!Ref&&Id) glDeleteProgram(Id);
 	}
-	void Program::BindShader(const Shader& sh) {
+	Program::Program(const std::initializer_list<Shader>& sh) {
+		AddShaders(sh);
+		Build();
+	}
+	void Program::AddShader(const Shader& sh) {
 		Shaders.push_back(sh);
 	}
-	void Program::BindShaders(const std::initializer_list<Shader>& sh) {
+	void Program::AddShaders(const std::initializer_list<Shader>& sh) {
 		for (auto& s : sh) Shaders.push_back(s);
 	}
 	void Program::Build() {
@@ -75,5 +79,37 @@ namespace PVX::OpenGL {
 	}
 	void Program::Unbind() const {
 		glUseProgram(0);
+	}
+
+	void Pipeline::Bind() {
+		Prog.Bind();
+		FBuffer.Bind();
+		for (auto& t : Tex2D) t.Bind();
+		for (auto& t : TexCube) t.Bind();
+	}
+	void Pipeline::Unbind() {
+		Prog.Unbind();
+		FBuffer.Unbind();
+		for (auto& t : Tex2D) t.Unbind();
+		for (auto& t : TexCube) t.Unbind();
+		for (auto& b : Consts) {
+			//glBindBuffer(GL_CONSTANT_BU)
+		}
+	}
+	void Pipeline::Shaders(const Program& p) {
+		Prog = p;
+	}
+	void Pipeline::Textures2D(const std::initializer_list<Texture2D>& Tex) {
+		for (auto& t : Tex) Tex2D.push_back(t);
+	}
+	void Pipeline::TexturesCube(const std::initializer_list<TextureCube>& Tex) {
+		for (auto& t : Tex) TexCube.push_back(t);
+	}
+	void Pipeline::Constants(const std::initializer_list<std::pair<std::string, ConstantBuffer>>& Buf) {
+		auto p = Prog.Get();
+		for (auto & [Name, Const] : Buf) {
+			int index = glGetUniformBlockIndex(p, Name.c_str());
+			Consts[index] = Const;
+		}
 	}
 }

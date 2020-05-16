@@ -48,19 +48,6 @@ namespace PVX::OpenGL {
 		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
-	void Texture2D::Resize(int Width, int Height) {
-		this->Width = Width;
-		this->Height = Height;
-		glBindTexture(GL_TEXTURE_2D, Id);
-		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, 0);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
-	void Texture2D::Bind() {
-		glBindTexture(GL_TEXTURE_2D, Id);
-	}
-	void Texture2D::Unbind() {
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
 	void Texture2D::Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
 		if (!Id)glGenTextures(1, &Id);
 		glBindTexture(GL_TEXTURE_2D, Id);
@@ -77,6 +64,53 @@ namespace PVX::OpenGL {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+
+
+	void Texture2D::UpdateAndBind(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
+		if (!Id)glGenTextures(1, &Id);
+		glBindTexture(GL_TEXTURE_2D, Id);
+		this->Width = Width;
+		this->Height = Height;
+		this->InternalFormat = InternalFormat;
+		this->Format = Format;
+		this->Type = Type;
+		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
+	}
+	void Texture2D::UpdateAndBind(void* Data) {
+		glBindTexture(GL_TEXTURE_2D, Id);
+		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
+	}
+	void Texture2D::UpdateAndBind(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
+		if (!Id)glGenTextures(1, &Id);
+		glBindTexture(GL_TEXTURE_2D, Id);
+		Format = GL_RGB;
+		Type = GL_FLOAT;
+		InternalFormat = Channels;
+
+		if (Channels == 4) Format = GL_RGBA;
+		else if (Channels == 1) Format = GL_LUMINANCE;
+		if (BytesPerChannel == 1) Type = GL_UNSIGNED_BYTE;
+
+		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+	void Texture2D::Resize(int Width, int Height) {
+		this->Width = Width;
+		this->Height = Height;
+		glBindTexture(GL_TEXTURE_2D, Id);
+		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, 0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	void Texture2D::Bind() {
+		glBindTexture(GL_TEXTURE_2D, Id);
+	}
+	void Texture2D::Unbind() {
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	Texture2D Texture2D::MakeDepthBuffer32F(int Width, int Height) {

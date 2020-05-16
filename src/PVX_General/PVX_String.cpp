@@ -1,4 +1,4 @@
-#include<PVX_String.h>
+﻿#include<PVX_String.h>
 #include<sstream>
 #include<PVX_Regex.h>
 #include <PVX.inl>
@@ -232,6 +232,130 @@ namespace PVX{
 			std::wstring ret;
 			for (auto & c : txt) ret.push_back(tolower(c));
 			return ret;
+		}
+
+		std::wstring removeAccent(const std::wstring& accentedStr) {
+			const std::map<wchar_t, wchar_t> accent{
+				{ L'ά', L'α' },
+				{ L'έ', L'ε' },
+				{ L'ί', L'ι' },
+				{ L'ϊ', L'ι' },
+				{ L'ΐ', L'ι' },
+				{ L'ή', L'η' },
+				{ L'ύ', L'υ' },
+				{ L'ϋ', L'υ' },
+				{ L'ΰ', L'υ' },
+				{ L'ό', L'ο' },
+				{ L'ώ', L'ω' },
+				{ L'Ά', L'α' },
+				{ L'Έ', L'ε' },
+				{ L'Ί', L'ι' },
+				{ L'Ϊ', L'ι' },
+				{ L'ΐ', L'ι' },
+				{ L'Ή', L'η' },
+				{ L'Ύ', L'υ' },
+				{ L'Ϋ', L'υ' },
+				{ L'ΰ', L'υ' },
+				{ L'Ό', L'ο' },
+				{ L'Ώ', L'ω' },
+				{ L'ς', L'σ' },
+				{ L'σ', L'σ' },
+			};
+			std::wstring ret;
+			ret.reserve(accentedStr.size());
+			for (auto c : accentedStr) {
+				if (accent.count(c)) ret.push_back(accent.at(c));
+				else ret.push_back(c | ('a'^'A'));
+			}
+			return ret;
+		}
+
+		static std::vector<int> _cmpStrElem;
+		static std::vector<int*> _cmpStrRows;
+		int** MakeArray2D(int r, int c) {
+			if (_cmpStrElem.size()<(r * c))_cmpStrElem.resize(r * c);
+			if (_cmpStrRows.size()<r)_cmpStrRows.resize(r);
+			_cmpStrRows[0] = _cmpStrElem.data();
+			for (int i = 1; i < r; i++) _cmpStrRows[i] = _cmpStrRows[i - 1] + c;
+			return _cmpStrRows.data();
+		}
+
+
+		int EditDistance_AccentSensitive(const std::wstring& s, const std::wstring& t) {
+			auto n = s.size();
+			auto m = t.size();
+
+			if (n == 0) return m;
+			if (m == 0) return n;
+
+			auto d = MakeArray2D(n + 1, m + 1);
+
+			for (int i = 0; i <= n; i++) d[i][0] = i;
+			for (int j = 0; j <= m; j++) d[0][j] = j;
+
+			for (int i = 1; i <= n; i++) for (int j = 1; j <= m; j++) {
+				d[i][j] = std::min(std::min(d[i - 1][j] + 1, d[i][j - 1] + 1), d[i - 1][j - 1] + ((t[j - 1] == s[i - 1]) ? 0 : 1));
+			}
+			return d[n][m];
+		}
+		int EditDistance(const std::wstring& S, const std::wstring& T) {
+			auto n = S.size();
+			auto m = T.size();
+			if (!n) return m;
+			if (!m) return n;
+			return EditDistance_AccentSensitive(removeAccent(S), removeAccent(T));
+		}
+
+
+
+		int LongestCommonSubstring_AccentSensitive(const std::wstring& a, const std::wstring& b) {
+			int n = a.size(), m = b.size();
+			if (m==0||n==0) return 0;
+
+			auto d = MakeArray2D(n + 1, m + 1);
+			for (auto i = 0; i<=n; i++)d[i][0] = 0;
+			for (auto i = 0; i<=m; i++)d[0][i] = 0;
+
+			int mx = 0;
+			for (int i = 1; i <= n; i++) for (int j = 1; j <= m; j++) {
+				if (a[i-1] == b[j-1]) {
+					d[i][j] = d[i - 1][j - 1] + 1;
+					mx = std::max(mx, d[i][j]);
+				} else {
+					d[i][j] = 0;
+				}
+			}
+			return mx;
+		}
+
+		int LongestCommonSubstring(const std::wstring& A, const std::wstring& B) {
+			if (A.size()&&B.size())
+				return LongestCommonSubstring_AccentSensitive(removeAccent(A), removeAccent(B));
+			return 0;
+		}
+
+		std::pair<int, int> FindLongestCommonSubstring_AccentSensitive(const std::wstring_view& a, const std::wstring_view& b) {
+			int n = a.size(), m = b.size();
+			if (m==0||n==0) return { 0, 0 };
+			int lastIndex = 0, mx = 0;
+			int cur = 0;
+			auto d = MakeArray2D(2, n + 1);
+			memset(d[0], 0, (n*2+2) * sizeof(int));
+
+			for (int i = 0; i < m; i++) {
+				int* curLine = d[cur];
+				int* upperLine = d[cur^1];
+				curLine[0] = 0;
+				for (int j = 0; j < n; j++) {
+					if (a[j] == b[i]) {
+						if(int& val = curLine[j + 1] = upperLine[j] + 1; mx < val) { mx = val; lastIndex = j; }
+					} else {
+						curLine[j + 1] = 0;
+					}
+				}
+				cur ^= 1;
+			}
+			return { lastIndex - mx + 1, mx };
 		}
 	}
 }

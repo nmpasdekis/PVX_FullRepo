@@ -34,7 +34,7 @@ namespace PVX::OpenGL {
 		if (!Ref&&Id)
 			glDeleteBuffers(1, &Id);
 	}
-	ConstantBuffer::ConstantBuffer() : Id{ 0 } {}
+	ConstantBuffer::ConstantBuffer() {}
 	ConstantBuffer::ConstantBuffer(const void* Data, int Size) {
 		Update(Data, Size);
 	}

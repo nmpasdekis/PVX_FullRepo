@@ -274,4 +274,5 @@ namespace PVX::OpenGL {
 
 		wglSwapInterval = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 	}
+
 }

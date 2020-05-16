@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <set>
 #include <vector>
 #include <initializer_list>
@@ -260,6 +261,20 @@ namespace PVX {
 
 			template<typename T>
 			inline Item(const std::unordered_map<std::string, T>& Dictionary) {
+				std::unordered_map<std::wstring, Item> Object;
+				for (auto& [n, v] : Dictionary) Object[PVX::Encode::ToString(n)] = (JSON::Item)v;
+				Value = Object;
+			}
+
+			template<typename T>
+			inline Item(const std::map<std::wstring, T>& Dictionary) {
+				std::unordered_map<std::wstring, Item> Object;
+				for (auto& [n, v] : Dictionary) Object[n] = (JSON::Item)v;
+				Value = Object;
+			}
+
+			template<typename T>
+			inline Item(const std::map<std::string, T>& Dictionary) {
 				std::unordered_map<std::wstring, Item> Object;
 				for (auto& [n, v] : Dictionary) Object[PVX::Encode::ToString(n)] = (JSON::Item)v;
 				Value = Object;

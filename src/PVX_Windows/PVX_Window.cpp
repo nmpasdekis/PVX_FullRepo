@@ -6,6 +6,7 @@
 #include <WinUser.h>
 #include <thread>
 #include <chrono>
+#include "..\..\include\PVX_Window.h"
 
 #ifndef HID_USAGE_PAGE_GENERIC
 #define HID_USAGE_PAGE_GENERIC         ((USHORT) 0x01)
@@ -196,18 +197,10 @@ namespace PVX::Windows {
 
 	int Eventer::DoEventsAsync() {
 		MSG msg = { 0 };
-		while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) {
-			//if (msg.message != WM_INPUT) 
-			if (GetMessage(&msg, NULL, 0, 0)) {
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
-		//if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-		//	TranslateMessage(&msg);
-		//	DispatchMessage(&msg);
-		//}
-
 		return WindowCount;
 	}
 
@@ -421,6 +414,37 @@ namespace PVX::Windows {
 		//if (Count) {
 		RegisterRawInputDevices(Rid, Count, sizeof(RAWINPUTDEVICE));
 	//}
+	}
+
+	void Eventer::OnMouseRelative(std::function<void(int, int, int, unsigned int)> clb) {
+		static POINT Start{ -1,-1 }, Screen;
+		static unsigned int btns = 0;
+
+		HWND w = Handle();
+		auto down = [w](int x, int y) {
+			if (Start.x==-1) {
+				Start.x = x; Start.y = y;
+				ShowCursor(false);
+				Screen = Start;
+				ClientToScreen(w, &Screen);
+			}
+		};
+		auto up = [](int x, int y) { if (Start.x!=-1) ShowCursor(true); Start.x = -1; };
+		OnRightButtonDown(down);
+		OnRightButtonUp(up);
+		OnLeftButtonDown(down);
+		OnLeftButtonUp(up);
+		OnMiddleButtonDown(down);
+		OnMiddleButtonUp(up);
+		OnMouseWheel([clb](int, int, int d) { clb(0, 0, d, btns); });
+
+		OnMouseMove([&, w, clb](unsigned int btn, int x, int y) {
+			btns = btn;
+			if (Start.x != -1 && btn) {
+				clb(x-Start.x, y-Start.y, 0, btn);
+				SetCursorPos(Screen.x, Screen.y);
+			}
+		});
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////

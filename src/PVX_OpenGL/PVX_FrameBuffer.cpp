@@ -2,9 +2,9 @@
 namespace PVX::OpenGL {
 	FrameBufferObject::FrameBufferObject(int Width, int Height) : Width{ Width }, Height{ Height } {}
 
-	Texture2D FrameBufferObject::AddColorAttachment(int InternalFormat, int Format, int Type) {
-		ColorBuffers.push_back(Texture2D(Width, Height, 3, 4, nullptr));
-		//ColorBuffers.emplace_back(Width, Height, InternalFormat, Format, Type, (void*)0);
+	Texture2D FrameBufferObject::AddColorAttachment(InternalFormat ifmt, TextureFormat Format, TextureType Type) {
+		//ColorBuffers.push_back(Texture2D(Width, Height, 3, 4, nullptr));
+		ColorBuffers.emplace_back(Width, Height, (int)ifmt, (int)Format, (int)Type, (void*)0);
 		return ColorBuffers.back();
 	}
 	Texture2D FrameBufferObject::AddDepthAttachment() {
@@ -19,15 +19,17 @@ namespace PVX::OpenGL {
 		this->Width = Width;
 		this->Height = Height;
 		for (auto& t: ColorBuffers) t.Resize(Width, Height);
-		DepthStencilBuffer.Resize(Width, Height);
+		if(DepthStencilBuffer.Id)
+			DepthStencilBuffer.Resize(Width, Height);
 	}
 
 	int FrameBufferObject::Build() {
 		if (!Id)glGenFramebuffers(1, &Id);
 		glBindFramebuffer(GL_FRAMEBUFFER, Id);
-		for (int i = 0; i<ColorBuffers.size(); i++) {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, ColorBuffers.back().Get(), 0);
-		}
+
+		for (int i = 0; i<ColorBuffers.size(); i++) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, ColorBuffers.back().Get(), 0);
+
+
 		if (DepthStencilBuffer.Format == GL_DEPTH_COMPONENT) {
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthStencilBuffer.Get(), 0);
 		} else if (DepthStencilBuffer.Format == GL_DEPTH_STENCIL) {
@@ -35,7 +37,7 @@ namespace PVX::OpenGL {
 		} else {
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, DepthStencilBuffer.Get(), 0);
 		}
-		auto ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		GLenum ret = (GLenum)glCheckFramebufferStatus(GL_FRAMEBUFFER);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		return ret;
 	}

@@ -149,7 +149,7 @@ namespace PVX::XML {
 				auto& cur = Tokens[i];
 				if (cur.Type==Element::ElementType::Discard)continue;
 				if (!(cur.Type == Element::ElementType::OpenTag || cur.Type == Element::ElementType::CloseTag)) {
-					Stack.back().Child.push_back(cur);
+					Stack.back()._Child.push_back(cur);
 				} else if (cur.Type==Element::ElementType::OpenTag) {
 					Stack.push_back(cur);
 				} else if (cur.Type==Element::ElementType::CloseTag && cur.Name==Stack.back().Name) {
@@ -157,7 +157,7 @@ namespace PVX::XML {
 						return Stack[0];
 					auto bk = Stack.back();
 					Stack.pop_back();
-					Stack.back().Child.push_back(bk);
+					Stack.back()._Child.push_back(bk);
 				} else {
 					return Element();
 				}
@@ -167,7 +167,9 @@ namespace PVX::XML {
 	}
 
 	static void _Print(const Element& xml, int level, std::wstringstream& out) {
-		switch (xml.Type) {
+		auto tp = xml.Type;
+		if (tp==Element::ElementType::Tag&xml._Child.size())tp = Element::ElementType::OpenTag;
+		switch (tp) {
 			case PVX::XML::Element::ElementType::CDATA:
 				out << L"<![CDATA[" << xml.Text << L"]]>";
 				break;
@@ -176,32 +178,54 @@ namespace PVX::XML {
 				break;
 			case PVX::XML::Element::ElementType::Tag:
 				out << L"\n" << std::wstring(level<<1, L' ') << L"<" << xml.Text;
-				for (auto& [Name, Value] : xml.Attributes)
+				for (auto& [Name, Value] : xml._Attributes)
 					out << L" " << Name << L"=\"" << Value << L"\"";
 				out << L" />";
 				break;
 			case PVX::XML::Element::ElementType::OpenTag:
 				out << L"\n" << std::wstring(level<<1, L' ') << L"<" << xml.Text;
-				for (auto& [Name, Value] : xml.Attributes)
+				for (auto& [Name, Value] : xml._Attributes)
 					out << L" " << Name << L"=\"" << Value << L"\"";
 				out << L">";
-				if (xml.Child.size()) {
-					for (auto& c : xml.Child) {
+				if (xml._Child.size()) {
+					for (auto& c : xml._Child) {
 						_Print(c, level + 1, out);
 					}
-					if (xml.Child[0].Type != PVX::XML::Element::ElementType::CDATA && xml.Child[0].Type != PVX::XML::Element::ElementType::Text)
+					if (xml._Child[0].Type != PVX::XML::Element::ElementType::CDATA && xml._Child[0].Type != PVX::XML::Element::ElementType::Text)
 						out << L"\n" << std::wstring(level<<1, L' ');
 				}
 				out << L"</" << xml.Text << L">";
 				break;
 			case PVX::XML::Element::ElementType::HtmlSingle:
 				out << L"\n" << std::wstring(level<<1, L' ') << L"<" << xml.Text;
-				for (auto& [Name, Value] : xml.Attributes)
+				for (auto& [Name, Value] : xml._Attributes)
 					out << L" " << Name << L"=\"" << Value << L"\"";
 				out << L">";
 				break;
 		}
 	}
+
+	Element Tag(const std::wstring& name) {
+		return std::move(Element{ Element::ElementType::Tag, PVX::String::ToLower(name), name });
+	}
+	Element Tag(const std::wstring& name, const std::vector<Element>& _Children) {
+		return std::move(Element{ Element::ElementType::OpenTag, PVX::String::ToLower(name), name, {}, _Children });
+	}
+	Element TagWithAttributes(const std::wstring& name, const std::unordered_map<std::wstring, std::wstring>& _Attributes){
+		return std::move(Element{ Element::ElementType::Tag, PVX::String::ToLower(name), name, _Attributes });
+	}
+	Element TagWithAttributes(const std::wstring& name, const std::unordered_map<std::wstring, std::wstring>& _Attributes, const std::vector<Element>& _Children) {
+		return std::move(Element{ Element::ElementType::OpenTag, PVX::String::ToLower(name), name, _Attributes, _Children });
+	}
+	Element Text(const std::wstring& text) {
+		return std::move(Element{ Element::ElementType::Text, {}, text });
+	}
+
+	Element Script(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"script", L"script", { { L"src", src } } }); }
+	Element ScriptCode(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"script", L"script", {}, { Text(src) } }); }
+	Element Style(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"link", L"link", { { L"href", src } } }); }
+	Element StyleCode(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"style", L"style", {}, { Text(src) } }); }
+
 	std::wstring Serialize(const Element& xml) {
 		std::wstringstream out;
 		_Print(xml, 0, out);
@@ -218,20 +242,13 @@ namespace PVX::XML {
 			case Element::ElementType::OpenTag:
 			case Element::ElementType::HtmlSingle: {
 				ret[L"Name"] = xml.Text;
-				if (xml.Attributes.size()) {
-					ret[L"Attributes"] = xml.Attributes;
-					//ret[L"Attributes"] = [&xml] {
-					//	std::unordered_map<std::wstring, std::wstring> ret;
-					//	for (auto& [n, v] : xml.Attributes) {
-					//		ret[n] = v;
-					//	}
-					//	return ret;
-					//}();
+				if (xml._Attributes.size()) {
+					ret[L"Attributes"] = xml._Attributes;
 				}
-				if (xml.Child.size()) {
-					auto& Children = ret["Children"];
-					Children = PVX::JSON::jsElementType::Array;
-					for (auto& x: xml.Child) Children.push(ToJson(x));
+				if (xml._Child.size()) {
+					auto& _Children = ret["Children"];
+					_Children = PVX::JSON::jsElementType::Array;
+					for (auto& x: xml._Child) _Children.push(ToJson(x));
 				}
 				break;
 			}
@@ -263,17 +280,38 @@ namespace PVX::XML {
 		} else {
 			ret.Text = xml.Get(L"Name").GetString();
 			ret.Name = PVX::String::ToLower(ret.Text);
-			if (auto &Attributes = *xml.Has(L"Attributes"); &Attributes) {
-				Attributes.eachInObject([&](auto Name, auto Value) {
-					ret.Attributes[Name] = Value.GetString();
+			if (auto &attributes = *xml.Has(L"_Attributes"); &attributes) {
+				attributes.eachInObject([&](auto Name, auto Value) {
+					ret._Attributes[Name] = Value.GetString();
 				});
 			}
-			if (auto &Children = *xml.Has(L"Children"); &Children) {
-				Children.each([&](auto Child) {
-					ret.Child.push_back(FromJson(Child));
+			if (auto & children = *xml.Has(L"Children"); &children) {
+				children.each([&](const auto& Child) {
+					ret._Child.push_back(FromJson(Child));
 				});
 			}
 		}
 		return ret;
+	}
+
+	Element Element::Attributes(const std::unordered_map<std::wstring, std::wstring>& Attribs) {
+		for (auto& [Name, Value] : Attribs) _Attributes[Name] = Value;
+		return std::move(*this);
+	}
+	Element Element::Attribute(const std::wstring& Name, const std::wstring& Value) {
+		_Attributes[Name] = Value;
+		return std::move(*this);
+	}
+	Element Element::Children(const std::vector<Element>& _Children) {
+		for (auto& c : _Children) this->_Child.push_back(c);
+		return std::move(*this);
+	}
+	Element Element::Child(const Element& c) {
+		this->_Child.push_back(c);
+		return std::move(*this);
+	}
+	Element Element::WithEnding() {
+		Type = ElementType::OpenTag;
+		return std::move(*this);
 	}
 }
