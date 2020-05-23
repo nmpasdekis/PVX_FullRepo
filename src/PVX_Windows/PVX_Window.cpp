@@ -100,29 +100,29 @@ namespace PVX::Windows {
 		SetWindowLongPtr(win->hWnd, GWLP_USERDATA, (LONG_PTR)win);
 	}
 
-	void Window::Init(int w, int h, const char* className) {
+	void Window::Init(int w, int h, const wchar_t* className) {
 		WindowCount++;
 		WindowPrivate* win = new WindowPrivate();
 		WindowData = (void*)win;
 		if (!Inited) {
-			WNDCLASSEXA wcex = { 0 };
+			WNDCLASSEXW wcex = { 0 };
 			wcex.cbSize = sizeof(WNDCLASSEX);
 			wcex.lpfnWndProc = PVX_WndProc;
 			wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-			wcex.lpszClassName = "PVX::Windows::Window";
-			RegisterClassExA(&wcex);
+			wcex.lpszClassName = L"PVX::Windows::Window";
+			RegisterClassExW(&wcex);
 			Inited = 1;
 		}
 		RECT rc = { 0, 0, w, h };
 		AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-		win->hWnd = CreateWindowA("PVX::Windows::Window", className, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+		win->hWnd = CreateWindowW(L"PVX::Windows::Window", className, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
 			rc.right - rc.left, rc.bottom - rc.top, GetDesktopWindow(), NULL,
 			GetModuleHandle(NULL), NULL);
 
 		SetWindowLongPtr(win->hWnd, GWLP_USERDATA, (LONG_PTR)win);
 	}
 
-	Window::Window(int w, int h, const char* className) {
+	Window::Window(int w, int h, const wchar_t* className) {
 		Init(w, h, className);
 	}
 

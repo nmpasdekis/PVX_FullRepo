@@ -18,15 +18,6 @@ namespace PVX {
 			std::vector<Vector3D> TexCoord3D;
 		} ObjectData;
 
-		typedef struct Attribute {
-			std::string Name;
-			int Size;
-			GLenum Type;
-			int Normalized;
-			int Offset;
-			std::string GLSL;
-		} Attribute;
-
 		struct SimpleMatrial {
 			Vector4D Diffuse = { 0.8f, 0.8f, 0.8f, 1.0f};
 			Vector4D Ambient = { 0.2f, 0.2f, 0.2f, 1.0f };
@@ -69,6 +60,7 @@ namespace PVX {
 			void BindDrawUnbind();
 			InterleavedArrayObject& MakeTangents();
 			InterleavedArrayObject() {}
+			operator Geometry();
 		protected:
 			std::vector<Attribute> Attributes;
 			friend class BufferObject;
@@ -98,6 +90,7 @@ namespace PVX {
 			void BindAttributesDrawUnbind();
 			SimpleMatrial Material;
 
+			operator Geometry();
 
 			BufferObject(const InterleavedArrayObject & ao);
 		protected:

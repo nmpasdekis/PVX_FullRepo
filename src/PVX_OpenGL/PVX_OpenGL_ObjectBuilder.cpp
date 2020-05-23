@@ -525,8 +525,6 @@ namespace PVX {
 			Data.resize((Stride + sizeof(Vector4D)) * vCount);
 			Attributes.clear();
 
-			//NormalOffset = TexCoordOffset = ColorOffset = TangentOffset = 0;
-
 			Attributes.push_back({ "Position", 3, GL_FLOAT, false, 0, "vec3" });
 			Stride = sizeof(Vector3D);
 
@@ -555,6 +553,28 @@ namespace PVX {
 			if (ColorOffset)
 				Interleave(&Data[ColorOffset], Stride, &Color[0], sizeof(Vector4D), vCount);
 			return *this;
+		}
+
+		InterleavedArrayObject::operator Geometry() {
+			return {
+				PVX::OpenGL::PrimitiveType(Mode),
+				Stride,
+				int(Index.size()),
+				VertexBuffer{ Data.data(), int(Data.size()) },
+				IndexBuffer{ Index.data(), int(Index.size()) },
+				Attributes
+			};
+		}
+
+		BufferObject::operator Geometry() {
+			return {
+				PVX::OpenGL::PrimitiveType(Mode),
+				Stride,
+				IndexCount,
+				Vertices,
+				Indices,
+				Attributes
+			};
 		}
 
 		BufferObject::BufferObject(const InterleavedArrayObject& ao) :

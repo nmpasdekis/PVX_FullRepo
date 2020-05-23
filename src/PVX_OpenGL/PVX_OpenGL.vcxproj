@@ -100,7 +100,6 @@
   <ItemGroup>
     <ClInclude Include="..\..\include\PVX_OpenGL.h" />
     <ClInclude Include="..\..\include\PVX_OpenGL_Object.h" />
-    <ClInclude Include="..\..\include\PVX_OpenGL_ObjectBuilder.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

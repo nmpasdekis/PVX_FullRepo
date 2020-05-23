@@ -43,7 +43,9 @@ namespace PVX::OpenGL {
 	}
 	void FrameBufferObject::Bind() {
 		glBindFramebuffer(GL_FRAMEBUFFER, Id);
-		glViewport(0, 0, Width, Height);
+		if (Id) {
+			glViewport(0, 0, Width, Height);
+		}
 	}
 	void FrameBufferObject::Unbind() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);

@@ -292,6 +292,12 @@ namespace PVX {
 		vec.resize(sz + more);
 		return sz;
 	}
+
+	template<typename KeyType, typename ValueType>
+	inline ValueType GetOrDefault(const std::map<KeyType, ValueType>& Map, const KeyType& key, const ValueType& def) {
+		if (auto f = Map.find(key); f != Map.end()) return f->second;
+		return def;
+	}
 }
 
 #endif

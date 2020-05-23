@@ -50,8 +50,5 @@
     <ClInclude Include="..\..\include\PVX_OpenGL_Object.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\PVX_OpenGL_ObjectBuilder.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

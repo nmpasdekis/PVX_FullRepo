@@ -1,5 +1,6 @@
 #pragma once
 //#include <Windows.h>
+
 #include <gl/glcorearb.h>
 #include <gl/GL.h>
 #include <gl/GLU.h>
@@ -10,12 +11,28 @@
 #include <PVX_Math3D.h>
 #include <PVX.inl>
 #include <string>
-
-#ifdef _DEBUG
 #include <map>
-#endif
+
+#include "PVX_OpenGL_Extern.inl"
+
+
 
 namespace PVX::OpenGL {
+	enum class PrimitiveType {
+		POINTS = GL_POINTS,
+		LINE_STRIP = GL_LINE_STRIP,
+		LINE_LOOP = GL_LINE_LOOP,
+		LINES = GL_LINES,
+		LINE_STRIP_ADJACENCY = GL_LINE_STRIP_ADJACENCY,
+		LINES_ADJACENCY = GL_LINES_ADJACENCY,
+		TRIANGLE_STRIP = GL_TRIANGLE_STRIP,
+		TRIANGLE_FAN = GL_TRIANGLE_FAN,
+		TRIANGLES = GL_TRIANGLES,
+		TRIANGLE_STRIP_ADJACENCY = GL_TRIANGLE_STRIP_ADJACENCY,
+		TRIANGLES_ADJACENCY = GL_TRIANGLES_ADJACENCY,
+		PATCHES = GL_PATCHES,
+	};
+
 	enum class TextureType {
 		UNSIGNED_BYTE = GL_UNSIGNED_BYTE,
 		BYTE = GL_BYTE,
@@ -140,6 +157,42 @@ namespace PVX::OpenGL {
 		COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT
 	};
 
+	enum class TextureFilter {
+		NEAREST = GL_NEAREST,
+		LINEAR = GL_LINEAR,
+		NEAREST_MIPMAP_NEAREST = GL_NEAREST_MIPMAP_NEAREST,
+		LINEAR_MIPMAP_NEAREST = GL_LINEAR_MIPMAP_NEAREST,
+		NEAREST_MIPMAP_LINEAR = GL_NEAREST_MIPMAP_LINEAR,
+		LINEAR_MIPMAP_LINEAR = GL_LINEAR_MIPMAP_LINEAR,
+	};
+
+	enum class TextureWrap {
+		CLAMP =  GL_CLAMP,
+		REPEAT = GL_REPEAT,
+	};
+
+	enum class TextureProperty {
+		TEXTURE_WRAP_S = GL_TEXTURE_WRAP_S,
+		TEXTURE_WRAP_T = GL_TEXTURE_WRAP_T,
+		TEXTURE_WRAP_R = GL_TEXTURE_WRAP_R,
+		TEXTURE_MIN_FILTER = GL_TEXTURE_MIN_FILTER,
+		TEXTURE_MAG_FILTER = GL_TEXTURE_MAG_FILTER,
+		TEXTURE_MIN_LOD = GL_TEXTURE_MIN_LOD,
+		TEXTURE_MAX_LOD = GL_TEXTURE_MAX_LOD,
+		TEXTURE_LOD_BIAS = GL_TEXTURE_LOD_BIAS,
+		TEXTURE_COMPARE_MODE = GL_TEXTURE_COMPARE_MODE,
+		TEXTURE_COMPARE_FUNC = GL_TEXTURE_COMPARE_FUNC,
+	};
+
+	typedef struct Attribute {
+		std::string Name;
+		int Size;
+		GLenum Type;
+		int Normalized;
+		int Offset;
+		std::string GLSL;
+	} Attribute;
+
 	class Context {
 	public:
 		~Context();
@@ -159,6 +212,7 @@ namespace PVX::OpenGL {
 		void AddTask(std::function<void(PVX::OpenGL::Context&)> Task);
 		void DoTasks();
 
+		void Enable(GLenum What, bool enalbe = true);
 
 		void EnableLighting();
 		void DisableLighting();
@@ -311,23 +365,6 @@ namespace PVX::OpenGL {
 		PVX::RefCounter Ref;
 	};
 
-	class Program {
-	public:
-		~Program();
-		Program() = default;
-		Program(const std::initializer_list<Shader>& sh);
-		void AddShader(const Shader& sh);
-		void AddShaders(const std::initializer_list<Shader>& sh);
-		void Build();
-		void Bind() const;
-		void Unbind() const;
-		unsigned int Get() const { return Id; }
-	private:
-		std::vector<Shader> Shaders;
-		unsigned int Id = 0;
-		PVX::RefCounter Ref;
-	};
-
 	class Texture2D {
 	public:
 		~Texture2D();
@@ -335,6 +372,7 @@ namespace PVX::OpenGL {
 		Texture2D(int Width, int Height, int Channels, int BytesPerChannel);
 		Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
 		Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data);
+		Texture2D(int Width, int Height, InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data);
 
 		void Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
 		void Update(int Width, int Height, int InternalFormat, int Format, int Type, void * Data);
@@ -344,7 +382,8 @@ namespace PVX::OpenGL {
 		void UpdateAndBind(int Width, int Height, int InternalFormat, int Format, int Type, void* Data);
 		void UpdateAndBind(void* Data);
 
-		void Bind();
+		void GenerateMipmaps();
+		void Bind(int Unit = 0);
 		void Unbind();
 		static Texture2D MakeDepthBuffer32F(int Width, int Height);
 		static Texture2D MakeStencilBuffer(int Width, int Height);
@@ -368,8 +407,9 @@ namespace PVX::OpenGL {
 		void Update(int Width, int Height, int TilesX, int TilesY, int Channels, int BytesPerChannel, void* Data, const std::initializer_list<int>& Tiles);
 		void Update(int Width, int Height, int TilesX, int TilesY, int InternalFormat, int Format, int Type, void* Data, const std::initializer_list<int>& Tiles);
 		void Update(void* Data, int Width, int Height, int TilesX, int TylesY, const std::initializer_list<int>& Tiles);
-		void Bind();
+		void Bind(int Unit = 0);
 		void Unbind();
+		void GenerateMipmaps();
 		unsigned int Get() const { return Id; }
 	private:
 		TextureCube(unsigned int Id);
@@ -377,6 +417,15 @@ namespace PVX::OpenGL {
 		int Side = 0, InternalFormat = 0, Format = 0, Type = 0, PixelSize = 0;
 		PVX::RefCounter Ref;
 		friend class FrameBufferObject;
+	};
+
+	class Sampler {
+		unsigned int Id = 0;
+		PVX::RefCounter Ref;
+	public:
+		Sampler(TextureFilter MinAndMag = TextureFilter::LINEAR, TextureWrap Wrap = TextureWrap::REPEAT);
+		Sampler(TextureFilter Min, TextureFilter Mag, TextureWrap Wrap = TextureWrap::REPEAT);
+		unsigned int Get() const { return Id; }
 	};
 
 	class FrameBufferObject {
@@ -403,74 +452,113 @@ namespace PVX::OpenGL {
 		PVX::RefCounter Ref;
 	};
 
+	class Geometry {
+	public:
+		void Draw();
+		void Unbind();
+		Geometry(const Geometry&) = default;
+		Geometry(PrimitiveType Type, int Stride, int iCount, const VertexBuffer& vBuffer, const IndexBuffer& iBuffer, const std::vector<Attribute>& attributes);
+	protected:
+		int Mode;
+		int Stride;
+		int IndexCount;
+		std::vector<Attribute> Attributes;
+		VertexBuffer Vertices;
+		IndexBuffer Indices;
+		friend class Pipeline;
+	};
+
+
+	class Program {
+	public:
+		~Program();
+		Program() = default;
+		Program(const std::initializer_list<Shader>& sh);
+		void AddShader(const Shader& sh);
+		void AddShaders(const std::initializer_list<Shader>& sh);
+		void Build();
+		void Bind() const;
+		void Unbind() const;
+		unsigned int Get() const { return Id; }
+
+		unsigned int UniformBlockIndex(const char* Name);
+		unsigned int UniformLocation(const char* Name);
+		unsigned int UniformIndex(const char* Name);
+		void BindUniformBlock(int BlockIndex, const ConstantBuffer& Buffer);
+
+		void BindUniform(int Index, float Value);
+		void BindUniform(int Index, const PVX::Vector2D& Value);
+		void BindUniform(int Index, const PVX::Vector3D& Value);
+		void BindUniform(int Index, const PVX::Vector4D& Value);
+
+		void BindUniform(int Index, int Value);
+		void BindUniform(int Index, const PVX::iVector2D& Value);
+		void BindUniform(int Index, const PVX::iVector3D& Value);
+		void BindUniform(int Index, const PVX::iVector4D& Value);
+
+		void BindUniform(int Index, const PVX::Matrix4x4& Value);
+
+		void BindUniform(int Index, const std::vector<float>& Value);
+		void BindUniform(int Index, const std::vector<PVX::Vector2D>& Value);
+		void BindUniform(int Index, const std::vector<PVX::Vector3D>& Value);
+		void BindUniform(int Index, const std::vector<PVX::Vector4D>& Value);
+
+		void BindUniform(int Index, const std::vector<int>& Value);
+		void BindUniform(int Index, const std::vector<PVX::iVector2D>& Value);
+		void BindUniform(int Index, const std::vector<PVX::iVector3D>& Value);
+		void BindUniform(int Index, const std::vector<PVX::iVector4D>& Value);
+
+		void BindUniform(int Index, const std::vector<PVX::Matrix4x4>& Value);
+
+		void BindUniform(int Index, const float* Value, int Count);
+		void BindUniform(int Index, const PVX::Vector2D* Value, int Count);
+		void BindUniform(int Index, const PVX::Vector3D* Value, int Count);
+		void BindUniform(int Index, const PVX::Vector4D* Value, int Count);
+
+		void BindUniform(int Index, const int* Value, int Count);
+		void BindUniform(int Index, const PVX::iVector2D* Value, int Count);
+		void BindUniform(int Index, const PVX::iVector3D* Value, int Count);
+		void BindUniform(int Index, const PVX::iVector4D* Value, int Count);
+
+		void BindUniform(int Index, const PVX::Matrix4x4* Value, int Count);
+	private:
+		std::vector<Shader> Shaders;
+		unsigned int Id = 0;
+		PVX::RefCounter Ref;
+		std::vector<std::string> UniformNames;
+		std::vector<std::string> UniformBlockNames;
+	};
+
 	class Pipeline {
 	public:
 		void Bind();
 		void Unbind();
 		void Shaders(const Program&);
-		void Textures2D(const std::initializer_list<Texture2D>& Tex);
-		void TexturesCube(const std::initializer_list<TextureCube>& Tex);
-		void Constants(const std::initializer_list<std::pair<std::string, ConstantBuffer>>& Buf);
+		void Textures2D(const std::string& Name, const Sampler& sampler, const Texture2D& Tex);
+		void Textures2D(const std::initializer_list<std::tuple<std::string, Sampler, Texture2D>>& Tex);
+		void TexturesCube(const std::string& Name, const Sampler& sampler, const TextureCube& Tex);
+		void TexturesCube(const std::initializer_list<std::tuple<std::string, Sampler, TextureCube>>& Tex);
+		void UniformBlock(const std::string& Name, const ConstantBuffer& Buf);
+		void UniformBlock(const std::initializer_list<std::pair<std::string, ConstantBuffer>>& Buf);
+
+		inline unsigned int UniformLocation(const char* Name) { return Prog.UniformLocation(Name); }
+		template<typename T> inline void BindUniform(int Index, const T& Value) { Prog.BindUniform(Index, Value); }
+		template<typename T> inline void BindUniform(int Index, const T* Value, int Count) { Prog.BindUniform(Index, Value, Count); }
 	private:
 		Program Prog;
 		FrameBufferObject FBuffer;
-		std::vector<Texture2D> Tex2D;
-		std::vector<TextureCube> TexCube;
-		std::map<int, ConstantBuffer> Consts;
+		std::vector<std::tuple<unsigned int, Texture2D>> Tex2D;
+		std::vector<std::tuple<unsigned int, TextureCube>> TexCube;
+		std::unordered_map<int, ConstantBuffer> Consts;
 	};
 }
 
-extern PFNGLACTIVETEXTUREPROC glActiveTexture;
-extern PFNGLATTACHSHADERPROC glAttachShader;
-extern PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
-extern PFNGLBINDBUFFERPROC glBindBuffer;
-extern PFNGLBINDBUFFERBASEPROC glBindBufferBase;
-extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
-extern PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer;
-extern PFNGLBUFFERDATAPROC glBufferData;
-extern PFNGLBUFFERSUBDATAPROC glBufferSubData;
-extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus;
-extern PFNGLCOMPILESHADERPROC glCompileShader;
-extern PFNGLCREATEPROGRAMPROC glCreateProgram;
-extern PFNGLCREATESHADERPROC glCreateShader;
-extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
-extern PFNGLDELETEPROGRAMPROC glDeleteProgram;
-extern PFNGLDELETESHADERPROC glDeleteShader;
-extern PFNGLDETACHSHADERPROC glDetachShader;
-extern PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
-extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-extern PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
-extern PFNGLFRAMEBUFFERTEXTUREPROC glFramebufferTexture;
-extern PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
-extern PFNGLGENBUFFERSPROC glGenBuffers;
-extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
-extern PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
-extern PFNGLGETBUFFERPARAMETERIVPROC glGetBufferParameteriv;
-extern PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
-extern PFNGLGETPROGRAMIVPROC glGetProgramiv;
-extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
-extern PFNGLGETSHADERIVPROC glGetShaderiv;
-extern PFNGLGETUNIFORMBLOCKINDEXPROC glGetUniformBlockIndex;
-extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-extern PFNGLLINKPROGRAMPROC glLinkProgram;
-extern PFNGLMAPBUFFERPROC glMapBuffer;
-extern PFNGLMAPBUFFERRANGEPROC glMapBufferRange;
-extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
-extern PFNGLSHADERSOURCEPROC glShaderSource;
-extern PFNGLTEXIMAGE3DPROC glTexImage3D;
-extern PFNGLUNIFORM1FPROC glUniform1f;
-extern PFNGLUNIFORM1IPROC glUniform1i;
-extern PFNGLUNIFORM2FVPROC glUniform2fv;
-extern PFNGLUNIFORM3FVPROC glUniform3fv;
-extern PFNGLUNIFORM4FVPROC glUniform4fv;
-extern PFNGLUNIFORMBLOCKBINDINGPROC glUniformBlockBinding;
-extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-extern PFNGLUNMAPBUFFERPROC glUnmapBuffer;
-extern PFNGLUSEPROGRAMPROC glUseProgram;
-extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-
-extern PFNWGLSWAPINTERVALEXTPROC wglSwapInterval;
+inline void glLoadMatrix(const PVX::Matrix4x4& mat) {
+	glLoadMatrixf(mat.m16);
+}
+inline void glMultMatrix(const PVX::Matrix4x4& mat) {
+	glMultMatrixf(mat.m16);
+}
 
 
 #ifndef _NO_GL_DEBUG_

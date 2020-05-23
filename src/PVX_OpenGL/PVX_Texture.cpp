@@ -6,8 +6,9 @@ namespace PVX::OpenGL {
 	Texture2D::Texture2D(unsigned int Id) : Id{ Id } {}
 	Texture2D::Texture2D() {}
 	Texture2D::~Texture2D() {
-		if (!Ref&&Id)
-			glDeleteTextures(1, &Id);
+		if (!Ref&&Id) {
+			GL_CHECK(glDeleteTextures(1, &Id));
+		}
 	}
 	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel) {
 		if (!Id)glGenTextures(1, &Id);
@@ -31,6 +32,9 @@ namespace PVX::OpenGL {
 	}
 	Texture2D::Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
 		Update(Width, Height, InternalFormat, Format, Type, Data);
+	}
+	Texture2D::Texture2D(int Width, int Height, PVX::OpenGL::InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data) {
+		Update(Width, Height, (int)internalFormat, (int)Format, (int)Type, Data);
 	}
 	void Texture2D::Update(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
 		if (!Id)glGenTextures(1, &Id);
@@ -82,6 +86,11 @@ namespace PVX::OpenGL {
 		glBindTexture(GL_TEXTURE_2D, Id);
 		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
 	}
+	void Texture2D::GenerateMipmaps() {
+		Bind();
+		glGenerateMipmap(GL_TEXTURE_2D);
+		Unbind();
+	}
 	void Texture2D::UpdateAndBind(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
 		if (!Id)glGenTextures(1, &Id);
 		glBindTexture(GL_TEXTURE_2D, Id);
@@ -107,7 +116,8 @@ namespace PVX::OpenGL {
 		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, 0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
-	void Texture2D::Bind() {
+	void Texture2D::Bind(int Unit) {
+		glActiveTexture(GL_TEXTURE0 + Unit);
 		glBindTexture(GL_TEXTURE_2D, Id);
 	}
 	void Texture2D::Unbind() {
@@ -182,7 +192,7 @@ namespace PVX::OpenGL {
 	}
 
 	template<int pxSize>
-	void UpdateTyles(void* Data, int Width, int Height, int intFormat, int format, int type, int TilesX, int TilesY, const std::initializer_list<int>& Tiles) {
+	void UpdateTiles(void* Data, int Width, int Height, int intFormat, int format, int type, int TilesX, int TilesY, const std::initializer_list<int>& Tiles) {
 		using PixelType = std::array<unsigned char, pxSize>;
 
 		int TileWidth = Width / TilesX;
@@ -203,17 +213,23 @@ namespace PVX::OpenGL {
 
 	void TextureCube::Update(void* Data, int Width, int Height, int TilesX, int TilesY, const std::initializer_list<int>& Tiles) {
 		switch (PixelSize) {
-			case 1: UpdateTyles<1>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
-			case 3: UpdateTyles<3>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
-			case 4: UpdateTyles<4>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
-			case 12: UpdateTyles<12>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
-			case 16: UpdateTyles<16>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
+			case 1:  UpdateTiles<1>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
+			case 3:  UpdateTiles<3>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
+			case 4:  UpdateTiles<4>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
+			case 12: UpdateTiles<12>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
+			case 16: UpdateTiles<16>(Data, Width, Height, InternalFormat, Format, Type, TilesX, TilesY, Tiles); break;
 		}
 	}
-	void TextureCube::Bind() {
+	void TextureCube::Bind(int Unit) {
+		glActiveTexture(GL_TEXTURE0 + Unit);
 		GL_CHECK(glBindTexture(GL_TEXTURE_CUBE_MAP, Id));
 	}
 	void TextureCube::Unbind() {
 		GL_CHECK(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
+	}
+	void TextureCube::GenerateMipmaps() {
+		Bind();
+		glGenerateMipmap(GL_TEXTURE_2D);
+		Unbind();
 	}
 }

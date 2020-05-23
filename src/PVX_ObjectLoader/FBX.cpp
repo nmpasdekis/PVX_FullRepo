@@ -643,7 +643,8 @@ namespace PVX::Object3D {
 			if (s.Index.size()) {
 				auto tmp = DeinterleaveAttributes(s);
 				for (auto i = 0; i < MainPartsSize; i++) MainParts.push_back(tmp[i]);
-				auto& pp = part.Parts[ToMatName(Mesh->GetNode()->GetMaterial(MatIndex++)->GetName())];
+				auto name = ToMatName(Mesh->GetNode()->GetMaterial(MatIndex++)->GetName());
+				auto& pp = part.Parts[name];
 				pp = InterleaveAttributes(MainParts);
 				pp.Index = s.Index;
 
@@ -654,8 +655,8 @@ namespace PVX::Object3D {
 
 					pp.BlendAttributes = morph.Attributes;
 					pp.BlendShapeData = morph.BlendShapeData;
-					MainParts.clear();
 				}
+				MainParts.clear();
 			}
 		}
 	}

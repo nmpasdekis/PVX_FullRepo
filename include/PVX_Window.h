@@ -138,7 +138,7 @@ namespace PVX::Windows {
 
 	class Window: public Eventer {
 	public:
-		Window(int Width, int Height, const char * WindowTitle = "PVX::Window");
+		Window(int Width, int Height, const wchar_t* WindowTitle = L"PVX::Window");
 		Window(int DialogResource);
 		Window(const Window&) = delete;
 		~Window();
@@ -154,7 +154,7 @@ namespace PVX::Windows {
 		Eventer& MakeEventer(HWND hWnd);
 		inline ComboBox GetComboBox(int Id) { return { *(HWND*)WindowData, Id }; };
 	protected:
-		void Init(int w, int h, const char* className);
+		void Init(int w, int h, const wchar_t* className);
 		std::vector<Eventer*> Eventers;
 	};
 

@@ -2,6 +2,7 @@
 #include <xmmintrin.h>
 #include <cmath>
 #include <utility>
+#include <functional>
 
 namespace PVX {
 	constexpr double PI = 3.14159265358979323846;
@@ -321,6 +322,14 @@ namespace PVX {
 				1.0f, 0, 0, 0,
 				0, 1.0f, 0, 0,
 				0, 0, 1.0f, 0,
+				0, 0, 0, 1.0f
+			};
+		}
+		static constexpr Matrix4x4 Scale(const float s) {
+			return {
+				s, 0, 0, 0,
+				0, s, 0, 0,
+				0, 0, s, 0,
 				0, 0, 0, 1.0f
 			};
 		}
@@ -764,6 +773,130 @@ namespace PVX {
 		ypr.m32 = 0;
 		ypr.m33 = 1;
 		return ypr;
+	}
+
+	enum class RotationOrder {
+		XYZ,
+		XZY,
+		YXZ,
+		YZX,
+		ZXY,
+		ZYX,
+	};
+
+	inline Matrix4x4& Rotate(RotationOrder Order, Matrix4x4& ypr, Vector3D& r) {
+		const std::function<Matrix4x4&(Matrix4x4&, Vector3D&)> _RotationOrder[] {
+			PVX::RotateXYZ,
+			PVX::RotateXZY,
+			PVX::RotateYXZ,
+			PVX::RotateYZX,
+			PVX::RotateZXY,
+			PVX::RotateZYX,
+		};
+		return _RotationOrder[int(Order)](ypr, r);
+	}
+
+	inline Matrix4x4 Rotate_XYZ(Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		float cr = cosf(r.Roll);
+		float sr = sinf(r.Roll);
+
+		return {
+			cr*cy, cy*sr, -sy, 0,
+			cr*sp*sy - cp*sr, cp*cr + sp*sr*sy, cy*sp, 0,
+			sp*sr + cp*cr*sy, cp*sr*sy - cr*sp, cp*cy, 0,
+			0, 0, 0, 1.0f
+		};
+	}
+	inline Matrix4x4 Rotate_XZY(Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		float cr = cosf(r.Roll);
+		float sr = sinf(r.Roll);
+
+		return {
+			cr*cy, sr, -cr*sy, 0,
+			sp*sy - cp*cy*sr, cp*cr, cy*sp + cp*sr*sy, 0,
+			cp*sy + cy*sp*sr, -cr*sp, cp*cy - sp*sr*sy, 0,
+			0, 0, 0, 1.0f
+		};
+	}
+	inline Matrix4x4 Rotate_YXZ(Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		float cr = cosf(r.Roll);
+		float sr = sinf(r.Roll);
+
+		return {
+			cr*cy - sp*sr*sy, cy*sr + cr*sp*sy, -cp*sy, 0,
+			-cp*sr, cp*cr, sp, 0,
+			cr*sy + cy*sp*sr, sr*sy - cr*cy*sp, cp*cy, 0,
+			0, 0, 0, 1.0f
+		};
+	}
+	inline Matrix4x4 Rotate_YZX(Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		float cr = cosf(r.Roll);
+		float sr = sinf(r.Roll);
+
+		return {
+			cr*cy, sp*sy + cp*cy*sr, cy*sp*sr - cp*sy, 0,
+			-sr, cp*cr, cr*sp, 0,
+			cr*sy, cp*sr*sy - cy*sp, cp*cy + sp*sr*sy, 0,
+			0, 0, 0, 1.0f
+		};
+	}
+	inline Matrix4x4 Rotate_ZXY(Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		float cr = cosf(r.Roll);
+		float sr = sinf(r.Roll);
+
+		return {
+			cr*cy + sp*sr*sy, cp*sr, cy*sp*sr - cr*sy, 0,
+			cr*sp*sy - cy*sr, cp*cr, sr*sy + cr*cy*sp, 0,
+			cp*sy, -sp, cp*cy, 0,
+			0, 0, 0, 1.0f
+		};
+	}
+	inline Matrix4x4 Rotate_ZYX(Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		float cr = cosf(r.Roll);
+		float sr = sinf(r.Roll);
+
+		return {
+			cr*cy, cp*sr + cr*sp*sy, sp*sr - cp*cr*sy, 0,
+			-cy*sr, cp*cr - sp*sr*sy, cr*sp + cp*sr*sy, 0,
+			sy, -cy*sp, cp*cy, 0,
+			0, 0, 0, 1.0f
+		};
+	}
+
+	inline Matrix4x4 Rotate(RotationOrder Order, Vector3D& r) {
+		const std::function<Matrix4x4(Vector3D&)> _RotationOrder[]{
+			PVX::Rotate_XYZ,
+			PVX::Rotate_XZY,
+			PVX::Rotate_YXZ,
+			PVX::Rotate_YZX,
+			PVX::Rotate_ZXY,
+			PVX::Rotate_ZYX,
+		};
+		return _RotationOrder[int(Order)](r);
 	}
 
 	inline void RotateRoll(Matrix4x4& m, float Roll) {
