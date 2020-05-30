@@ -821,8 +821,6 @@ namespace PVX::OpenGL {
 		glViewportIndexedf = (PFNGLVIEWPORTINDEXEDFPROC)wglGetProcAddress("glViewportIndexedf");
 		glViewportIndexedfv = (PFNGLVIEWPORTINDEXEDFVPROC)wglGetProcAddress("glViewportIndexedfv");
 		glWaitSync = (PFNGLWAITSYNCPROC)wglGetProcAddress("glWaitSync");
-
-
 		wglSwapInterval = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 	}
 

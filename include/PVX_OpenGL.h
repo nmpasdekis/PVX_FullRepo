@@ -455,10 +455,11 @@ namespace PVX::OpenGL {
 	class Geometry {
 	public:
 		void Draw();
-		void Unbind();
+		static void Unbind();
 		Geometry(const Geometry&) = default;
 		Geometry(PrimitiveType Type, int Stride, int iCount, const VertexBuffer& vBuffer, const IndexBuffer& iBuffer, const std::vector<Attribute>& attributes);
 	protected:
+		int& LastAtrribCount;
 		int Mode;
 		int Stride;
 		int IndexCount;

@@ -269,11 +269,11 @@ namespace PVX::Reflect {
 				const auto& p = path[Index];
 				const auto& Child = Children[ChildrenNames.at(std::string(p.Name))];
 				if (p.Index)
-					return p.Index * Child.Size() + Child.GetOffset(path, Index + 1);
+					return Child.Offset + p.Index * Child.Stride() + Child.GetOffset(path, Index + 1);
 				else
-					return Child.GetOffset(path, Index + 1);
+					return Child.Offset + Child.GetOffset(path, Index + 1);
 			} else {
-				return Offset;
+				return 0;
 			}
 		}
 	};
@@ -295,9 +295,7 @@ namespace PVX::Reflect {
 			Descr.Add<T>(Name, Count);
 			return *(T*)&Data[offset];
 		}
-		template<typename T>
-		T& Get(const std::string_view& Path) {
-			return *(T*)&Data[Descr.GetOffset(Path)];
-		}
+		template<typename T> T& Get(const std::string_view& Path) { return *(T*)&Data[Descr.GetOffset(Path)]; }
+		template<typename T> T& Get() { return *(T*)Data.data(); }
 	};
 }

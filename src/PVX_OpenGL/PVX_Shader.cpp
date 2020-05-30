@@ -114,16 +114,15 @@ namespace PVX::OpenGL {
 		Prog.Bind();
 		FBuffer.Bind();
 		{
-			int ActiveTexture = 0;
+			int aTex = 0;
 			for (auto& [index, t] : Tex2D) {
-				GL_CHECK(t.Bind(ActiveTexture));
-				glBindSampler(ActiveTexture++, index);
+				glActiveTexture(GL_TEXTURE0 + aTex);
+				glBindTexture(GL_TEXTURE_2D, t.Get());
 			}
 			for (auto& [index, t] : TexCube) {
-				GL_CHECK(t.Bind(ActiveTexture));
-				glBindSampler(ActiveTexture++, index);
+				glActiveTexture(GL_TEXTURE0 + aTex);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, t.Get());
 			}
-
 			for (auto& [i, c] : Consts) {
 				GL_CHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, c.Get()));
 			}
@@ -131,28 +130,31 @@ namespace PVX::OpenGL {
 		glActiveTexture(GL_TEXTURE0);
 	}
 	void Pipeline::Unbind() {
-		Prog.Unbind();
-		FBuffer.Unbind();
-		int Tex = 0;
-		for (auto& t : Tex2D) {
-			glActiveTexture(GL_TEXTURE0 + Tex++);
+		int aTex = 0;
+		for (auto i = 0; i < Tex2D.size(); i++) {
+			glActiveTexture(GL_TEXTURE0 + aTex);
 			glBindTexture(GL_TEXTURE_2D, 0);
+			aTex++;
 		};
-		for (auto& t : TexCube) {
-			glActiveTexture(GL_TEXTURE0 + Tex++);
+		for (auto i = 0; i < TexCube.size(); i++) {
+			glActiveTexture(GL_TEXTURE0 + aTex);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+			aTex++;
 		};
-		//for (auto& t : TexCube) t.Unbind();
-		//for (auto& b : Consts) {
-		//	//glBindBuffer(GL_CONSTANT_BU)
+		//for (auto& [i, c] : Consts) {
+		//	GL_CHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, 0));
 		//}
+		FBuffer.Unbind();
+		Prog.Unbind();
 	}
 	void Pipeline::Shaders(const Program& p) {
 		Prog = p;
 	}
 	void Pipeline::Textures2D(const std::string& n, const Sampler& s, const Texture2D& t) {
 		auto index = Prog.UniformIndex(n.c_str());
+		glUseProgram(Prog.Get());
 		GL_CHECK(glBindSampler(index, s.Get()));
+		glUseProgram(0);
 		Tex2D.push_back(std::make_tuple(index, t));
 	}
 	void Pipeline::Textures2D(const std::initializer_list<std::tuple<std::string, Sampler, Texture2D>>& Tex) {
@@ -223,6 +225,7 @@ namespace PVX::OpenGL {
 	void Program::BindUniform(int Index, const PVX::iVector4D* Value, int Count) { glUniform4iv(Index, Count, (int*)Value); }
 	void Program::BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) { glUniformMatrix4fv(Index, Count, false, (float*)Value); }
 
+	static int AttribCount = 0;
 	void Geometry::Draw() {
 		GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, Vertices.Get()));
 		GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get()));
@@ -231,11 +234,14 @@ namespace PVX::OpenGL {
 			glEnableVertexAttribArray(i);
 			glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, Stride, (void*)a.Offset);
 		}
+		for(;i<LastAtrribCount;i++)
+			glDisableVertexAttribArray(i);
+		LastAtrribCount = Attributes.size();
 		GL_CHECK(glDrawElements(Mode, IndexCount, GL_UNSIGNED_INT, 0));
 	}
 	void Geometry::Unbind() {
 		int i = 0;
-		for (auto& a : Attributes) glDisableVertexAttribArray(i++);
+		while(--AttribCount) glDisableVertexAttribArray(i++);
 		GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
 		GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 	}
@@ -245,6 +251,7 @@ namespace PVX::OpenGL {
 		IndexCount{ iCount },
 		Vertices{ vBuffer },
 		Indices{ iBuffer },
-		Attributes{ attributes }
+		Attributes{ attributes },
+		LastAtrribCount { AttribCount }
 	{}
 }

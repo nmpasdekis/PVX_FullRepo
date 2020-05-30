@@ -221,17 +221,40 @@ namespace PVX {
 			return ret;
 		}
 
+		//template<typename T>
+		//struct TokenDescriptor {
+		//	T TypeId;
+		//	std::string_view regex;
+		//	int GroupIndex = 0;
+		//};
+		//template<typename T>
+		//inline std::vector<std::pair<T, std::string>> Tokenize(const std::string_view& Text, const std::initializer_list<TokenDescriptor<T>>& Types) {
+		//	std::vector<std::tuple<T, std::regex, int>> types;
+		//	types.reserve(Types.size());
+		//	for (auto& t : Types) types.push_back({ t.TypeId, std::regex(t.regex.cbegin(), t.regex.cend(), std::regex_constants::optimize | std::regex_constants::syntax_option_type::ECMAScript), t.GroupIndex });
+		//	std::vector<std::pair<T, std::string>> ret;
+		//	std::string_view txt = Text;
+		//	while (txt.size()) {
+		//		for (auto& [tp, reg, Index]: types) {
+		//			std::match_results<std::string_view::const_iterator> m;
+		//			if (std::regex_search(txt.cbegin(), txt.cend(), m, reg); m.size()>Index && m[0].first == txt.cbegin()) {
+		//				ret.push_back({ tp, m[Index].str() });
+		//				size_t sz = m.str().size();
+		//				if (!sz)
+		//					throw "Unrecognized Token";
+		//				txt.remove_prefix(sz);
+		//				break;
+		//			}
+		//		}
+		//	}
+		//	return ret;
+		//}
+
 		template<typename T>
-		struct TokenDescriptor {
-			T TypeId;
-			std::string_view regex;
-			int GroupIndex = 0;
-		};
-		template<typename T>
-		inline std::vector<std::pair<T, std::string>> Tokenize(const std::string_view& Text, const std::initializer_list<TokenDescriptor<T>>& Types) {
+		inline std::vector<std::pair<T, std::string>> Tokenize(const std::string_view& Text, const std::initializer_list<std::tuple<T, std::string_view, int>>& Types) {
 			std::vector<std::tuple<T, std::regex, int>> types;
 			types.reserve(Types.size());
-			for (auto& t : Types) types.push_back({ t.TypeId, std::regex(t.regex.cbegin(), t.regex.cend(), std::regex_constants::optimize | std::regex_constants::syntax_option_type::ECMAScript), t.GroupIndex });
+			for (auto& [TypeId, regex, GroupIndex] : Types) types.push_back({ TypeId, std::regex(regex.cbegin(), regex.cend(), std::regex_constants::optimize | std::regex_constants::syntax_option_type::ECMAScript), GroupIndex });
 			std::vector<std::pair<T, std::string>> ret;
 			std::string_view txt = Text;
 			while (txt.size()) {
