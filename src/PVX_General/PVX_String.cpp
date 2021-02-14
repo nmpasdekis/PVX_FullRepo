@@ -252,23 +252,57 @@ namespace PVX{
 		}
 
 
-		int EditDistance_AccentSensitive(const std::wstring& s, const std::wstring& t) {
-			auto n = s.size();
-			auto m = t.size();
+		//int EditDistance_AccentSensitive(const std::wstring& s, const std::wstring& t) {
+		//	auto n = s.size();
+		//	auto m = t.size();
+
+		//	if (n == 0) return m;
+		//	if (m == 0) return n;
+
+		//	auto d = MakeArray2D(n + 1, m + 1);
+
+		//	for (int i = 0; i <= n; i++) d[i][0] = i;
+		//	for (int j = 0; j <= m; j++) d[0][j] = j;
+
+		//	for (int i = 1; i <= n; i++) for (int j = 1; j <= m; j++) {
+		//		d[i][j] = std::min(std::min(d[i - 1][j] + 1, d[i][j - 1] + 1), d[i - 1][j - 1] + ((t[j - 1] == s[i - 1]) ? 0 : 1));
+		//	}
+		//	return d[n][m];
+		//}
+
+		int EditDistance_AccentSensitive(const std::wstring& S, const std::wstring& T) {
+			auto n = S.size();
+			auto m = T.size();
 
 			if (n == 0) return m;
 			if (m == 0) return n;
 
-			auto d = MakeArray2D(n + 1, m + 1);
-
-			for (int i = 0; i <= n; i++) d[i][0] = i;
-			for (int j = 0; j <= m; j++) d[0][j] = j;
-
-			for (int i = 1; i <= n; i++) for (int j = 1; j <= m; j++) {
-				d[i][j] = std::min(std::min(d[i - 1][j] + 1, d[i][j - 1] + 1), d[i - 1][j - 1] + ((t[j - 1] == s[i - 1]) ? 0 : 1));
+			const wchar_t* s = S.data();
+			const wchar_t* t = T.data();
+			if (m > n) {
+				t = S.data();
+				m = S.size();
+				s = T.data();
+				n = T.size();
 			}
-			return d[n][m];
+
+			auto d = MakeArray2D(2, m + 1);
+
+			for (int j = 0; j <= m; j++) d[0][j] = j;
+			int cur = 0;
+
+			for (int i = 1; i <= n; i++) {
+				cur ^= 1;
+				int* Prev = d[cur^1];
+				int* This = d[cur];
+				This[0] = i;
+				for (int j = 1; j <= m; j++) {
+					This[j] = std::min(std::min(Prev[j] + 1, This[j - 1] + 1), Prev[j - 1] + ((t[j - 1] == s[i - 1]) ? 0 : 1));
+				}
+			}
+			return d[cur][m];
 		}
+
 		int EditDistance(const std::wstring& S, const std::wstring& T) {
 			auto n = S.size();
 			auto m = T.size();
@@ -317,9 +351,9 @@ namespace PVX{
 			return 0;
 		}
 
-		std::tuple<int, int, int> FindLongestCommonSubstring_AccentSensitive(const std::wstring_view& a, const std::wstring_view& b) {
+		std::tuple<int, int> FindLongestCommonSubstring_AccentSensitive(const std::wstring_view& a, const std::wstring_view& b) {
 			int n = a.size(), m = b.size();
-			if (m==0||n==0) return { 0, 0, 0 };
+			if (m==0||n==0) return { 0, 0 };
 			int lastIndexA = 0, lastIndexB = 0, mx = 0;
 			int cur = 0;
 			auto d = MakeArray2D(2, n + 1);
@@ -338,7 +372,7 @@ namespace PVX{
 				}
 				cur ^= 1;
 			}
-			return { mx, lastIndexA - mx + 1, lastIndexB - mx + 1 };
+			return { lastIndexA - mx + 1, lastIndexB - mx + 1 };
 		}
 	}
 }

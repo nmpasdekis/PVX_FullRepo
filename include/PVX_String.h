@@ -77,16 +77,7 @@ namespace PVX {
 		int EditDistance(const std::wstring& S, const std::wstring& T);
 		int LongestCommonSubstring(const std::wstring& A, const std::wstring& B);
 		int LongestCommonSubstring_AccentSensitive(const std::wstring& a, const std::wstring& b);
-		std::tuple<int, int, int> FindLongestCommonSubstring_AccentSensitive(const std::wstring_view& a, const std::wstring_view& b);
-
-		//template<typename T, typename T2>
-		//inline std::wstring Join(const std::vector<T> & List, const std::wstring & separator, T2 fnc) {
-		//	std::wstringstream ret;
-		//	ret << fnc(List[0]);
-		//	for (auto i = 1; i < List.size(); i++)
-		//		ret << separator << fnc(List[i]);
-		//	return ret.str();
-		//}
+		std::tuple<int, int> FindLongestCommonSubstring_AccentSensitive(const std::wstring_view& a, const std::wstring_view& b);
 
 		template<typename T, typename T2>
 		inline std::wstring Join(const T& List, const std::wstring& separator, T2 fnc) {

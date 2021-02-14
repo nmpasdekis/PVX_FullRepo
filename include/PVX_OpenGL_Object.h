@@ -88,6 +88,9 @@ namespace PVX {
 			void BindAttributes();
 			void UnbindAttributes();
 			void BindAttributesDrawUnbind();
+			void MakeVBO();
+
+			void BindAttributesDrawUnbind2();
 			SimpleMatrial Material;
 
 			operator Geometry();
@@ -96,6 +99,7 @@ namespace PVX {
 		protected:
 			std::vector<Attribute> Attributes;
 			friend class Pipeline;
+			unsigned int VBO = 0;
 		};
 
 		class ObjectBuilder {

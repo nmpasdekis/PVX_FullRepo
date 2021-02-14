@@ -26,6 +26,13 @@ namespace PVX::OpenGL {
 		this->InternalFormat = InternalFormat;
 		this->Format = Format;
 		this->Type = Type;
+
+		glBindTexture(GL_TEXTURE_2D, Id);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
 		Update(Width, Height, Channels, BytesPerChannel, Data);
@@ -82,7 +89,7 @@ namespace PVX::OpenGL {
 		this->Type = Type;
 		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
 	}
-	void Texture2D::UpdateAndBind(void* Data) {
+	void Texture2D::UpdateAndBind(const void* Data) {
 		glBindTexture(GL_TEXTURE_2D, Id);
 		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
 	}

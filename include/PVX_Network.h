@@ -230,7 +230,7 @@ namespace PVX {
 		public:
 			Route(const std::wstring & url, std::function<void(HttpRequest&, HttpResponse&)> Action);
 			int Match(const std::wstring & url, std::map<std::wstring, UtfHelper> & Vars, UtfHelper & Query);
-			int Run(HttpRequest &, HttpResponse &) throw();
+			int Run(HttpRequest &, HttpResponse &);
 			void ResetAction(std::function<void(HttpRequest&, HttpResponse&)> Action);
 		private:
 			std::wstring OriginalRoute;

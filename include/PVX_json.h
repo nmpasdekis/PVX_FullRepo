@@ -376,6 +376,7 @@ namespace PVX {
 			std::wstring String() const { return Value.String(); }
 
 			operator std::wstring() const { return Value.String(); }
+			operator const std::string() const { return PVX::Encode::ToString(Value.String()); }
 
 			std::vector<unsigned char> Data();
 			void Data(const std::vector<unsigned char>& d);

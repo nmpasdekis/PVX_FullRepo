@@ -210,7 +210,7 @@ namespace PVX {
 		inline iVector3D operator-() const { return iVector3D{ -x, -y, -z }; }
 	};
 	__declspec(align(16))
-		union iVector4D {
+	union iVector4D {
 		struct {
 			int x, y, z, w;
 		};
@@ -226,6 +226,51 @@ namespace PVX {
 		};
 		int Array[4];
 		inline iVector4D operator-() const { return iVector4D{ -x, -y, -z, -w }; }
+	};
+
+	union uVector2D {
+		struct {
+			unsigned int x, y;
+		};
+		struct {
+			unsigned int u, v;
+		};
+		struct {
+			unsigned int Width, Height;
+		};
+		unsigned int Array[2];
+	};
+	union uVector3D {
+		struct {
+			unsigned int x, y, z;
+		};
+		struct {
+			unsigned int r, g, b;
+		};
+		struct {
+			unsigned int Pitch, Yaw, Roll;
+		};
+		struct {
+			unsigned int Width, Height, Depth;
+		};
+		unsigned int Array[3];
+	};
+	__declspec(align(16))
+	union uVector4D {
+		struct {
+			unsigned int x, y, z, w;
+		};
+		struct {
+			unsigned int r, g, b, a;
+		};
+		struct {
+			Vector3D Vec3;
+			unsigned int Scalar;
+		};
+		struct {
+			unsigned int Width, Height, Depth, Imagination;
+		};
+		unsigned int Array[4];
 	};
 
 	//////////////////////////////////////////////////////////////////////////////
@@ -303,25 +348,61 @@ namespace PVX {
 	};
 
 #pragma warning(disable:4201)
+	__declspec(align(16))
 	union Matrix4x4 {
 		Matrix4x4() = default;
-		float m[4][4];
-		float m16[16];
 		struct {
 			float m00, m01, m02, m03,
 				m10, m11, m12, m13,
 				m20, m21, m22, m23,
 				m30, m31, m32, m33;
 		};
+		float m[4][4];
+		float m16[16];
 		struct {
 			Vector4D Vec0, Vec1, Vec2, Vec3;
 		};
 		Vector4D m4[4];
+
+
 		static constexpr Matrix4x4 Identity() {
 			return {
 				1.0f, 0, 0, 0,
 				0, 1.0f, 0, 0,
 				0, 0, 1.0f, 0,
+				0, 0, 0, 1.0f
+			};
+		}
+
+		inline void SetDiag3(const Vector3D& vec) {
+			m00 = vec.x;
+			m11 = vec.y;
+			m22 = vec.z;
+		}
+		inline void SetDiag(const Vector3D& vec) {
+			m00 = vec.x;
+			m11 = vec.y;
+			m22 = vec.z;
+			m33 = 1.0f;
+		}
+		inline void SetDiag(const Vector4D& vec) {
+			m00 = vec.x;
+			m11 = vec.y;
+			m22 = vec.z;
+			m33 = vec.w;
+		}
+
+		constexpr bool IsIdentity(const float e) const {
+			float sum = 0;
+			for (auto i = 0; i<16; i++)
+				sum += std::abs(Identity().m16[i] - m16[i]);
+			return sum < e;
+		}
+		static constexpr Matrix4x4 Scale(const Vector3D& s) {
+			return {
+				s.x, 0, 0, 0,
+				0, s.y, 0, 0,
+				0, 0, s.z, 0,
 				0, 0, 0, 1.0f
 			};
 		}
@@ -331,6 +412,14 @@ namespace PVX {
 				0, s, 0, 0,
 				0, 0, s, 0,
 				0, 0, 0, 1.0f
+			};
+		}
+		static constexpr Matrix4x4 Translation(const Vector3D& t) {
+			return {
+				1.0f, 0, 0, 0,
+				0, 1.0f, 0, 0,
+				0, 0, 1.0f, 0,
+				t.x, t.y, t.z, 1.0f
 			};
 		}
 		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>

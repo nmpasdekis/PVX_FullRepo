@@ -297,7 +297,7 @@ namespace PVX {
 		stbi_set_flip_vertically_on_load(__FLIP_V__);
 		int w, h, c;
 		auto vec = stbi_load(Filename, &w, &h, &c, 4);
-		ImageF ret(w, h);
+		Image4F ret(w, h);
 		constexpr double inv = 1.0f / 255.0f;
 		float* dst = (float*)&ret.Pixels[0];
 		size_t sz = size_t(w)*size_t(h)*4;
@@ -481,7 +481,6 @@ namespace PVX {
 			(b < (1.0f / 6.0f)) ? (t2 + (t1 - t2) * 6.0f * b) : (b < 0.5f) ? t1 : (b < (2.0f / 3.0f)) ? (t2 + (t1 - t2) *(2.0f / 3.0f - b) * 6.0f) : t2,
 		};
 	}
-
 
 	static int conv(int x, int y, int WindowWidth, int StepX, int StepY, int StepXCount, int InWidth) {
 		int WindowOffsetX = (y % StepXCount) * StepX;

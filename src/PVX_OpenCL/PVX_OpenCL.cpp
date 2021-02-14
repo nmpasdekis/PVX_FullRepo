@@ -1,5 +1,6 @@
 #include <PVX_OpenCL.h>
 
+
 namespace PVX {
 	OpenCL::OpenCL(int GPU, int skip) {
 		std::vector<cl::Platform> pl;
@@ -20,6 +21,7 @@ namespace PVX {
 		}
 		throw "Device Not Found";
 	}
+
 	std::vector<Platform> OpenCL::Get(int GPU) {
 		std::vector<Platform> ret;
 

@@ -137,7 +137,7 @@ namespace PVX {
 		std::string ret = Input;
 		for (long long i = matches.size()-1; i>=0; i--) {
 			auto& m = matches[i];
-			ret = ret.replace(m.first.position(), m.first.size(), m.second);
+			ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
 		}
 		return ret;
 	}
@@ -152,6 +152,59 @@ namespace PVX {
 			ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
 		}
 		return ret;
+	}
+
+
+	inline std::string Replace(const std::string& Input, const std::regex& regExp, std::function<std::string(const std::smatch&)> replaceWith) {
+		auto matches = regex_matches<std::pair<std::smatch, std::string>>(Input, regExp, [&replaceWith, &Input](const std::smatch& m) {
+			return std::make_pair(m, replaceWith(m));
+		});
+
+		std::string ret = Input;
+		for (long long i = matches.size()-1; i>=0; i--) {
+			auto& m = matches[i];
+			ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
+		}
+		return ret;
+	}
+	inline std::wstring Replace(const std::wstring& Input, const std::wregex& regExp, std::function<std::wstring(const std::wsmatch&)> replaceWith) {
+		auto matches = regex_matches<std::wsmatch>(Input, regExp, [&replaceWith](const std::wsmatch& m) {
+			return m;
+		});
+
+		std::wstring ret = Input;
+		for (long long i = matches.size()-1; i>=0; i--) {
+			auto& m = matches[i];
+			ret = ret.replace(m.position(), m.str().size(), replaceWith(m));
+		}
+		return ret;
+	}
+
+	//inline std::wstring Replace(const std::wstring& Input, const std::wregex& regExp, std::function<std::wstring(const std::wsmatch&)> replaceWith) {
+	//	auto matches = regex_matches<std::pair<std::wsmatch, std::wstring>>(Input, regExp, [&replaceWith](const std::wsmatch& m) {
+	//		return std::make_pair(m, replaceWith(m));
+	//	});
+
+	//	std::wstring ret = Input;
+	//	for (long long i = matches.size()-1; i>=0; i--) {
+	//		auto& m = matches[i];
+	//		ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
+	//	}
+	//	return ret;
+	//}
+
+
+
+
+
+	inline int regex_search(const std::wregex& pattern, const std::wstring& Text) {
+		std::wsmatch m;
+		if (std::regex_search(Text, m, pattern)) {
+			//return 1;
+			auto ret = m.position();
+			return ret;
+		}
+		return -1;
 	}
 }
 

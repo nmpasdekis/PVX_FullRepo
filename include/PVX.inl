@@ -166,7 +166,8 @@ namespace PVX {
 	inline auto Map(const std::vector<T1> & Array, T2 fnc) {
 		std::vector<decltype(fnc(Array[0]))> ret;
 		ret.reserve(Array.size());
-		std::transform(Array.begin(), Array.end(), std::back_insert_iterator(ret), fnc);
+		//std::transform(Array.begin(), Array.end(), std::back_insert_iterator(ret), fnc);
+		for (auto& a : Array) ret.push_back(fnc(a));
 		return std::move(ret);
 	}
 	template<typename T1, typename T2, typename T>

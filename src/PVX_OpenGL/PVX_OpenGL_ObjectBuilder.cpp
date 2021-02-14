@@ -558,22 +558,30 @@ namespace PVX {
 		InterleavedArrayObject::operator Geometry() {
 			return {
 				PVX::OpenGL::PrimitiveType(Mode),
-				Stride,
 				int(Index.size()),
-				VertexBuffer{ Data.data(), int(Data.size()) },
 				IndexBuffer{ Index.data(), int(Index.size()) },
-				Attributes
+				{
+					{
+						VertexBuffer{ Data.data(), int(Data.size()) },
+						Attributes,
+						Stride
+					}
+				}
 			};
 		}
 
 		BufferObject::operator Geometry() {
 			return {
 				PVX::OpenGL::PrimitiveType(Mode),
-				Stride,
 				IndexCount,
-				Vertices,
 				Indices,
-				Attributes
+				{
+					{
+						Vertices,
+						Attributes,
+						Stride
+					}
+				}
 			};
 		}
 
@@ -662,6 +670,25 @@ namespace PVX {
 				Draw();
 				UnbindAttributes();
 			}
+		}
+		void BufferObject::BindAttributesDrawUnbind2() {
+			glBindVertexArray(VBO);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+			glDrawElements(Mode, IndexCount, GL_UNSIGNED_INT, 0);
+			glBindVertexArray(0);
+		}
+
+
+		void BufferObject::MakeVBO() {
+			glGenVertexArrays(1, &VBO);
+			glBindVertexArray(VBO);
+			glBindBuffer(GL_ARRAY_BUFFER, Vertices.Get());
+			int i = 0;
+			for (auto& a : Attributes) {
+				glEnableVertexAttribArray(i);
+				glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, Stride, (void*)a.Offset);
+			}
+			glBindVertexArray(0);
 		}
 
 		InterleavedArrayObject MakeAxis(float size) {
@@ -839,10 +866,7 @@ namespace PVX {
 		}
 
 		InterleavedArrayObject MakeSphereUV(int segH, int segV) {
-			struct FullVert {
-				Vector3D pos;
-				Vector2D UV;
-			};
+			struct FullVert { Vector3D pos; Vector2D UV; };
 			FullVert* Verts = new FullVert[(segV - 1) * (segH + 1) + 2];
 			Verts[0].pos = { 0, 1.0f, 0 };
 			Verts[0].UV = { 0.5f, 0.0f };
@@ -1205,133 +1229,5 @@ namespace PVX {
 			}gl.End();
 			return gl.Build();
 		}
-
-		//static Texture * MyLoadTexture(std::map<std::string, Texture*> & Textures, const std::string & fn) {
-		//	if(Textures.find(fn) != Textures.end()) 
-		//		return Textures[fn];
-		//	PVX::OpenGL::TextureLoader txtr;
-		//	txtr.Load(fn.c_str());
-		//	auto * t = new Texture(txtr.MakeTexture2D());
-		//	Textures[fn] = t;
-		//	return t;
-		//}
-
-		//std::vector<InterleavedArrayObject> LoadObj(const char * fn) {
-		//	union Index {
-		//		struct {
-		//			int Vertex, UV, Normal;
-		//		};
-		//		int Array[3];
-		//	};
-
-		//	auto lines = PVX::String::Split_No_Empties(PVX::IO::ReadText(fn), "\n");
-		//	std::vector<InterleavedArrayObject> ret;
-		//	if(!lines.size()) return ret;
-
-		//	std::map<std::string, PVX::OpenGL::SimpleMatrial> Materials;
-		//	std::map<std::string, Texture*> Textures;
-
-		//	auto mltLines = PVX::String::Split_No_Empties(PVX::IO::ReadText(PVX::IO::ReplaceExtension(fn, "mtl").c_str()), "\n");
-		//	if(mltLines.size()) {
-		//		SimpleMatrial * mat = nullptr;
-		//		for(auto i = 0; i < mltLines.size(); i++) {
-		//			auto tokens = PVX::String::Split_No_Empties(mltLines[i], " ");
-		//			if(tokens[0] == "newmtl") {
-		//				Materials[tokens[1]] = SimpleMatrial{ 0 };
-		//				mat = &Materials[tokens[1]];
-		//			} else if(tokens[0] == "Ka") {
-		//				mat->Ambient = { (float)atof(tokens[1].c_str()),(float)atof(tokens[2].c_str()),(float)atof(tokens[3].c_str()), 1.0f };
-		//			} else if(tokens[0] == "Kd") {
-		//				mat->Diffuse = { (float)atof(tokens[1].c_str()),(float)atof(tokens[2].c_str()),(float)atof(tokens[3].c_str()), 1.0f };
-		//			} else if(tokens[0] == "Ks") {
-		//				mat->Specular = { (float)atof(tokens[1].c_str()),(float)atof(tokens[2].c_str()),(float)atof(tokens[3].c_str()), 1.0f };
-		//			} else if(tokens[0] == "Ke") {
-		//				mat->Emission = { (float)atof(tokens[1].c_str()),(float)atof(tokens[2].c_str()),(float)atof(tokens[3].c_str()), 1.0f };
-		//			} else if(tokens[0] == "d") {
-		//				mat->Transparency = 1.0f - atof(tokens[1].c_str());
-		//			} else if(tokens[0] == "Ns") {
-		//				mat->SpeculatPower = atof(tokens[1].c_str());
-		//			} else if(tokens[0] == "map_Kd") {
-		//				std::string Name = tokens[1];
-		//				mat->Textures.Diffuse = MyLoadTexture(Textures, Name);
-		//				Textures[Name] = mat->Textures.Diffuse;
-		//			} else if(tokens[0] == "map_Ke") {
-		//				std::string Name = tokens[1];
-		//				mat->Textures.Emission = MyLoadTexture(Textures, Name);
-		//				Textures[Name] = mat->Textures.Emission;
-		//			} else if(tokens[0] == "map_Bump") {
-		//				std::string Name = tokens[3];
-		//				mat->Textures.Bump = MyLoadTexture(Textures, Name);
-		//				Textures[Name] = mat->Textures.Bump;
-		//			} else if(tokens[0] == "map_Ks") {
-		//				std::string Name = tokens[1];
-		//				mat->Textures.Specular = MyLoadTexture(Textures, Name);
-		//				Textures[Name] = mat->Textures.Specular;
-		//			} else if(tokens[0] == "map_Ka") {
-		//				std::string Name = tokens[1];
-		//				mat->Textures.Ambient = MyLoadTexture(Textures, Name);
-		//				Textures[Name] = mat->Textures.Ambient;
-		//			}
-		//		}
-		//	}
-
-		//	std::vector<Vector3D> Vertices;
-		//	std::vector<Vector2D> UVs;
-		//	std::vector<Vector3D> Normals;
-		//	std::vector<Index> Indices;
-
-		//	SimpleMatrial CurrentMat;
-
-		//	for(auto lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
-		//		for(; lineIndex < lines.size(); lineIndex++) {
-		//			auto & l = lines[lineIndex];
-		//			auto tokens = PVX::String::Split_No_Empties(l, " ");
-		//			if(tokens[0] == "v") {
-		//				Vertices.push_back({ (float)atof(tokens[1].c_str()), (float)atof(tokens[2].c_str()), (float)atof(tokens[3].c_str()) });
-		//			} else if(tokens[0] == "vn") {
-		//				Normals.push_back({ (float)atof(tokens[1].c_str()), (float)atof(tokens[2].c_str()), (float)atof(tokens[3].c_str()) });
-		//			} else if(tokens[0] == "vt") {
-		//				UVs.push_back({ (float)atof(tokens[1].c_str()), 1.0f - (float)atof(tokens[2].c_str()) });
-		//			} else if(tokens[0] == "f") {
-		//				int first = Indices.size();
-		//				std::vector<Index> face;
-		//				for(int i = 1; i < tokens.size(); i++) {
-		//					Index tmp{ -1, -1, -1 };
-		//					auto idx = PVX::String::Split(tokens[i], "/");
-		//					for(int i = 0; i < idx.size(); i++) {
-		//						tmp.Array[i] = atoi(idx[i].c_str()) - 1;
-		//					}
-		//					face.push_back(tmp);
-		//				}
-		//				for(int i = 2; i < face.size(); i++) {
-		//					Indices.push_back(face[0]);
-		//					Indices.push_back(face[i - 1]);
-		//					Indices.push_back(face[i]);
-		//				}
-		//			} else if(tokens[0] == "o") {
-		//				break;
-		//			} else if(tokens[0] == "usemtl") { 
-		//				CurrentMat = Materials[tokens[1]];
-		//			}
-		//		}
-		//		if(Indices.size()) {
-		//			ObjectBuilder gl;
-		//			gl.Begin(GL_TRIANGLES);
-		//			for(auto & f : Indices) {
-		//				if(f.Normal != -1) gl.Normal(Normals[f.Normal]);
-		//				if(f.UV != -1) gl.TexCoord(UVs[f.UV]);
-		//				gl.Vertex(Vertices[f.Vertex]);
-		//			}
-		//			gl.End();
-		//			ret.push_back(gl.Build());
-		//			ret.back().Material = CurrentMat;
-		//		}
-		//		//Vertices.clear();
-		//		//Normals.clear();
-		//		//UVs.clear();
-		//		Indices.clear();
-		//	}
-		//	return ret;
-		//}
 	}
 }

@@ -31,6 +31,9 @@ namespace PVX::OpenGL {
 		TRIANGLE_STRIP_ADJACENCY = GL_TRIANGLE_STRIP_ADJACENCY,
 		TRIANGLES_ADJACENCY = GL_TRIANGLES_ADJACENCY,
 		PATCHES = GL_PATCHES,
+		QUADS = GL_QUADS,
+		QUAD_STRIP = GL_QUAD_STRIP,
+		POLYGON = GL_POLYGON,
 	};
 
 	enum class TextureType {
@@ -286,7 +289,8 @@ namespace PVX::OpenGL {
 		Ray& CastRay(float x, float y, Ray& Ray);
 		Ray CastScreenRay(float x, float y);
 		Ray CastRay(float x, float y);
-		void SetSize(int Width, int Heght);
+		void SetSize(int Width, int Height);
+		Matrix4x4& SetSizePerspective(int Width, int Height);
 		void SetProjectionMatrix(Matrix4x4& Mat);
 		void SetViewMatrix(Matrix4x4& Mat);
 		Matrix4x4& GetViewMatrix();
@@ -294,6 +298,7 @@ namespace PVX::OpenGL {
 
 		void OrbitRelative(float u, float v, float Distance = 1.0f);
 	protected:
+		float _fov, _near, _far;
 		Matrix4x4* _View, * _Perspective;
 		struct {
 			Matrix4x4 View, Perspective;
@@ -304,12 +309,13 @@ namespace PVX::OpenGL {
 	public:
 		~ConstantBuffer();
 		ConstantBuffer();
+		ConstantBuffer(const ConstantBuffer&) = default;
 		ConstantBuffer(const void* Data, int Size);
 		ConstantBuffer(const std::vector<unsigned char>& Data);
 		void Update(const void* Data, int Size);
 		void Update(const std::vector<unsigned char>& Data);
 		unsigned int Get() const { return Id; }
-	private:
+	protected:
 		unsigned int Id = 0;
 		PVX::RefCounter Ref;
 	};
@@ -380,7 +386,7 @@ namespace PVX::OpenGL {
 
 		void UpdateAndBind(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
 		void UpdateAndBind(int Width, int Height, int InternalFormat, int Format, int Type, void* Data);
-		void UpdateAndBind(void* Data);
+		void UpdateAndBind(const void* Data);
 
 		void GenerateMipmaps();
 		void Bind(int Unit = 0);
@@ -452,21 +458,25 @@ namespace PVX::OpenGL {
 		PVX::RefCounter Ref;
 	};
 
-	class Geometry {
-	public:
-		void Draw();
-		static void Unbind();
-		Geometry(const Geometry&) = default;
-		Geometry(PrimitiveType Type, int Stride, int iCount, const VertexBuffer& vBuffer, const IndexBuffer& iBuffer, const std::vector<Attribute>& attributes);
-	protected:
-		int& LastAtrribCount;
-		int Mode;
-		int Stride;
-		int IndexCount;
+	struct Gemoetry_init {
+		VertexBuffer Buffer;
 		std::vector<Attribute> Attributes;
-		VertexBuffer Vertices;
+		int Stride;
+	};
+
+	class Geometry {
+		std::vector<VertexBuffer> VertexBuffers;
 		IndexBuffer Indices;
-		friend class Pipeline;
+		PVX::RefCounter Ref;
+		PrimitiveType Type;
+		unsigned int Id = 0;
+		int IndexCount;
+	public:
+		~Geometry();
+		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Gemoetry_init>& Buffers);
+		void Draw();
+		void Draw(int Count);
+		unsigned int Get() const { return Id; }
 	};
 
 

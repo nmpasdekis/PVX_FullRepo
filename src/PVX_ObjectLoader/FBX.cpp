@@ -751,6 +751,7 @@ namespace PVX::Object3D {
 		auto h = ReadTransform(Node);
 		h.ParentIndex = ParentIndex;
 		ParentIndex = scene.Heirarchy.size();
+		h.Name = Node->GetName();
 		scene.Heirarchy.push_back(h);
 		FbxNodeAttribute* attr = Node->GetNodeAttribute();
 		if (attr) {
@@ -788,6 +789,9 @@ namespace PVX::Object3D {
 
 		LoadNode(fbxScene->GetRootNode(), obj, -1);
 		//MakeTransform(Tree, obj.Heirarchy, -1);
+
+		if (obj.Heirarchy[0].Name=="RootNode")
+			obj.Heirarchy[0].Name = Filename;
 
 		Manager->Destroy();
 

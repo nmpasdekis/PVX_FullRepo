@@ -212,6 +212,21 @@ namespace PVX {
 
 	PVX::Vector3D Rgb2HSL(const PVX::Vector3D& rgb);
 	PVX::Vector3D HSL2Rgb(const PVX::Vector3D& rgb);
+
+	inline PVX::Vector3D RGB2YUV(const PVX::Vector3D& rgb) {
+		return{
+			rgb.r * 0.2126f + rgb.g * 0.7152f + rgb.b * 0.0722f,
+			rgb.r * -0.09991f + rgb.g * -0.33609f + rgb.b * 0.436f,
+			rgb.r * 0.615f + rgb.g * -0.55861f + rgb.b * -0.05639f
+		};
+	}
+	inline PVX::Vector3D YUV2RGB(const PVX::Vector3D& yuv) {
+		return{
+			yuv.r + yuv.b * 1.13983f,
+			yuv.r + yuv.g * -0.39465f + yuv.b * -0.58060f,
+			yuv.r + yuv.g * 2.03211f
+		};
+	}
 }
 
 #endif

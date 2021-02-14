@@ -9,6 +9,8 @@
 #include <PVX.inl>
 
 namespace PVX::Windows {
+	inline int DefaultClose() { PostQuitMessage(0); return 0; }
+
 	class Anchor {
 	public:
 		enum {

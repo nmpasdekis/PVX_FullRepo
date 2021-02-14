@@ -225,33 +225,32 @@ namespace PVX::OpenGL {
 	void Program::BindUniform(int Index, const PVX::iVector4D* Value, int Count) { glUniform4iv(Index, Count, (int*)Value); }
 	void Program::BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) { glUniformMatrix4fv(Index, Count, false, (float*)Value); }
 
-	static int AttribCount = 0;
-	void Geometry::Draw() {
-		GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, Vertices.Get()));
-		GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get()));
-		int i = 0;
-		for (auto& a : Attributes) {
-			glEnableVertexAttribArray(i);
-			glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, Stride, (void*)a.Offset);
+	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Gemoetry_init>& Buffers) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
+		glGenVertexArrays(1, &Id);
+		glBindVertexArray(Id);
+		for (auto& b : Buffers) {
+			glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
+			int i = 0;
+			for (auto& a: b.Attributes) {
+				glEnableVertexAttribArray(i);
+				glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, b.Stride, (void*)a.Offset);
+			}
 		}
-		for(;i<LastAtrribCount;i++)
-			glDisableVertexAttribArray(i);
-		LastAtrribCount = Attributes.size();
-		GL_CHECK(glDrawElements(Mode, IndexCount, GL_UNSIGNED_INT, 0));
+		glBindVertexArray(0);
 	}
-	void Geometry::Unbind() {
-		int i = 0;
-		while(--AttribCount) glDisableVertexAttribArray(i++);
-		GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
-		GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+	Geometry::~Geometry() {
+		if (!Ref && Id) glDeleteVertexArrays(1, &Id);
 	}
-	Geometry::Geometry(PrimitiveType Type, int Stride, int iCount, const VertexBuffer& vBuffer, const IndexBuffer& iBuffer, const std::vector<Attribute>& attributes) :
-		Mode{ int(Type) },
-		Stride{ Stride },
-		IndexCount{ iCount },
-		Vertices{ vBuffer },
-		Indices{ iBuffer },
-		Attributes{ attributes },
-		LastAtrribCount { AttribCount }
-	{}
+	void Geometry::Draw() {
+		glBindVertexArray(Id);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+		glDrawElements(int(Type), IndexCount, GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+	}
+	void Geometry::Draw(int Count) {
+		glBindVertexArray(Id);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+		glDrawElementsInstanced(int(Type), IndexCount, GL_UNSIGNED_INT, 0, Count);
+		glBindVertexArray(0);
+	}
 }

@@ -7,6 +7,7 @@
 #include <PVX_Deflate.h>
 #include<PVX_String.h>
 #include<chrono>
+#include <signal.h>
 
 using namespace std::chrono_literals;
 
@@ -76,7 +77,7 @@ namespace PVX {
 			return 0;
 		}
 
-		int Route::Run(HttpRequest &rq, HttpResponse & rsp) throw() {
+		int Route::Run(HttpRequest &rq, HttpResponse & rsp) {
 			Action(rq, rsp);
 			return 0;
 		}
@@ -113,33 +114,6 @@ namespace PVX {
 			return 0;
 		}
 
-
-		//int GetRequest(TcpSocket & s, HttpRequest & http, std::vector<uchar> & Content) {
-		//	int EoH = -1;
-		//	while (s.Receive(http.RawHeader) > 0 &&
-		//		(EoH = http.RawHeader.find("\r\n\r\n")) == -1);
-		//	if (EoH != -1) {
-		//		size_t contentLength = 0;
-		//		size_t sz = EoH + 4;
-
-		//		if (http.RawHeader.size() > sz) {
-		//			Content.resize(http.RawHeader.size() - sz);
-		//			memcpy(&Content[0], &http.RawHeader[EoH + 4], Content.size());
-		//		}
-		//		http.RawHeader.resize(sz);
-
-		//		http = http.RawHeader;
-		//		auto cc = http.Headers.find("content-length");
-		//		if (cc != http.Headers.end()) {
-		//			contentLength = _wtoi(cc->second->c_str());
-		//			Content.reserve(contentLength);
-
-		//			while (Content.size() < contentLength && s.Receive(Content) > 0);
-		//		}
-		//		return contentLength == Content.size();
-		//	}
-		//	return 0;
-		//}
 		void HttpServer::Routes(const Route & r) {
 			Router.push_back(r);
 		}
@@ -174,40 +148,6 @@ namespace PVX {
 
 			Routes(Url + L".js", ret->GetScriptHandler(Url));
 			Routes(Url, ret->GetHandler());
-			/*ret->ServingThread.push_back(std::thread([ret]() {
-				for(;;) {
-					if (ret->Connections.size()) {
-						for (auto & [connectionId, Socket] : ret->Connections) {
-
-							auto res = Socket.Receive();
-							if (res < 0 || Socket.Opcode == WebSocket::Opcode_Close) {
-								ret->CloseConnection(connectionId);
-								break;
-							} else if (res > 0) {
-								int type = Socket.Message[0];
-								std::string Name;
-								size_t sz;
-								for (sz = 1; sz < Socket.Message.size() && Socket.Message[sz] != ':'; sz++) Name.push_back(Socket.Message[sz]);
-								if (ret->ClientActions.count(Name)) {
-									if (type == 'j') {
-										JSON::Item params = JSON::jsElementType::Null;
-										if (Socket.Message.size() - sz - 1)
-											params = PVX::JSON::parse(&Socket.Message[sz + 1], Socket.Message.size() - sz - 1);
-
-										ret->ClientActions[Name](params, connectionId);
-									} else if (type == 'b') {
-										std::vector<unsigned char> data(Socket.Message.size() - sz - 1);
-										memcpy(&data[0], &Socket.Message[sz + 1], Socket.Message.size() - sz - 1);
-										ret->ClientActionsRaw[Name](data, connectionId);
-									}
-								}
-							}
-						}
-					} else {
-						std::this_thread::sleep_for(1ms);
-					}
-				}
-			}));*/
 			return *ret;
 		}
 
@@ -354,6 +294,13 @@ namespace PVX {
 		}
 		std::function<void(TcpSocket)> HttpServer::GetHandler() {
 			return [this](TcpSocket Socket) {
+				signal(SIGSEGV, [](int Signal) {
+					throw "Access Violation";
+				});
+				//signal(SIGTERM, [](int Signal) {
+				//	throw "An Exception";
+				//});
+
 				HttpRequest Request;
 				while (GetRequest(Socket, Request, Request.RawContent)) {
 					//if (Request.Method=="OPTIONS") {

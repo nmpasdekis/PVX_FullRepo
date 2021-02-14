@@ -173,6 +173,7 @@ namespace PVX {
 	class OpenCL {
 	public:
 		OpenCL(int GPU = 1, int skip = 0);
+
 		int LoadProgram(const std::string& Source);
 		Buffer MakeBuffer(size_t ByteSize, BufferAccess Access, const void* Data = 0);
 		template<typename T>
@@ -188,6 +189,7 @@ namespace PVX {
 		inline cl::Context GetContext() { return context; };
 		std::string PlatformName;
 		std::string DeviceName;
+
 	private:
 		struct KernelData {
 			cl::Program* program;

@@ -110,9 +110,9 @@ namespace PVX::Network {
 				http.SetMultipartForm(ContentOptions[L"boundary"]);
 			}
 		}
-
+		
 		try {
-			for (auto & f : Filters) {
+			for (auto& f : Filters) {
 				if (!f(http, Response)) {
 					SendResponse(Socket, http, Response);
 					return;
@@ -122,8 +122,20 @@ namespace PVX::Network {
 			route.Run(http, Response);
 			if (!Response.Handled)
 				SendResponse(Socket, http, Response);
-		} catch (std::exception& e) {
+		} catch(const std::runtime_error& e) {
 			Response.Html(e.what());
+			Response.StatusCode = 500;
+			SendResponse(Socket, http, Response);
+		} catch (const std::exception& e) {
+			Response.Html(e.what());
+			Response.StatusCode = 500;
+			SendResponse(Socket, http, Response);
+		} catch (const char * Error) {
+			Response.Html(Error);
+			Response.StatusCode = 500;
+			SendResponse(Socket, http, Response);
+		} catch (const wchar_t* Error) {
+			Response.Html(Error);
 			Response.StatusCode = 500;
 			SendResponse(Socket, http, Response);
 		} catch (...) {

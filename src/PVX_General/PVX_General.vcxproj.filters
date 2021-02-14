@@ -45,6 +45,9 @@
     <ClCompile Include="PVX_XML.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PVX_Kinect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\PVX_BinSaver.h">
@@ -75,6 +78,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\PVX_XML.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\PVX_Compiler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -21,6 +21,9 @@ namespace PVX::OpenGL {
 	}
 
 	Matrix4x4& Camera::SetPerspective(float Fov, float Near, float Far) {
+		_fov = Fov;
+		_near = Near;
+		_far = Far;
 		Matrix4x4& Perspective = *_Perspective;
 		Perspective.m11 = 1.0f / (float)tanf(ToRAD(Fov)/2.0f);
 		Perspective.m00 = Perspective.m11 * Height / Width;
@@ -165,6 +168,11 @@ namespace PVX::OpenGL {
 
 	void Camera::SetSize(int width, int height) {
 		Width = (float)width; Height = (float)height;
+	}
+
+	Matrix4x4& Camera::SetSizePerspective(int width, int height) {
+		Width = (float)width; Height = (float)height;
+		return SetPerspective(_fov, _near, _far);
 	}
 
 	void Camera::SetProjectionMatrix(Matrix4x4& Mat) {
