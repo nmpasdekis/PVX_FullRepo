@@ -265,7 +265,8 @@ namespace PVX {
 			void SetDefaultRoute(std::function<void(HttpRequest&, HttpResponse&)> Action);
 			void Start();
 			void Stop();
-			WebSocketServer & CreateWebSocketServer(const std::wstring & Url);
+			WebSocketServer & CreateWebSocketServer(const std::wstring& Url);
+			WebSocketServer & CreateWebSocketServer(const std::wstring & Url, std::function<void(WebSocketServer&, const std::string&, const std::vector<unsigned char>&)> clb);
 			const std::wstring & GetMime(const std::wstring & extension) const;
 
 			// Route must contain {Path} Variable
@@ -320,7 +321,7 @@ namespace PVX {
 			friend class WebSocketServer;
 			friend class WebSocket;
 		public:
-			enum WebSocker_Opcode {
+			enum class WebSocker_Opcode {
 				Opcode_Continued = 0,
 				Opcode_Text,
 				Opcode_Bynary,
@@ -360,6 +361,7 @@ namespace PVX {
 			std::map<std::string, std::function<void(const std::vector<unsigned char>&, const std::string&)>> ClientActionsRaw;
 			std::map<std::string, std::set<std::string>> GroupConnections, ConnectionGroups;
 			std::function<void(HttpRequest&, HttpResponse&)> GetHandler();
+			std::function<void(HttpRequest&, HttpResponse&)> GetRawHandler(std::function<void(WebSocketServer&, const std::string&, const std::vector<unsigned char>&)> clb);
 			std::function<void(HttpRequest&, HttpResponse&)> GetScriptHandler(const std::wstring & Url);
 			std::map<std::string, std::thread> ServingThreads;
 			std::map<std::string, WebSocket> Connections;
@@ -381,6 +383,9 @@ namespace PVX {
 			
 			void AddToGroup(const std::string& GroupName, const std::string & ConnectionId);
 			void RemoveFromGroup(const std::string& GroupName, const std::string & ConnectionId);
+
+			std::vector<std::string> GetGroupConnections(const std::string& Name);
+			std::vector<std::string> GetConnectionsGroup(const std::string& Name);
 
 			void OnConnect(std::function<void(const std::string&, WebSocket&)> fnc);
 			void OnDisconnect(std::function<void(const std::string&)> fnc);

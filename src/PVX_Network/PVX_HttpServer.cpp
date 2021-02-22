@@ -137,7 +137,7 @@ namespace PVX {
 		void HttpServer::Stop() {}
 
 
-
+		
 
 		WebSocketServer & HttpServer::CreateWebSocketServer(const std::wstring & url) {
 			auto Url = url;
@@ -148,6 +148,17 @@ namespace PVX {
 
 			Routes(Url + L".js", ret->GetScriptHandler(Url));
 			Routes(Url, ret->GetHandler());
+			return *ret;
+		}
+
+		WebSocketServer& HttpServer::CreateWebSocketServer(const std::wstring& url, std::function<void(WebSocketServer&, const std::string&, const std::vector<unsigned char>&)> clb) {
+			auto Url = url;
+			if (Url.front() != L'/') Url = L"/" + url;
+
+			WebSocketServers.push_back(std::make_unique<WebSocketServer>());
+			auto ret = WebSocketServers.back().get();
+
+			Routes(Url, ret->GetRawHandler(clb));
 			return *ret;
 		}
 

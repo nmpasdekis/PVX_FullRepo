@@ -2,9 +2,9 @@
 
 
 namespace PVX::OpenGL {
-	Camera::Camera() : Position({ 0,0,0 }), Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
-		_View = &Storage.View;
-		_Perspective = &Storage.Perspective;
+	Camera::Camera(PVX::Matrix4x4* view, PVX::Matrix4x4* projection) : Position({ 0,0,0 }), Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
+		_View = view ? view : &Storage.View;
+		_Perspective = projection ? projection : &Storage.Perspective;
 		Matrix4x4& View = *_View;
 		View.m00 = View.m11 = View.m22 = View.m33 = 1.0f;
 		Width = 16.0f;
@@ -12,9 +12,9 @@ namespace PVX::OpenGL {
 		OrbitDistance = 10.0f;
 		SetPerspective(30.0f, 0.1f, 100.0f);
 	}
-	Camera::Camera(int Width, int Height, float FovDeg, float Near, float Far) : Width{ float(Width) }, Height{ float(Height) }, Storage{ 0 }, Position({ 0,0,0 }), Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
-		_View = &Storage.View;
-		_Perspective = &Storage.Perspective;
+	Camera::Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* view, PVX::Matrix4x4* projection) : Width{ float(Width) }, Height{ float(Height) }, Storage{ 0 }, Position({ 0,0,0 }), Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
+		_View = view? view: &Storage.View;
+		_Perspective = projection ? projection: &Storage.Perspective;
 		Matrix4x4& View = *_View;
 		View.m00 = View.m11 = View.m22 = View.m33 = 1.0f;
 		SetPerspective(FovDeg, Near, Far);

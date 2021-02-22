@@ -108,6 +108,9 @@ namespace PVX::Windows {
 		void RegisterRawInput(bool Mouse, bool Keyboard);
 
 		void OnMouseRelative(std::function<void(int, int, int, unsigned int)> clb);
+
+
+		inline void DefaultOnClose() { OnClose([] { PostQuitMessage(0); return 0; }); }
 	protected:
 		Eventer() {};
 		void* WindowData = nullptr;

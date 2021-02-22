@@ -262,49 +262,6 @@ namespace PVX::OpenGL {
 		void Enable(int enable = 1);
 	};
 
-	class Camera {
-	public:
-		Camera();
-		Camera(int Width, int Height, float FovDeg, float Near, float Far);
-		Vector3D Position;
-		Vector3D OrbitCenter;
-		Vector3D Rotation;
-		float Width, Height, OrbitDistance;
-		Vector3D& GetLookVector(Vector3D& Look);
-		Vector3D& GetUpVector(Vector3D& Up);
-		Vector3D& GetRightVector(Vector3D& Right);
-		Matrix4x4& UpdateView();
-		Matrix4x4& UpdateView_Orbit();
-
-		Vector3D& Move(float x, float y, float z);
-		Vector3D& Move(const Vector3D& xyz);
-		Vector3D& MoveLevel(const Vector3D& xyz);
-
-		Vector3D& MoveCenter(float x, float y, float z);
-		Vector3D& MoveCenter(const Vector3D& xyz);
-		Vector3D& MoveCenterLevel(const Vector3D& xyz);
-
-		Matrix4x4& SetPerspective(float FovDeg, float Near, float Far);
-		Ray& CastScreenRay(float x, float y, Ray& Ray);
-		Ray& CastRay(float x, float y, Ray& Ray);
-		Ray CastScreenRay(float x, float y);
-		Ray CastRay(float x, float y);
-		void SetSize(int Width, int Height);
-		Matrix4x4& SetSizePerspective(int Width, int Height);
-		void SetProjectionMatrix(Matrix4x4& Mat);
-		void SetViewMatrix(Matrix4x4& Mat);
-		Matrix4x4& GetViewMatrix();
-		Matrix4x4& GetProjectionMatrix();
-
-		void OrbitRelative(float u, float v, float Distance = 1.0f);
-	protected:
-		float _fov, _near, _far;
-		Matrix4x4* _View, * _Perspective;
-		struct {
-			Matrix4x4 View, Perspective;
-		} Storage;
-	};
-
 	class ConstantBuffer {
 	public:
 		~ConstantBuffer();
@@ -312,6 +269,7 @@ namespace PVX::OpenGL {
 		ConstantBuffer(const ConstantBuffer&) = default;
 		ConstantBuffer(const void* Data, int Size);
 		ConstantBuffer(const std::vector<unsigned char>& Data);
+
 		void Update(const void* Data, int Size);
 		void Update(const std::vector<unsigned char>& Data);
 		unsigned int Get() const { return Id; }
@@ -325,10 +283,11 @@ namespace PVX::OpenGL {
 		~VertexBuffer();
 		VertexBuffer() : Id{ 0 } {};
 		VertexBuffer(const void* Data, int SizeInBytes);
-		inline VertexBuffer(const std::vector<unsigned char>& Data) :VertexBuffer{ Data.data(), Data.size() } {};
-		void Update(const void* Data, int SizeInBytes);
-		inline void Update(const std::vector<unsigned char>& Data) { Update(Data.data(), Data.size()); };
+		inline VertexBuffer(const std::vector<unsigned char>& Data) :VertexBuffer{ Data.data(), int(Data.size()) } {};
+		
 		unsigned int Get() const { return Id; }
+		void Update(const void* Data, int SizeInBytes);
+		inline void Update(const std::vector<unsigned char>& Data) { Update(Data.data(), int(Data.size())); };
 	private:
 		unsigned int Id;
 		PVX::RefCounter Ref;
@@ -336,13 +295,16 @@ namespace PVX::OpenGL {
 	class IndexBuffer {
 	public:
 		~IndexBuffer();
-		IndexBuffer(const unsigned int* Data, int Count);
-		inline IndexBuffer(const std::vector<unsigned int>& Data) :IndexBuffer{ Data.data(), Data.size() } {};
-		unsigned int Get() const { return Id; }
-	private:
 		IndexBuffer() : Id{ 0 } {};
+		IndexBuffer(const unsigned int* Data, int Count);
+		inline IndexBuffer(const std::vector<unsigned int>& Data) :IndexBuffer{ Data.data(), int(Data.size()) } {};
+		inline IndexBuffer(const std::vector<int>& Data) :IndexBuffer{ (const unsigned int*)Data.data(), int(Data.size()) } {};
+		
+		unsigned int Get() const { return Id; }
 		void Update(const unsigned int* Data, int Count);
-		inline void Update(const std::vector<unsigned int>& Data) { Update(Data.data(), Data.size()); };
+		inline void Update(const std::vector<unsigned int>& Data) { Update(Data.data(), int(Data.size())); };
+		inline void Update(const std::vector<int>& Data) { Update((const unsigned int*)Data.data(), int(Data.size())); };
+	private:
 		unsigned int Id;
 		PVX::RefCounter Ref;
 	};
@@ -458,7 +420,7 @@ namespace PVX::OpenGL {
 		PVX::RefCounter Ref;
 	};
 
-	struct Gemoetry_init {
+	struct Geometry_init {
 		VertexBuffer Buffer;
 		std::vector<Attribute> Attributes;
 		int Stride;
@@ -473,7 +435,7 @@ namespace PVX::OpenGL {
 		int IndexCount;
 	public:
 		~Geometry();
-		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Gemoetry_init>& Buffers);
+		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool OldVersion=false);
 		void Draw();
 		void Draw(int Count);
 		unsigned int Get() const { return Id; }
@@ -561,6 +523,54 @@ namespace PVX::OpenGL {
 		std::vector<std::tuple<unsigned int, Texture2D>> Tex2D;
 		std::vector<std::tuple<unsigned int, TextureCube>> TexCube;
 		std::unordered_map<int, ConstantBuffer> Consts;
+	};
+
+	class Camera {
+	public:
+		Camera(PVX::Matrix4x4* View = nullptr, PVX::Matrix4x4* Projection = nullptr);
+		Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* View = nullptr, PVX::Matrix4x4* Projection = nullptr);
+		Vector3D Position;
+		Vector3D OrbitCenter;
+		Vector3D Rotation;
+		float Width, Height, OrbitDistance;
+		Vector3D& GetLookVector(Vector3D& Look);
+		Vector3D& GetUpVector(Vector3D& Up);
+		Vector3D& GetRightVector(Vector3D& Right);
+		Matrix4x4& UpdateView();
+		Matrix4x4& UpdateView_Orbit();
+
+		Vector3D& Move(float x, float y, float z);
+		Vector3D& Move(const Vector3D& xyz);
+		Vector3D& MoveLevel(const Vector3D& xyz);
+
+		Vector3D& MoveCenter(float x, float y, float z);
+		Vector3D& MoveCenter(const Vector3D& xyz);
+		Vector3D& MoveCenterLevel(const Vector3D& xyz);
+
+		Matrix4x4& SetPerspective(float FovDeg, float Near, float Far);
+		Ray& CastScreenRay(float x, float y, Ray& Ray);
+		Ray& CastRay(float x, float y, Ray& Ray);
+		Ray CastScreenRay(float x, float y);
+		Ray CastRay(float x, float y);
+		void SetSize(int Width, int Height);
+		Matrix4x4& SetSizePerspective(int Width, int Height);
+		void SetProjectionMatrix(Matrix4x4& Mat);
+		void SetViewMatrix(Matrix4x4& Mat);
+		Matrix4x4& GetViewMatrix();
+		Matrix4x4& GetProjectionMatrix();
+
+		void OrbitRelative(float u, float v, float Distance = 1.0f);
+
+	protected:
+		float _fov, _near, _far;
+		Matrix4x4* _View, * _Perspective;
+		struct {
+			Matrix4x4 View, Perspective;
+		} Storage;
+		ConstantBuffer Buffer;
+	public:
+		inline ConstantBuffer GetConstantBuffer() { return Buffer = { &Storage, sizeof(Storage) }; }
+		inline void UpdateConstantBuffer() { Buffer.Update(&Storage, sizeof(Storage)); };
 	};
 }
 

@@ -218,7 +218,7 @@ namespace PVX::Network {
 
 			auto [Header, HeaderSize] = MakePacketHeader(Content.Content.size(), Content.Opcode);
 
-			auto& Group = ConnectionGroups[GroupName];
+			auto& Group = GroupConnections[GroupName];
 			for (auto& ConnectionId : Group) {
 				auto& Socket = Connections.at(ConnectionId);
 				if (Socket.Socket.Send(Header, HeaderSize) < 0 || Socket.Socket.Send(Content.Content) < 0)
@@ -282,7 +282,7 @@ namespace PVX::Network {
 			auto [Header, HeaderSize] = MakePacketHeader(Content.Content.size(), Content.Opcode);
 
 			std::vector<std::string> ToDelete;
-			auto& Group = ConnectionGroups[GroupName];
+			auto& Group = GroupConnections[GroupName];
 			for (auto& ConnectionId : Group) {
 				if (ConnectionId == Id)continue;
 				auto& Socket = Connections.at(ConnectionId);
@@ -353,7 +353,7 @@ namespace PVX::Network {
 				ServingThreads[key] = std::thread([s, key, this] {
 					WebSocket Socket = s;
 					for (;;) {
-						if (auto res = Socket.Receive(); res < 0 || Socket.Opcode == WebSocket::Opcode_Close) {
+						if (auto res = Socket.Receive(); res < 0 || Socket.Opcode == WebSocket::WebSocker_Opcode::Opcode_Close) {
 							std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
 							CloseConnection(key);
 							break;
@@ -388,6 +388,45 @@ namespace PVX::Network {
 			if (onConnect != nullptr)onConnect(key, Connections.at(key));
 		};
 	}
+
+	std::function<void(HttpRequest&, HttpResponse&)> WebSocketServer::GetRawHandler(std::function<void(WebSocketServer&, const std::string&, const std::vector<unsigned char>&)> clb) {
+		return [this, clb](HttpRequest& req, HttpResponse& resp) {
+			using namespace PVX;
+			using namespace PVX::String;
+			auto key = MakeKey(req.Headers["sec-websocket-key"]());
+			std::wstring Key = PVX::Encode::ToString(key);
+
+			resp.StatusCode = 101;
+			resp[L"upgrade"] = L"websocket";
+			resp[L"connection"] = L"upgrade";
+			resp[L"sec-websocket-accept"] = Key;
+			resp[L"set-cookie"] = L"pvxWSId=" + Key;
+			auto s = req.GetWebSocket();
+			{
+				std::unique_lock<std::mutex> lock{ ThreadCleanerMutex };
+				ServingThreads[key] = std::thread([s, key, this, clb] {
+					WebSocket Socket = s;
+					for (;;) {
+						if (auto res = Socket.Receive(); res < 0 || Socket.Opcode == WebSocket::WebSocker_Opcode::Opcode_Close) {
+							std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
+							CloseConnection(key);
+							break;
+						} else if (res > 0) {
+							clb(*this, key, Socket.Message);
+						}
+					}
+				});
+			}
+			{
+				std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
+				Connections.insert({ key, s });
+			}
+
+
+			if (onConnect != nullptr)onConnect(key, Connections.at(key));
+		};
+	}
+
 
 	std::function<void(HttpRequest&, HttpResponse&)> WebSocketServer::GetScriptHandler(const std::wstring & Url) {
 		return [this, Url](HttpRequest& req, HttpResponse&resp) {
@@ -485,6 +524,27 @@ namespace PVX::Network {
 		std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
 		GroupConnections[GroupName].erase(ConnectionId);
 		ConnectionGroups[ConnectionId].erase(GroupName);
+	}
+
+	std::vector<std::string> WebSocketServer::GetGroupConnections(const std::string& Name) {
+		if (GroupConnections.count(Name)) {
+			auto& g = GroupConnections[Name];
+			std::vector<std::string> ret;
+			ret.reserve(g.size());
+			for (auto& c : g) ret.emplace_back(c);
+			return ret;
+		}
+		return {};
+	}
+	std::vector<std::string> WebSocketServer::GetConnectionsGroup(const std::string& Name) {
+		if (ConnectionGroups.count(Name)) {
+			auto& g = ConnectionGroups[Name];
+			std::vector<std::string> ret;
+			ret.reserve(g.size());
+			for (auto& c : g) ret.emplace_back(c);
+			return ret;
+		}
+		return {};
 	}
 
 	void WebSocketServer::OnConnect(std::function<void(const std::string&, WebSocket&)> fnc) {

@@ -28,7 +28,7 @@ namespace PVX::Windows {
 			HWND hWnd = 0;
 			unsigned int Flags = 0;
 			std::map<unsigned int, std::function<LRESULT(HWND, WPARAM, LPARAM)>> Events;
-			std::map<unsigned short, std::function<void(LPARAM)>> Command;
+			std::map<WPARAM, std::function<void(LPARAM)>> Command;
 		};
 		INT_PTR PVX_DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			WindowPrivate& ov = *(WindowPrivate*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
@@ -565,7 +565,7 @@ namespace PVX::Windows {
 
 	ComboBox::ComboBox(HWND hWnd, int Id) : Parent{ hWnd }, Id{ Id }, hWnd{ GetDlgItem(hWnd, Id) } {}
 	void ComboBox::ResizeHeight() {
-		int h1 = SendDlgItemMessageW(Parent, Id, CB_GETITEMHEIGHT, 0, 0);
+		int h1 = int(SendDlgItemMessageW(Parent, Id, CB_GETITEMHEIGHT, 0, 0));
 		WINDOWPLACEMENT wp{ sizeof(WINDOWPLACEMENT) };
 		GetWindowPlacement(hWnd, &wp);
 		MoveWindow(hWnd,
@@ -577,7 +577,7 @@ namespace PVX::Windows {
 
 	int ComboBox::AddItem(const std::wstring& Text, void* Data) {
 		int cnt = Count();
-		int index = SendDlgItemMessageW(Parent, Id, CB_ADDSTRING, 0, (LPARAM)Text.c_str());
+		int index = int(SendDlgItemMessageW(Parent, Id, CB_ADDSTRING, 0, (LPARAM)Text.c_str()));
 		if(Data)
 			SendDlgItemMessageW(Parent, Id, CB_SETITEMDATA, index, (LPARAM)Data);
 		ResizeHeight();
@@ -590,20 +590,20 @@ namespace PVX::Windows {
 	}
 
 	int ComboBox::Count() const {
-		return SendDlgItemMessageW(Parent, Id, CB_GETCOUNT, 0, 0);
+		return int(SendDlgItemMessageW(Parent, Id, CB_GETCOUNT, 0, 0));
 	}
 
 	int ComboBox::SelectedIndex() const {
-		return SendDlgItemMessageW(Parent, Id, CB_GETCURSEL, 0, 0);
+		return int(SendDlgItemMessageW(Parent, Id, CB_GETCURSEL, 0, 0));
 	}
 
 	int ComboBox::Select(int i) {
-		return SendDlgItemMessageW(Parent, Id, CB_SETCURSEL, i, 0);
+		return int(SendDlgItemMessageW(Parent, Id, CB_SETCURSEL, i, 0));
 	}
 
 	std::wstring ComboBox::Text() const {
 		int Index = SelectedIndex();
-		int len = SendDlgItemMessageW(Parent, Id, CB_GETLBTEXTLEN, Index, 0);
+		int len = int(SendDlgItemMessageW(Parent, Id, CB_GETLBTEXTLEN, Index, 0));
 		std::wstring ret(len, 0);
 		if(len)
 			SendDlgItemMessageW(Parent, Id, CB_GETLBTEXT, Index, (LPARAM)&ret[0]);

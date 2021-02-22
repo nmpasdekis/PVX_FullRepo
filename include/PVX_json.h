@@ -157,9 +157,9 @@ namespace PVX {
 				return *this;
 			}
 
-			operator int() { return Value.Integer; }
+			operator int() { return int(Value.Integer); }
 			operator long long() { return Value.Integer; }
-			operator float() { return Value.Double; }
+			operator float() { return float(Value.Double); }
 			operator double() { return Value.Double; }
 			operator bool() { return Value.Boolean; }
 
@@ -485,10 +485,10 @@ namespace PVX {
 			std::vector<unsigned char> Data;
 			template<typename T>
 			void write(T v) { auto cur = Data.size(); Data.resize(cur + sizeof(T)); (*(T*)&Data[cur]) = v; }
-			void write(const std::string& str) { auto SizeIndex = AppendBytes(4); write2(str); (*(int*)&Data[SizeIndex]) = Data.size() - SizeIndex - 4; }
-			void write(const std::wstring& str) { auto SizeIndex = AppendBytes(4); write2(str); (*(int*)&Data[SizeIndex]) = Data.size() - SizeIndex - 4; }
+			void write(const std::string& str) { auto SizeIndex = AppendBytes(4); write2(str); (*(int*)&Data[SizeIndex]) = int(Data.size() - SizeIndex) - 4; }
+			void write(const std::wstring& str) { auto SizeIndex = AppendBytes(4); write2(str); (*(int*)&Data[SizeIndex]) = int(Data.size() - SizeIndex) - 4; }
 			void write(const Item& item) { auto cur = Data.size(); Data.resize(cur + item.Data.size()); memcpy(&Data[cur], item.Data.data(), item.Data.size()); }
-			void write2(const std::string& str) { memcpy(&Data[AppendBytes(str.size() + 1)], str.data(), str.size()); }
+			void write2(const std::string& str) { memcpy(&Data[AppendBytes(int(str.size()) + 1)], str.data(), str.size()); }
 			void write2(const std::wstring& str) { PVX::Encode::UTF(&Data[AppendBytes((int)PVX::Encode::UTF_Length(str) + 1)], str.c_str()); }
 			size_t AppendBytes(int Count) { size_t cur = Data.size(); Data.resize(cur + Count); return cur; }
 		};
@@ -512,7 +512,7 @@ namespace PVX {
 			auto& get() { return std::get<T>(Value); }
 			template<int T>
 			const auto& get() const { return std::get<T>(Value); }
-			int Index() const { return Value.index(); }
+			int Index() const { return int(Value.index()); }
 		};
 	}
 }

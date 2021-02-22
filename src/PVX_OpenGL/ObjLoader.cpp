@@ -45,9 +45,9 @@ namespace PVX::OpenGL {
 				} else if (tokens[0] == "Ke") {
 					mat->Emission = { (float)atof(tokens[1].c_str()),(float)atof(tokens[2].c_str()),(float)atof(tokens[3].c_str()), 1.0f };
 				} else if (tokens[0] == "d") {
-					mat->Transparency = 1.0f - atof(tokens[1].c_str());
+					mat->Transparency = 1.0f - float(atof(tokens[1].c_str()));
 				} else if (tokens[0] == "Ns") {
-					mat->SpecularPower = atof(tokens[1].c_str());
+					mat->SpecularPower = float(atof(tokens[1].c_str()));
 				} else if (tokens[0] == "map_Kd") {
 					std::string Name = tokens[1];
 					mat->Textures.Diffuse = MyLoadTexture(Textures, Name);
@@ -112,7 +112,6 @@ namespace PVX::OpenGL {
 
 		{
 			std::map<std::string, std::map<std::string, std::vector<std::vector<Index>>>> Objects;
-			std::vector<Index>* cur;
 			std::string ObjectName = "Object", MaterialName;
 
 			std::vector<std::vector<Index>>* Faces = nullptr;

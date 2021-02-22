@@ -29,6 +29,7 @@ namespace PVX::Object3D {
 				}
 			}
 			memcpy(&out[PVX::Extend(out, Stride)], vec, Stride);
+			similar.push_back(VertexCount);
 			IndexOut.push_back(VertexCount++);
 		Found:
 			continue;
@@ -200,7 +201,7 @@ namespace PVX::Object3D {
 			Shape->GetNormals(&Normals);
 			if (Normals) {
 				if (Normals->GetCount() == PolyVertexCount)
-					Items.push_back(DeinterleavedItem("Normal", "float3", ItemUsage_Normal, PVX::Map(PolyVertexCount, [Normals](size_t i) { return ToVec3(Normals->GetAt(i)); })));
+					Items.push_back(DeinterleavedItem("Normal", "float3", ItemUsage_Normal, PVX::Map(PolyVertexCount, [Normals](size_t i) { return ToVec3(Normals->GetAt(int(i))); })));
 				else
 					Items.push_back(DeinterleavedItem("Normal", "float3", ItemUsage_Normal, PVX::Map(PolyVertexCount, [Normals, Index](size_t i) { return ToVec3(Normals->GetAt(Index[i])); })));
 			}
@@ -225,7 +226,7 @@ namespace PVX::Object3D {
 					case FbxLayerElement::eByPolygonVertex:
 					{
 						auto& Map = uv->GetIndexArray();
-						UVs = PVX::Map(PolyVertexCount, [&](size_t j) { return ToVec2(Direct[Map[j]]); });
+						UVs = PVX::Map(PolyVertexCount, [&](size_t j) { return ToVec2(Direct[Map[int(j)]]); });
 					}
 					break;
 					case FbxLayerElement::eByControlPoint:
@@ -276,7 +277,7 @@ namespace PVX::Object3D {
 			std::vector<PVX::Vector4D> Weights;
 			std::vector<PVX::ucVector4D> WeightIndices;
 			MakeWeights(Weights, WeightIndices, Mesh->GetControlPointsCount(), PVX::Map(skin->GetClusterCount(), [&](size_t i) {
-				FbxCluster* cl = skin->GetCluster(i);
+				FbxCluster* cl = skin->GetCluster(int(i));
 				Bones.push_back(cl->GetLink()->GetName());
 
 				FbxAMatrix transformMatrix, transformLinkMatrix, BoneMat;
@@ -355,7 +356,7 @@ namespace PVX::Object3D {
 		ret.Stride = std::reduce(Attributes.begin(), Attributes.end(), 0, [](int acc, const DeinterleavedItem& it) {
 			return acc + it.Description.pType->ItemStride;
 		});
-		ret.VertexCount = Attributes[0].Data.size() / (Attributes[0].Description.pType->ItemStride);
+		ret.VertexCount = int(Attributes[0].Data.size()) / (Attributes[0].Description.pType->ItemStride);
 		ret.VertexData.resize(ret.Stride * ret.VertexCount);
 		int Offset = 0;
 		for (auto& it : Attributes) {
@@ -403,7 +404,7 @@ namespace PVX::Object3D {
 	static std::vector<int> LoadPolygonIndices(FbxMesh* Mesh) {
 		int Base = 0;
 		auto Polygons = PVX::Map(Mesh->GetPolygonCount(), [&](size_t i) {
-			return PVX::IndexArrayRef(Mesh->GetPolygonSize(i), Base);
+			return PVX::IndexArrayRef(Mesh->GetPolygonSize(int(i)), Base);
 		});
 		std::vector<int> Index;
 		for (auto& p : Polygons) {
@@ -454,9 +455,9 @@ namespace PVX::Object3D {
 			r.VertexData.reserve(part.VertexData.size());
 		}
 		PVX::Triangle* tri = (PVX::Triangle*)&part.Index[0];
-		int triCount = part.Index.size() / 3;
+		auto triCount = part.Index.size() / 3;
 
-		for (int i = 0; i < triCount; i++) {
+		for (auto i = 0; i < triCount; i++) {
 
 			auto& p = ret[PolyIndex[i]];
 
@@ -470,6 +471,7 @@ namespace PVX::Object3D {
 		for (auto& r : ret) {
 			r.VertexData.shrink_to_fit();
 			Reindex(r.VertexData, r.Index, r.Stride);
+			r.VertexCount = int(r.VertexData.size()) / r.Stride;
 		}
 
 		//if (ShadowIndex.size()) for (auto& r : ret) r.MakeShadowIndex();

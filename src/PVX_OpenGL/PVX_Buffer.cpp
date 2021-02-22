@@ -39,7 +39,7 @@ namespace PVX::OpenGL {
 		Update(Data, Size);
 	}
 	ConstantBuffer::ConstantBuffer(const std::vector<unsigned char>& Data) {
-		Update(Data.data(), Data.size());
+		Update(Data.data(), int(Data.size()));
 	}
 	void ConstantBuffer::Update(const void* Data, int Size) {
 		if (!Id) glGenBuffers(1, &Id);
@@ -48,6 +48,6 @@ namespace PVX::OpenGL {
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
 	void ConstantBuffer::Update(const std::vector<unsigned char>& Data) {
-		Update(Data.data(), Data.size());
+		Update(Data.data(), int(Data.size()));
 	}
 }

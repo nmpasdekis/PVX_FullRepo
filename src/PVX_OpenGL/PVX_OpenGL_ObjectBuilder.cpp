@@ -13,7 +13,7 @@ namespace PVX {
 #define HasTex3D 8
 
 		static void AddQuad(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 4;
+			int i = int(data.Vertex.size()) - 4;
 			data.Index.push_back(i + 0);
 			data.Index.push_back(i + 1);
 			data.Index.push_back(i + 2);
@@ -23,7 +23,7 @@ namespace PVX {
 			data.Index.push_back(i + 3);
 		}
 		static void AddQuad2(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 4;
+			int i = int(data.Vertex.size()) - 4;
 			data.Index.push_back(i + 1);
 			data.Index.push_back(i + 0);
 			data.Index.push_back(i + 2);
@@ -34,46 +34,46 @@ namespace PVX {
 		}
 
 		static void AddTriangleFan(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 2;
+			int i = int(data.Vertex.size()) - 2;
 			data.Index.push_back(Start);
 			data.Index.push_back(i + 0);
 			data.Index.push_back(i + 1);
 		}
 
 		static void AddTriangle(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 1;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index.push_back(i - 2);
 			data.Index.push_back(i - 1);
 			data.Index.push_back(i - 0);
 		}
 		static void AddTriangleStrip1(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 1;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index.push_back(i - 3);
 			data.Index.push_back(i - 1);
 			data.Index.push_back(i - 0);
 		}
 		static void AddTriangleStrip2(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 1;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index.push_back(i - 1);
 			data.Index.push_back(i - 2);
 			data.Index.push_back(i - 0);
 		}
 		static void AddPoint(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 1;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index.push_back(i);
 		}
 		static void AddLine(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 1;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index.push_back(i - 1);
 			data.Index.push_back(i);
 		}
 		static void AddLineStrip(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 1;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index.push_back(data.Index.back());
 			data.Index.push_back(i);
 		}
 		static void AddLineLoop(ObjectData& data, int Start) {
-			size_t i = data.Vertex.size() - 2;
+			int i = int(data.Vertex.size()) - 1;
 			data.Index[data.Index.size() - 2] = i;
 			data.Index[data.Index.size() - 1] = i + 1;
 			data.Index.push_back(i + 1);
@@ -559,10 +559,10 @@ namespace PVX {
 			return {
 				PVX::OpenGL::PrimitiveType(Mode),
 				int(Index.size()),
-				IndexBuffer{ Index.data(), int(Index.size()) },
+				Index,
 				{
 					{
-						VertexBuffer{ Data.data(), int(Data.size()) },
+						Data,
 						Attributes,
 						Stride
 					}

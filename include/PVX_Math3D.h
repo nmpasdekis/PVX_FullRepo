@@ -9,7 +9,9 @@ namespace PVX {
 #pragma intrinsic(sinf, cosf)
 
 	constexpr float ToRAD(float x) { return ((float)(x*PI/180.0)); }
+	constexpr double ToRAD(double x) { return x*PI/180.0; }
 	constexpr float ToDEGREES(float x) { return ((float)(x*180.0/PI)); }
+	constexpr double ToDEGREES(double x) { return x*180.0/PI; }
 
 	union ucVector2D {
 		struct {

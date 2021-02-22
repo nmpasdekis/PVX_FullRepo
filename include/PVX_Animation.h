@@ -73,7 +73,7 @@ namespace PVX {
 			std::vector<MappingState<T>> States;
 		};
 
-		enum class AnimationFlags {
+		enum class AnimationFlags : unsigned int {
 			Step = 0,
 			Linear = 1,
 			Smooth = 2,
@@ -364,7 +364,7 @@ namespace PVX {
 			Blender(const std::vector<Channel>& Items) : LocalOutput{ 0 }, Channels{ Items } {
 				OutCount = 0;
 				for (auto& c : Channels) {
-					OutCount += c.Shapes.size();
+					OutCount += int(c.Shapes.size());
 				}
 			}
 			Blender() {};

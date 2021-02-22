@@ -61,8 +61,8 @@ namespace PVX {
 			InterleavedArrayObject& MakeTangents();
 			InterleavedArrayObject() {}
 			operator Geometry();
-		protected:
 			std::vector<Attribute> Attributes;
+		protected:
 			friend class BufferObject;
 			friend class ObjectBuilder;
 		};
@@ -96,8 +96,8 @@ namespace PVX {
 			operator Geometry();
 
 			BufferObject(const InterleavedArrayObject & ao);
-		protected:
 			std::vector<Attribute> Attributes;
+		protected:
 			friend class Pipeline;
 			unsigned int VBO = 0;
 		};

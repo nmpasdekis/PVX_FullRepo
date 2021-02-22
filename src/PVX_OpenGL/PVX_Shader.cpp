@@ -225,17 +225,41 @@ namespace PVX::OpenGL {
 	void Program::BindUniform(int Index, const PVX::iVector4D* Value, int Count) { glUniform4iv(Index, Count, (int*)Value); }
 	void Program::BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) { glUniformMatrix4fv(Index, Count, false, (float*)Value); }
 
-	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Gemoetry_init>& Buffers) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
+	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool old) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
-		for (auto& b : Buffers) {
-			glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
-			int i = 0;
-			for (auto& a: b.Attributes) {
-				glEnableVertexAttribArray(i);
-				glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, b.Stride, (void*)a.Offset);
+		if (!old) {
+			for (auto& b : Buffers) {
+				VertexBuffers.push_back(b.Buffer);
+				glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
+				int i = 0;
+				for (auto& a: b.Attributes) {
+					glEnableVertexAttribArray(i);
+					glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, b.Stride, (void*)a.Offset);
+				}
+			}
+		} else {
+			for (auto& b : Buffers) {
+				VertexBuffers.push_back(b.Buffer);
+				glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
+				for (auto& a: b.Attributes) {
+					if (a.Name == "Position") {
+						glEnableClientState(GL_VERTEX_ARRAY);
+						glVertexPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
+					} else if (a.Name == "Normal") {
+						glEnableClientState(GL_NORMAL_ARRAY);
+						glNormalPointer(a.Type, b.Stride, (void*)a.Offset);
+					} else if (a.Name=="TexCoord") {
+						glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+						glTexCoordPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
+					} else if (a.Name=="Color") {
+						glEnableClientState(GL_COLOR_ARRAY);
+						glColorPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
+					}
+				}
 			}
 		}
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
 	}
 	Geometry::~Geometry() {

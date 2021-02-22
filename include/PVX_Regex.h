@@ -202,7 +202,7 @@ namespace PVX {
 		if (std::regex_search(Text, m, pattern)) {
 			//return 1;
 			auto ret = m.position();
-			return ret;
+			return int(ret);
 		}
 		return -1;
 	}
