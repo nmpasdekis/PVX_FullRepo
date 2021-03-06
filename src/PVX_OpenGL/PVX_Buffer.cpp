@@ -30,24 +30,26 @@ namespace PVX::OpenGL {
 	}
 
 
-	ConstantBuffer::~ConstantBuffer() {
+	Buffer::~Buffer() {
 		if (!Ref&&Id)
 			glDeleteBuffers(1, &Id);
 	}
-	ConstantBuffer::ConstantBuffer() {}
-	ConstantBuffer::ConstantBuffer(const void* Data, int Size) {
-		Update(Data, Size);
+	Buffer::Buffer() {}
+	Buffer::Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage) {
+		if (!IsUniformBlock)Type = GL_SHADER_STORAGE_BUFFER;
+		Update(Data, Size, Usage);
 	}
-	ConstantBuffer::ConstantBuffer(const std::vector<unsigned char>& Data) {
-		Update(Data.data(), int(Data.size()));
+	Buffer::Buffer(const std::vector<unsigned char>& Data, bool IsUniformBlock, BufferUsege Usage) {
+		if (!IsUniformBlock)Type = GL_SHADER_STORAGE_BUFFER;
+		Update(Data.data(), int(Data.size()), Usage);
 	}
-	void ConstantBuffer::Update(const void* Data, int Size) {
+	void Buffer::Update(const void* Data, int Size, BufferUsege Usage) {
 		if (!Id) glGenBuffers(1, &Id);
-		glBindBuffer(GL_UNIFORM_BUFFER, Id);
-		glBufferData(GL_UNIFORM_BUFFER, Size, Data, GL_STATIC_DRAW);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		GL_CHECK(glBindBuffer(Type, Id));
+		GL_CHECK(glNamedBufferData(Id, Size, Data, int(Usage)));
+		GL_CHECK(glBindBuffer(Type, 0));
 	}
-	void ConstantBuffer::Update(const std::vector<unsigned char>& Data) {
-		Update(Data.data(), int(Data.size()));
+	void Buffer::Update(const std::vector<unsigned char>& Data, BufferUsege Usage) {
+		Update(Data.data(), int(Data.size()), Usage);
 	}
 }

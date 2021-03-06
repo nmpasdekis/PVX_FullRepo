@@ -14,6 +14,10 @@ namespace PVX {
 	typedef struct Image3F Image3F;
 	typedef struct Image4F Image4F;
 
+	std::tuple<int, int, int, int, bool> ImageInfo(const wchar_t* Filename);
+	std::tuple<int, int, int, int, bool> ImageInfo(const char* Filename);
+	std::tuple<int, int, int, int, bool> ImageInfo(FILE* File);
+
 	namespace Helpers {
 		template<typename T>
 		class Tiler {
@@ -122,6 +126,16 @@ namespace PVX {
 			return ret;
 		}
 	}
+
+	struct ImageData {
+		int Width = 0;
+		int Height = 0;
+		int Channels = 0;
+		std::vector<float> Data;
+		static ImageData Load(const char* Filename);
+		static ImageData Load(const wchar_t* Filename);
+		static ImageData Load(FILE* File);
+	};
 
 	struct ImageF {
 		ImageF();

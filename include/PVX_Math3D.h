@@ -86,7 +86,7 @@ namespace PVX {
 		};
 		//Vector2D() :x{ 0 }, y{ 0 }{}
 		Vector2D() = default;
-		Vector2D(float x, float y) : x{ x }, y{ y } {}
+		inline Vector2D(float x, float y) : x{ x }, y{ y } {}
 		struct {
 			float x, y;
 		};
@@ -114,7 +114,7 @@ namespace PVX {
 		};
 		Vector3D() = default;
 		//Vector3D() : x{ 0 }, y{ 0 }, z{ 0 } {}
-		Vector3D(float x, float y, float z) : x{ x }, y{ y }, z{ z } {}
+		inline Vector3D(float x, float y, float z) : x{ x }, y{ y }, z{ z } {}
 		struct {
 			float x, y, z;
 		};
@@ -145,6 +145,7 @@ namespace PVX {
 		inline Vector3D& Normalize() { float w = 1.0f / Length(); x *= w; y *= w; z *= w; return *this; }
 		inline Vector3D Normalized() const { float w = 1.0f / Length(); return{ x * w, y * w, z * w }; }
 		inline Vector3D Cross(const Vector3D& v) const { return { y* v.z - z*v.y, v.x* z - v.z*x, x* v.y - y*v.x }; }
+		inline static Vector3D Normal(float x, float y, float z) { return Vector3D{ x, y, z }.Normalized(); }
 	};
 	__declspec(align(16))
 		union Vector4D {
@@ -156,7 +157,8 @@ namespace PVX {
 		};
 		Vector4D() = default;
 		//Vector4D() : x{ 0 }, y{ 0 }, z{ 0 }, w{ 0 } {}
-		Vector4D(float x, float y, float z, float w) : x{ x }, y{ y }, z{ z }, w{ w } {}
+		inline Vector4D(float x, float y, float z, float w) : x{ x }, y{ y }, z{ z }, w{ w } {}
+		inline Vector4D(const Vector3D& vec, float W = 1.0f): x{ vec.x }, y{ vec.y }, z{ vec.z }, w{ W } {}
 		struct {
 			float x, y, z, w;
 		};
@@ -699,11 +701,11 @@ namespace PVX {
 		return(sum);
 	}
 
-	inline void sincosf(float d, float* sin, float* cos) {
+	inline void sincosf(const float d, float* sin, float* cos) {
 		(*sin) = sinf(d);
 		(*cos) = cosf(d);
 	}
-	inline void sincosf(float d, float& sin, float& cos) {
+	inline void sincosf(const float d, float& sin, float& cos) {
 		sin = sinf(d);
 		cos = cosf(d);
 	}
@@ -1975,8 +1977,8 @@ namespace PVX {
 	}
 
 	inline Matrix4x4 rYaw(float y) {
-		float c, s;
-		sincosf(y, &s, &c);
+		float c = 0, s = 0;
+		sincosf(y, s, c);
 		Matrix4x4 out = { c, 0, -s, 0,
 			0, 1, 0, 0,
 			s, 0, c, 0,
@@ -1985,8 +1987,8 @@ namespace PVX {
 	}
 
 	inline Matrix4x4 rPitch(float p) {
-		float c, s;
-		sincosf(p, &s, &c);
+		float c = 0, s = 0;
+		sincosf(p, s, c);
 		Matrix4x4 out = { 1, 0, 0, 0,
 			0, c, s, 0,
 			0, -s, c, 0,
@@ -1995,7 +1997,7 @@ namespace PVX {
 	}
 
 	inline Matrix4x4 rRoll(float r) {
-		float c, s;
+		float c = 0, s = 0;
 		sincosf(r, &s, &c);
 		Matrix4x4 out = { c, s, 0, 0,
 			-s, c, 0, 0,
@@ -2004,7 +2006,7 @@ namespace PVX {
 		return out;
 	}
 
-	inline Matrix4x4 mTran(Vector3D& p) {
+	inline constexpr Matrix4x4 mTran(const Vector3D& p) {
 		Matrix4x4 out = { 1, 0, 0, 0,
 			0, 1, 0, 0,
 			0, 0, 1, 0,

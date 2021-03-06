@@ -1,6 +1,7 @@
 #pragma once
 #include <PVX_OpenCL.h>
 #include <clBLAS.h>
+#include <memory>
 
 
 namespace PVX::NeuralNets {

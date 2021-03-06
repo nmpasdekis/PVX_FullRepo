@@ -12,12 +12,18 @@
 
 namespace PVX::Object3D {
 
-	struct Standart_Phong {
+	struct PlaneMaterial {
 		PVX::Vector3D Color;
 		PVX::Vector3D Ambient;
 		PVX::Vector3D Diffuse;
 		PVX::Vector3D Specular;
 		PVX::Vector3D Emissive;
+
+		float AmbientFactor;
+		float DiffuseFactor;
+		float SpecularFactor;
+		float EmissiveFactor;
+
 		float SpecularPower;
 		float Transparency;
 		float Bump;
@@ -58,6 +64,7 @@ namespace PVX::Object3D {
 		std::vector<unsigned char> BlendShapeData;
 		int Stride;
 		int VertexCount;
+		ObjectSubPart FilterAttributes(const std::initializer_list<std::string>& Attrs) const;
 	};
 
 	class ObjectPart {
@@ -97,7 +104,7 @@ namespace PVX::Object3D {
 	class Object {
 		void Save(BinSaver& bin);
 	public:
-		std::map<std::string, Standart_Phong> Material;
+		std::map<std::string, PlaneMaterial> Material;
 		std::vector<ObjectPart> Parts;
 		std::vector<Transform> Heirarchy;
 		void Save(const std::string& Filename);
@@ -105,5 +112,5 @@ namespace PVX::Object3D {
 	};
 
 	Object LoadFbx(const std::string& Filename);
-	void Reindex(std::vector<unsigned char>& VertexData, std::vector<int>& Index, int Stride);
+	size_t Reindex(std::vector<unsigned char>& VertexData, std::vector<int>& Index, int Stride);
 }

@@ -1,4 +1,5 @@
 ﻿#include<PVX_OpenGL.h>
+#include<variant>
 
 namespace PVX::OpenGL {
 	Shader::~Shader() {
@@ -19,6 +20,7 @@ namespace PVX::OpenGL {
 		if (!Status) {
 			char msg[1024];
 			glGetShaderInfoLog(Id, 1023, &sz, msg);
+			printf(msg);
 			throw std::exception(msg);
 		}
 #endif
@@ -70,6 +72,7 @@ namespace PVX::OpenGL {
 			char msg[1024];
 			int sz;
 			glGetProgramInfoLog(Id, 1023, &sz, msg);
+			printf(msg);
 			throw std::exception(msg);
 		}
 #endif
@@ -112,70 +115,91 @@ namespace PVX::OpenGL {
 
 	void Pipeline::Bind() {
 		Prog.Bind();
-		FBuffer.Bind();
+		//FBuffer.Bind();
 		{
 			int aTex = 0;
-			for (auto& [index, t] : Tex2D) {
+			for (auto& [tp, SamplerIndex, t] : Tex) {
 				glActiveTexture(GL_TEXTURE0 + aTex);
-				glBindTexture(GL_TEXTURE_2D, t.Get());
+				glUniform1i(SamplerIndex, aTex++);
+				glBindTexture(tp, t);
 			}
-			for (auto& [index, t] : TexCube) {
-				glActiveTexture(GL_TEXTURE0 + aTex);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, t.Get());
-			}
-			for (auto& [i, c] : Consts) {
+			GL_CHECK();
+			for (auto& [i, c] : UniformBuffers) {
 				GL_CHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, c.Get()));
 			}
+			for (auto& [i, c] : StorageBuffers) {
+				GL_CHECK(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, c.Get()));
+			}
 		}
-		glActiveTexture(GL_TEXTURE0);
 	}
 	void Pipeline::Unbind() {
-		int aTex = 0;
-		for (auto i = 0; i < Tex2D.size(); i++) {
-			glActiveTexture(GL_TEXTURE0 + aTex);
+		for (auto i = int(Tex.size()) - 1; i >= 0 ; i--) {
+			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, 0);
-			aTex++;
 		};
-		for (auto i = 0; i < TexCube.size(); i++) {
-			glActiveTexture(GL_TEXTURE0 + aTex);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-			aTex++;
-		};
-		//for (auto& [i, c] : Consts) {
-		//	GL_CHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, 0));
-		//}
-		FBuffer.Unbind();
 		Prog.Unbind();
 	}
 	void Pipeline::Shaders(const Program& p) {
 		Prog = p;
 	}
+
 	void Pipeline::Textures2D(const std::string& n, const Sampler& s, const Texture2D& t) {
-		auto index = Prog.UniformIndex(n.c_str());
-		glUseProgram(Prog.Get());
-		GL_CHECK(glBindSampler(index, s.Get()));
-		glUseProgram(0);
-		Tex2D.push_back(std::make_tuple(index, t));
-	}
-	void Pipeline::Textures2D(const std::initializer_list<std::tuple<std::string, Sampler, Texture2D>>& Tex) {
-		for (auto& [n, s, t] : Tex) Textures2D(n, s, t);
+		int texCount = int(Tex.size());
+		auto si = Prog.UniformLocation(n.c_str());
+		GL_CHECK();
+		if (si!=~0u) {
+			glUseProgram(Prog.Get());
+			GL_CHECK(glUniform1i(si, texCount));
+			GL_CHECK(glBindSampler(texCount, s.Get()));
+			glUseProgram(0);
+			Tex.push_back(std::make_tuple(GL_TEXTURE_2D, si, t.Get()));
+			Tex2D.push_back(t);
+		}
 	}
 	void Pipeline::TexturesCube(const std::string& n, const Sampler& s, const TextureCube& t) {
-		auto index = Prog.UniformIndex(n.c_str());
-		glBindSampler(index, s.Get());
-		TexCube.push_back(std::make_tuple(index, t));
+		int texCount = int(Tex.size());
+		auto si = Prog.UniformLocation(n.c_str());
+		if (si!=~0u) {
+			glUseProgram(Prog.Get());
+			GL_CHECK(glUniform1i(si, texCount));
+			GL_CHECK(glBindSampler(texCount, s.Get()));
+			glUseProgram(0);
+			Tex.push_back(std::make_tuple(GL_TEXTURE_CUBE_MAP, si, t.Get()));
+			TexCube.push_back(t);
+		}
+	}
+
+	void Pipeline::Textures2D(const std::initializer_list<std::tuple<std::string, Sampler, Texture2D>>& Tex) {
+		for (auto& [n, s, t] : Tex) Textures2D(n, s, t);
 	}
 	void Pipeline::TexturesCube(const std::initializer_list<std::tuple<std::string, Sampler, TextureCube>>& Tex) {
 		for (auto& [n, s, t] : Tex) TexturesCube(n, s, t);
 	}
-	void Pipeline::UniformBlock(const std::string& Name, const ConstantBuffer& Const) {
+	void Pipeline::UniformBlock(const std::string& Name, const Buffer& Const) {
 		auto index = Prog.UniformBlockIndex(Name.c_str());
 		GL_CHECK(glUniformBlockBinding(Prog.Get(), index, index));
-		Consts[index] = Const;
+		UniformBuffers[index] = Const;
 	}
-	void Pipeline::UniformBlock(const std::initializer_list<std::pair<std::string, ConstantBuffer>>& Buf) {
+	void Pipeline::UniformBlock(const std::initializer_list<std::pair<std::string, Buffer>>& Buf) {
 		for (auto& [Name, Const] : Buf) UniformBlock(Name, Const);
 	}
+
+	void Pipeline::UniformStorage(const std::string& Name, const Buffer& Const) {
+		auto index = glGetProgramResourceIndex(Prog.Get(), GL_SHADER_STORAGE_BLOCK, Name.c_str());
+		GL_CHECK(glShaderStorageBlockBinding(Prog.Get(), index, index));
+		StorageBuffers[index] = Const;
+	}
+	void Pipeline::UniformStorage(const std::initializer_list<std::pair<std::string, Buffer>>& Buf) {
+		for (auto& [Name, Const] : Buf) UniformStorage(Name, Const);
+	}
+
+	void Pipeline::BindBuffer(const std::string& Name, const Buffer& Buf) {
+		if (Buf.GetType() == GL_UNIFORM_BUFFER) UniformBlock(Name, Buf);
+		else UniformStorage(Name, Buf);
+	}
+
+	void Pipeline::BindBuffer(const std::initializer_list<std::pair<std::string, Buffer>>& Buf) {}
+
 
 	unsigned int Program::UniformBlockIndex(const char* Name) {
 		return glGetUniformBlockIndex(Id, Name);
@@ -187,13 +211,16 @@ namespace PVX::OpenGL {
 	unsigned int Program::UniformIndex(const char* Name) {
 		const char* nms[]{ Name };
 		int unsigned ret;
-		glGetUniformIndices(Id, 1, nms, &ret);
+		GL_CHECK(glGetUniformIndices(Id, 1, nms, &ret));
 		return ret;
 	}
 
+	unsigned int Program::StorageIndex(const char* Name) {
+		return glGetProgramResourceIndex(Id, GL_SHADER_STORAGE_BLOCK, Name);
+	}
 
 
-	void Program::BindUniformBlock(int BlockIndex, const ConstantBuffer& Buffer) {
+	void Program::BindUniformBlock(int BlockIndex, const Buffer& Buffer) {
 		glUniformBlockBinding(Id, BlockIndex, Buffer.Get());
 	}
 
@@ -229,10 +256,10 @@ namespace PVX::OpenGL {
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
 		if (!old) {
+			int i = 0;
 			for (auto& b : Buffers) {
 				VertexBuffers.push_back(b.Buffer);
 				glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
-				int i = 0;
 				for (auto& a: b.Attributes) {
 					glEnableVertexAttribArray(i);
 					glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, b.Stride, (void*)a.Offset);
@@ -249,7 +276,7 @@ namespace PVX::OpenGL {
 					} else if (a.Name == "Normal") {
 						glEnableClientState(GL_NORMAL_ARRAY);
 						glNormalPointer(a.Type, b.Stride, (void*)a.Offset);
-					} else if (a.Name=="TexCoord") {
+					} else if (a.Name=="UV") {
 						glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 						glTexCoordPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
 					} else if (a.Name=="Color") {

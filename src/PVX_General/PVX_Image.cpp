@@ -263,6 +263,40 @@ namespace PVX {
 		}
 		return {};
 	}
+	/* std::tuple<Width, Height, Channels, BitsPerChannel> */
+	std::tuple<int, int, int, int, bool> ImageInfo(FILE* f) {
+		int w = 0, h = 0, c = 0, BitsPerChannel = 0;
+		bool IsHDR = false;;
+		if (stbi_info_from_file(f, &w, &h, &c)) {
+			BitsPerChannel = stbi_is_16_bit_from_file(f) ? 16 : 8;
+			IsHDR = stbi_is_hdr_from_file(f);
+		}
+		return { w, h, c, BitsPerChannel, IsHDR };
+	}
+
+	/* std::tuple<Width, Height, Channels, BitsPerChannel> */
+	std::tuple<int, int, int, int, bool> ImageInfo(const char* Filename) {
+		FILE* fin;
+		fopen_s(&fin, Filename, "rb");
+		if (fin) {
+			auto ret = ImageInfo(fin);
+			fclose(fin);
+			return ret;
+		}
+		return { 0, 0, 0, 0, false };
+	}
+
+	/* std::tuple<Width, Height, Channels, BitsPerChannel> */
+	std::tuple<int, int, int, int, bool> ImageInfo(const wchar_t* Filename) {
+		FILE* fin;
+		_wfopen_s(&fin, Filename, L"rb");
+		if (fin) {
+			auto ret = ImageInfo(fin);
+			fclose(fin);
+			return ret;
+		}
+		return { 0, 0, 0, 0, false };
+	}
 
 	std::tuple<ImageF, ImageF, ImageF> Image3F::SplitRGB() {
 		return { Red(), Green(), Blue() };
@@ -533,5 +567,67 @@ namespace PVX {
 			}
 		}
 		return ret;
+	}
+
+	/*std::tuple<int, int, int, int, bool> ImageInfo(const char* Filename) {
+		FILE* fin;
+		fopen_s(&fin, Filename, "rb");
+		if (fin) {
+			auto ret = ImageInfo(fin);
+			fclose(fin);
+			return ret;
+		}
+		return { 0, 0, 0, 0, false };
+	}
+	std::tuple<int, int, int, int, bool> ImageInfo(const wchar_t* Filename) {
+		FILE* fin;
+		_wfopen_s(&fin, Filename, L"rb");
+		if (fin) {
+			auto ret = ImageInfo(fin);
+			fclose(fin);
+			return ret;
+		}
+		return { 0, 0, 0, 0, false };
+	}*/
+
+	ImageData ImageData::Load(const char* Filename) {
+		FILE* fin;
+		fopen_s(&fin, Filename, "rb");
+		if (fin) {
+			auto ret = Load(fin);
+			fclose(fin);
+			return ret;
+		}
+		return {};
+	}
+	ImageData ImageData::Load(const wchar_t* Filename) {
+		FILE* fin;
+		_wfopen_s(&fin, Filename, L"rb");
+		if (fin) {
+			auto ret = Load(fin);
+			fclose(fin);
+			return ret;
+		}
+		return {};
+	}
+	ImageData ImageData::Load(FILE* File) {
+		auto [Width, Height, Channels, BitsPerChannel, IsHDR] = ImageInfo(File);
+		if (Width) {
+			std::vector<float> dataOut(Width * Height * Channels);
+			if (BitsPerChannel==8) {
+				auto dataIn = stbi_loadf_from_file(File, &Width, &Height, &Channels, Channels);
+				memcpy(dataOut.data(), dataIn, dataOut.size() * sizeof(float));
+				stbi_image_free(dataIn);
+			}
+			else {
+				constexpr float div = float(0x0000ffff);
+				auto dataIn = stbi_load_from_file_16(File, &Width, &Height, &Channels, Channels);
+				for (auto i = 0; i<dataOut.size(); i++) 
+					dataOut[i] = float(dataIn[i]) / div;
+				stbi_image_free(dataIn);
+			}
+			return { Width, Height, Channels, std::move(dataOut) };
+		}
+		return {};
 	}
 }

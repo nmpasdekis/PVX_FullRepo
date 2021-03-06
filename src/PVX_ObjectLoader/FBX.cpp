@@ -11,8 +11,8 @@
 namespace PVX::Object3D {
 
 
-	void Reindex(std::vector<unsigned char>& VertexData, std::vector<int>& Index, int Stride) {
-		auto VertexCount = 0;
+	size_t Reindex(std::vector<unsigned char>& VertexData, std::vector<int>& Index, int Stride) {
+		size_t VertexCount = 0;
 		std::vector<unsigned char> out;
 		out.reserve(VertexData.size());
 		std::vector<int> IndexOut;
@@ -20,10 +20,10 @@ namespace PVX::Object3D {
 
 		std::map<unsigned int, std::vector<int>> HashMap;
 		for (auto i : Index) {
-			unsigned char* vec = VertexData.data() + i * Stride;
+			unsigned char* vec = VertexData.data() + size_t(i) * Stride;
 			auto& similar = HashMap[PVX::Encrypt::CRC32_Algorithm().Update(vec, Stride).Get()];
 			for (auto idx: similar) {
-				if (!memcmp(out.data() + idx * Stride, vec, Stride)) {
+				if (!memcmp(out.data() + size_t(idx) * Stride, vec, Stride)) {
 					IndexOut.push_back(idx);
 					goto Found;
 				}
@@ -37,6 +37,7 @@ namespace PVX::Object3D {
 		out.shrink_to_fit();
 		VertexData = std::move(out);
 		Index = std::move(IndexOut);
+		return VertexCount;
 	}
 
 	//struct FbxLoad {
@@ -249,14 +250,16 @@ namespace PVX::Object3D {
 		memset(&WeightIndices[0], 0, sizeof(PVX::ucVector4D) * VertexCount);
 		memset(Counts, 0, sizeof(int) * VertexCount);
 
+		int nextBone = 0;
 		for (auto i = 0; i < Influences.size(); i++) {
 			for (auto& f : Influences[i]) {
 				if (f.Weight > 0.00001f) {
-					WeightIndices[f.Index].Array[Counts[f.Index]] = i;
+					WeightIndices[f.Index].Array[Counts[f.Index]] = nextBone;
 					Weights[f.Index].Array[Counts[f.Index]] = f.Weight;
 					Counts[f.Index]++;
 				}
 			}
+			if (Influences[i].size())nextBone++;
 		}
 		delete[] Counts;
 	}
@@ -278,17 +281,22 @@ namespace PVX::Object3D {
 			std::vector<PVX::ucVector4D> WeightIndices;
 			MakeWeights(Weights, WeightIndices, Mesh->GetControlPointsCount(), PVX::Map(skin->GetClusterCount(), [&](size_t i) {
 				FbxCluster* cl = skin->GetCluster(int(i));
-				Bones.push_back(cl->GetLink()->GetName());
 
 				FbxAMatrix transformMatrix, transformLinkMatrix, BoneMat;
 				cl->GetTransformMatrix(transformMatrix);
 				cl->GetTransformLinkMatrix(transformLinkMatrix);
 				BoneMat = transformLinkMatrix.Inverse() * transformMatrix * NodeTran;
-				PostTransform.push_back(ToMat(BoneMat));
 
 				int* cp = cl->GetControlPointIndices();
 				double* cpw = cl->GetControlPointWeights();
-				return PVX::Map(cl->GetControlPointIndicesCount(), [&](size_t j) { return Influence{ cp[j], (float)cpw[j] }; });
+				
+				auto inflCount = cl->GetControlPointIndicesCount();
+				if (inflCount) {
+					Bones.push_back(cl->GetLink()->GetName());
+					PostTransform.push_back(ToMat(BoneMat));
+				}
+
+				return PVX::Map(inflCount, [&](size_t j) { return Influence{ cp[j], (float)cpw[j] }; });
 			}));
 
 			Parts.push_back(DeinterleavedItem("Weights", "float4", ItemUsage::ItemUsage_Weight, PVX::Map(PolyVertexCount, [&](size_t i) { return Weights[Index[i]]; })));
@@ -464,7 +472,7 @@ namespace PVX::Object3D {
 			for (int t = 0; t < 3; t++) {
 				auto sz = p.VertexData.size();
 				p.VertexData.resize(sz + part.Stride);
-				memcpy(&p.VertexData[sz], &part.VertexData[tri[i].Index[t] * part.Stride], part.Stride);
+				memcpy(&p.VertexData[sz], &part.VertexData[tri[i].Index[t] * size_t(part.Stride)], part.Stride);
 				p.Index.push_back(p.VertexCount++);
 			}
 		}
@@ -494,18 +502,18 @@ namespace PVX::Object3D {
 		for (int i = 0; i < mCount; i++) {
 			FbxSurfaceMaterial* mat = fbxScene->GetMaterial(i);
 
-			PVX::Object3D::Standart_Phong& stdMat = Scene.Material[ToMatName(mat->GetName())];
+			PVX::Object3D::PlaneMaterial& stdMat = Scene.Material[ToMatName(mat->GetName())];
 
 			FbxSurfaceLambert* Lambert = (FbxSurfaceLambert*)mat;
 
 			stdMat.Color = ToVec3(Lambert->Diffuse.Get());
 			//stdMat.Color *= (float)Lambert->ColorFactor.Get();
 			stdMat.Diffuse = ToVec3(Lambert->Diffuse.Get());
-			stdMat.Diffuse *= (float)Lambert->DiffuseFactor.Get();
+			stdMat.DiffuseFactor = (float)Lambert->DiffuseFactor.Get();
 			stdMat.Ambient = ToVec3(Lambert->Ambient.Get());
-			stdMat.Ambient *= (float)Lambert->AmbientFactor.Get();
+			stdMat.AmbientFactor = (float)Lambert->AmbientFactor.Get();
 			stdMat.Emissive = ToVec3(Lambert->Emissive.Get());
-			stdMat.Emissive *= (float)Lambert->EmissiveFactor.Get();
+			stdMat.EmissiveFactor = (float)Lambert->EmissiveFactor.Get();
 			stdMat.Bump = (float)Lambert->BumpFactor.Get();
 
 			PVX::Vector3D tmpVec;
@@ -532,6 +540,7 @@ namespace PVX::Object3D {
 				FbxSurfacePhong* Phong = (FbxSurfacePhong*)mat;
 
 				stdMat.Specular = ToVec3(Phong->Specular.Get());
+				stdMat.SpecularFactor = (float)Phong->SpecularFactor.Get();
 				stdMat.SpecularPower = (float)Phong->Shininess.Get();
 
 				if (FbxTexture* Tex = Phong->Specular.GetSrcObject<FbxTexture>())
@@ -610,7 +619,14 @@ namespace PVX::Object3D {
 	//	return mesh.BoneNodes.size() > BoneResetSize;
 	//}
 
-
+	DeinterleavedItem* FindDeinterleavedItem(std::vector<DeinterleavedItem>& List, const std::string& Name) {
+		for (auto& i : List) {
+			if (i.Description.Name == Name) {
+				return &i;
+			}
+		}
+		return 0;
+	}
 
 	static void LoadMesh(FbxMesh* Mesh, Object& scene) {
 		int* Index = Mesh->GetPolygonVertices();
@@ -626,6 +642,17 @@ namespace PVX::Object3D {
 		PVX::Animation::Blender Blender;
 
 		auto BlendShapes = GetBlendShapes(Mesh, Blender);
+
+		for (auto& vi : BlendShapes) {
+			for (auto& i : vi) {
+				if (auto& m = *FindDeinterleavedItem(MainParts, i.Description.Name); &m) {
+					size_t count = i.Data.size() / sizeof(float);
+					float* out = (float*)&i.Data[0];
+					float* in = (float*)&m.Data[0];
+					for (int j = 0; j<count; j++) out[j] -= in[j];
+				}
+			}
+		}
 
 		for (auto& b : BlendShapes) {
 			for (auto& s : b) {
@@ -644,7 +671,7 @@ namespace PVX::Object3D {
 		for (auto& s : Splited) {
 			if (s.Index.size()) {
 				auto tmp = DeinterleaveAttributes(s);
-				for (auto i = 0; i < MainPartsSize; i++) MainParts.push_back(tmp[i]);
+				for (auto i = 0; i < MainPartsSize; i++) MainParts.push_back(std::move(tmp[i]));
 				auto name = ToMatName(Mesh->GetNode()->GetMaterial(MatIndex++)->GetName());
 				auto& pp = part.Parts[name];
 				pp = InterleaveAttributes(MainParts);
@@ -652,11 +679,12 @@ namespace PVX::Object3D {
 
 				if (tmp.size() > MainPartsSize) {
 					MainParts.clear();
-					for (auto i = MainPartsSize; i < tmp.size(); i++) MainParts.push_back(tmp[i]);
+					for (auto i = MainPartsSize; i < tmp.size(); i++) 
+						MainParts.push_back(std::move(tmp[i]));
 					auto morph = InterleaveAttributes(MainParts);
 
-					pp.BlendAttributes = morph.Attributes;
-					pp.BlendShapeData = morph.BlendShapeData;
+					pp.BlendAttributes = std::move(morph.Attributes);
+					pp.BlendShapeData = std::move(morph.VertexData);
 				}
 				MainParts.clear();
 			}
@@ -804,15 +832,44 @@ namespace PVX::Object3D {
 		BinSaver bin(Filename.c_str(), "OBJ3");
 		Save(bin);
 	}
-	void Standart_Phong::Save(BinSaver& bin, const std::string& Name) {
+	//void Standart_Phong::Save(BinSaver& bin, const std::string& Name) {
+	//	bin.Begin("MTRL"); {
+	//		bin.Write("NAME", Name);
+
+	//		bin.Write("COLR", Color);
+	//		bin.Write("CAMB", Ambient);
+	//		bin.Write("CDIF", Diffuse);
+	//		bin.Write("CSPC", Specular);
+	//		bin.Write("CEMT", Emissive);
+	//		bin.Write("CSPC", SpecularPower);
+	//		bin.Write("CTRN", Transparency);
+	//		bin.Write("CBMP", Bump);
+
+	//		bin.Write("TAMB", Textures.Ambient);
+	//		bin.Write("TDIF", Textures.Diffuse);
+	//		bin.Write("TSPC", Textures.Specular);
+	//		bin.Write("TEMT", Textures.Emissive);
+	//		bin.Write("TBMP", Textures.Bump);
+	//		bin.Write("TTRN", Textures.Transparency);
+	//	} bin.End();
+	//}
+
+	void PlaneMaterial::Save(BinSaver& bin, const std::string& Name) {
 		bin.Begin("MTRL"); {
 			bin.Write("NAME", Name);
 
 			bin.Write("COLR", Color);
+
 			bin.Write("CAMB", Ambient);
 			bin.Write("CDIF", Diffuse);
 			bin.Write("CSPC", Specular);
 			bin.Write("CEMT", Emissive);
+			
+			bin.Write("FAMB", AmbientFactor);
+			bin.Write("FDIF", DiffuseFactor);
+			bin.Write("FSPC", SpecularFactor);
+			bin.Write("FEMT", EmissiveFactor);
+
 			bin.Write("CSPC", SpecularPower);
 			bin.Write("CTRN", Transparency);
 			bin.Write("CBMP", Bump);
@@ -825,6 +882,7 @@ namespace PVX::Object3D {
 			bin.Write("TTRN", Textures.Transparency);
 		} bin.End();
 	}
+
 	void ObjectPart::Save(BinSaver& bin) {
 		bin.Begin("PART"); {
 			bin.Write("NAME", TransformNode);
@@ -869,6 +927,56 @@ namespace PVX::Object3D {
 			}
 		} bin.End();
 	}
+	ObjectSubPart ObjectSubPart::FilterAttributes(const std::initializer_list<std::string>& Attrs) const {
+		auto dint = DeinterleaveAttributes(*this);
+		std::vector<DeinterleavedItem> items;
+		items.reserve(Attrs.size() + BlendAttributes.size());
+
+		for (auto& d : dint) for (auto& f : Attrs) if (f==d.Description.Name) items.push_back(std::move(d));
+
+		if (!BlendAttributes.size()) {
+			auto ret = InterleaveAttributes(items);
+			ret.Index = Index;
+			Reindex(ret.VertexData, ret.Index, ret.Stride);
+			ret.VertexCount = ret.VertexData.size() / ret.Stride;
+			return ret;
+		} else {
+			auto MainSize = items.size();
+			int bStride = BlendShapeData.size() / VertexCount;
+			auto tmpPart = ObjectSubPart{ std::move(BlendShapeData), {}, std::move(BlendAttributes), {}, {}, bStride, VertexCount };
+			auto sMorph = DeinterleaveAttributes(tmpPart);
+			for (auto& m : sMorph) {
+				for (auto& f : Attrs) {
+					if (m.Description.Name == f) {
+						items.push_back(std::move(m));
+						goto Found;
+					}
+				}
+			Found:;
+			}
+
+			auto tmpRet = InterleaveAttributes(items);
+			tmpRet.Index = Index;
+			Reindex(tmpRet.VertexData, tmpRet.Index, tmpRet.Stride);
+
+			dint = DeinterleaveAttributes(tmpRet);
+			items.clear();
+			for (auto i = 0; i<MainSize; i++) items.push_back(std::move(dint[i]));
+			auto ret = InterleaveAttributes(items);
+			ret.Index = std::move(tmpRet.Index);
+			ret.VertexCount = ret.VertexData.size() / ret.Stride;
+
+			items.clear();
+			for (auto i = MainSize; i<dint.size(); i++) items.push_back(std::move(dint[i]));
+			tmpRet = InterleaveAttributes(items);
+			ret.BlendAttributes = std::move(tmpRet.Attributes);
+			ret.BlendShapeData = std::move(tmpRet.VertexData);
+
+
+			return ret;
+		}
+	}
+
 	void Transform::Save(BinSaver& bin) {
 		bin.Begin("NODE"); {
 			bin.Write("NAME", Name);
@@ -968,16 +1076,23 @@ namespace PVX::Object3D {
 		});
 
 		bin.Process("MTRL", [&](PVX::BinLoader& bin) {
-			Standart_Phong mat{};
+			PlaneMaterial mat{};
 			std::string Name;
 			
 			bin.Process("NAME", Name);
 
 			bin.Process("COLR", mat.Color);
+
 			bin.Process("CAMB", mat.Ambient);
 			bin.Process("CDIF", mat.Diffuse);
 			bin.Process("CSPC", mat.Specular);
 			bin.Process("CEMT", mat.Emissive);
+
+			bin.Process("FAMB", mat.AmbientFactor);
+			bin.Process("FDIF", mat.DiffuseFactor);
+			bin.Process("FSPC", mat.SpecularFactor);
+			bin.Process("FEMT", mat.EmissiveFactor);
+
 			bin.Process("CSPC", mat.SpecularPower);
 			bin.Process("CTRN", mat.Transparency);
 			bin.Process("CBMP", mat.Bump);

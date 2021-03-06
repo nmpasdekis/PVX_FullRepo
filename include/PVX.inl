@@ -60,7 +60,7 @@ namespace PVX {
 		return std::make_pair(ret1, ret2);
 	}
 	template<typename T>
-	inline long long IndexOf(const std::vector<T> & Array, std::function<bool(T& a)> fnc) {
+	inline long long IndexOf(const std::vector<T> & Array, std::function<bool(decltype(Array[0])& a)> fnc) {
 		for (long long i = 1; i < Array.size(); i++) {
 			if (fnc(Array[i]))
 				return i;
@@ -253,7 +253,7 @@ namespace PVX {
 			if (!--(*ref)) delete ref; 
 		}
 		inline RefCounter & operator=(const RefCounter & r) {
-			if (!--(*ref)) delete ref;
+			if (ref && !--(*ref)) delete ref;
 			ref = r.ref;
 			(*ref)++;
 			return *this;
