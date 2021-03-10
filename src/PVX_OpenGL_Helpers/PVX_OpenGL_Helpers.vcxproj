@@ -82,6 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DefaultShaders.cpp" />
     <ClCompile Include="PVX_OpenGL_Helpers.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>

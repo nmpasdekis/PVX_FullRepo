@@ -16,63 +16,6 @@ namespace PVX::OpenGL::Helpers {
 	constexpr uint32_t HasTexPBR = 32;
 	constexpr uint32_t HasTexBump = 64;
 
-	Geometry ToGeomerty2(const Object3D::ObjectSubPart& so) {
-		return {
-			PrimitiveType::TRIANGLES,
-			int(so.Index.size()),
-			so.Index,
-			{
-				{
-					so.VertexData,
-					PVX::Map(so.Attributes, [](const auto& a) { return FromObjectAttribute(a); }),
-					so.Stride
-				}
-			},
-			false
-		};
-	}
-
-	ObjectGL::ObjectGL(const Object3D::Object& obj) {
-		TransformConstants.reserve(obj.Heirarchy.size());
-		for (auto& t : obj.Heirarchy) {
-			TransformConstants.emplace_back(t);
-			InitialTransform.push_back({ t.Position, t.Rotation, t.Scale });
-		}
-
-		std::map<std::string, int> MatLookup;
-		for (auto& [Name, m]: obj.Material) {
-			MatLookup[Name] = int(MatLookup.size());
-			auto& mat = Materials.emplace_back(DataPBR {
-				{ m.Color, 1.0f - m.Transparency },
-				0,
-				1.0f - m.SpecularFactor /(m.AmbientFactor + m.DiffuseFactor + m.SpecularFactor),
-				m.Bump,
-				m.EmissiveFactor
-			});
-		}
-
-		Parts.reserve(obj.Parts.size());
-		for (auto& p : obj.Parts) {
-			auto& pp = Parts.emplace_back();
-			if (!p.BoneNodes.size()) {
-				pp.UseMatrices.push_back(IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return t.Name == p.TransformNode; }));
-			} else {
-				for (auto i = 0; i<p.BoneNodes.size(); i++) {
-					pp.PostTransform.reserve(p.BoneNodes.size());
-					pp.UseMatrices.reserve(p.BoneNodes.size());
-
-					pp.UseMatrices.push_back(IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return p.BoneNodes[i] == t.Name; }));
-					pp.PostTransform.push_back(p.BonePostTransform[i]);
-				}
-			}
-			for (auto& [Mat, SubPart]: p.Parts) {
-				auto& sp = pp.SubPart.emplace_back();
-				sp.MaterialIndex = MatLookup[Mat];
-				sp.Mesh = ToGeomerty2(SubPart);
-			}
-		}
-	}
-
 	PVX::JSON::Item Variable(const std::string& Name, const std::string& Type, const PVX::JSON::Item& Value) {
 		PVX::JSON::Item ret = PVX::JSON::jsElementType::Object;
 		ret[L"Name"] = Name;
@@ -87,7 +30,8 @@ namespace PVX::OpenGL::Helpers {
 	}
 
 	Attribute FromObjectAttribute(const Object3D::VertexAttribute& attr) {
-		constexpr GLenum TypeMap[] = { GL_UNSIGNED_BYTE, GL_INT, GL_FLOAT, GL_DOUBLE };
+		constexpr AttribType TypeMap[] = { AttribType::UNSIGNED_BYTE, AttribType::INT, AttribType::FLOAT, AttribType::DOUBLE };
+		constexpr bool TypeIsIntMap[] = { true, true, false, false };
 		const char* vecs[4][5] = {
 			{ "", "int", "ivec2", "ivec3", "ivec4" },
 			{ "", "int", "ivec2", "ivec3", "ivec4" },
@@ -96,6 +40,7 @@ namespace PVX::OpenGL::Helpers {
 		};
 
 		return {
+			TypeIsIntMap[(int)attr.Type],
 			attr.Name,
 			attr.Count,
 			TypeMap[(int)attr.Type],
@@ -163,5 +108,35 @@ namespace PVX::OpenGL::Helpers {
 				old
 			};
 		}
+	}
+
+	void Renderer::DrawInstances() {
+		for (auto& [n, o] : Objects) {
+			o->UpdateInstances();
+		}
+		PVX::OpenGL::BindBuffer(0, CameraBuffer);
+
+		for (auto& [oid, Object2]: Objects) {
+			auto& Object = *Object2.get();
+			if (!Object.DrawCount) continue;
+			for (auto& p: Object.Parts) {
+				BindBuffer(2, p.TransformBuffer);
+				for (auto& pp: p.SubPart) {
+					auto& mat = Object.Materials[pp.MaterialIndex];
+
+					BindBuffer(1, mat.Data);
+					if (mat.Color_Tex) glBindTextureUnit(0, mat.Color_Tex);
+					
+
+					pp.ShaderProgram.Use();
+					pp.ShaderProgram.SetBoneCount(p.PostTransform.size());
+					pp.ShaderProgram.SetMorphCount(p.MorphCount);
+					
+					
+					pp.Mesh.Draw(Object.DrawCount);
+				}
+			}
+		}
+		glUseProgram(0);
 	}
 }

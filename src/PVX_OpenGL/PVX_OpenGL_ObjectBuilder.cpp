@@ -172,11 +172,11 @@ namespace PVX {
 			Min = mode.Min;
 			Max = mode.Max;
 			Count = 0;
-			Start = Data.Vertex.size();
+			Start = int(Data.Vertex.size());
 		}
 		void ObjectBuilder::End() {
 			if (Max != 0x7fffffff && Count != Min) {
-				Count = Data.Vertex.size() - Count + Min;
+				Count = int(Data.Vertex.size() - Count + Min);
 				Data.Vertex.resize(Count);
 				Data.Color.resize(Count);
 				Data.Normal.resize(Count);
@@ -203,7 +203,7 @@ namespace PVX {
 				list.resize(sz + stride);
 				memcpy(&list[i], item, stride);
 			}
-			return i / stride;
+			return int(i / stride);
 		}
 
 		static int InsertUnique(std::vector<unsigned char>& list, std::vector<unsigned int>& Hash, unsigned char* item, int stride) {
@@ -223,7 +223,7 @@ namespace PVX {
 				list.resize(sz + stride);
 				memcpy(&list[i*stride], item, stride);
 			}
-			return i;
+			return int(i);
 		}
 
 		static int InsertUnique(std::vector<unsigned char>& list, std::vector<unsigned int>& Hash, unsigned char* item, unsigned int itemCRC, int stride) {
@@ -242,7 +242,7 @@ namespace PVX {
 				list.resize(sz + stride);
 				memcpy(&list[i*stride], item, stride);
 			}
-			return i;
+			return int(i);
 		}
 
 		InterleavedArrayObject ObjectBuilder::Build() {
@@ -259,7 +259,7 @@ namespace PVX {
 			size_t dsz = sz * ret.Stride;
 			std::vector<unsigned char> tmp(dsz);
 
-			ret.Attributes.push_back({ "Position", 3, GL_FLOAT, 0, 0, "vec3" });
+			ret.Attributes.push_back({ false, "Position", 3, AttribType::FLOAT, 0, 0, "vec3" });
 
 			if (ret.Stride == sizeof(Vector3D)) {
 				memcpy(&tmp[0], &Data.Vertex[0], dsz);
@@ -269,25 +269,25 @@ namespace PVX {
 				int off = sizeof(Vector3D);
 
 				if (Flags&HasNormal) {
-					ret.Attributes.push_back({ "Normal", 3, GL_FLOAT, 0, off, "vec3" });
+					ret.Attributes.push_back({ false, "Normal", 3, AttribType::FLOAT, 0, off, "vec3" });
 					ret.NormalOffset = off;
 					PVX::Interleave(dt+off, ret.Stride, Data.Normal.data(), sizeof(Vector3D), sz);
 					off += sizeof(Vector3D);
 				}
 				if (Flags&HasTex) {
-					ret.Attributes.push_back({ "UV", 2, GL_FLOAT, 0, off, "vec2" });
+					ret.Attributes.push_back({ false, "UV", 2, AttribType::FLOAT, 0, off, "vec2" });
 					ret.TexCoordOffset = off;
 					PVX::Interleave(dt+off, ret.Stride, Data.TexCoord.data(), sizeof(Vector2D), sz);
 					off += sizeof(Vector2D);
 				}
 				if (Flags&HasTex3D) {
-					ret.Attributes.push_back({ "UVW", 2, GL_FLOAT, 0, off, "vec3" });
+					ret.Attributes.push_back({ false, "UVW", 2, AttribType::FLOAT, 0, off, "vec3" });
 					ret.TexCoordOffset3D = off;
 					PVX::Interleave(dt+off, ret.Stride, Data.TexCoord3D.data(), sizeof(Vector3D), sz);
 					off += sizeof(Vector2D);
 				}
 				if (Flags&HasColor) {
-					ret.Attributes.push_back({ "Color", 4, GL_FLOAT, 0, off, "vec4" });
+					ret.Attributes.push_back({ false, "Color", 4, AttribType::FLOAT, 0, off, "vec4" });
 					ret.ColorOffset = off;
 					PVX::Interleave(dt+off, ret.Stride, Data.Color.data(), sizeof(Vector4D), sz);
 				}
@@ -356,35 +356,35 @@ namespace PVX {
 			}
 		}
 
-		static void Interleave(void* dst, int dstStride, void* src, int srcStride, int Count) {
-			float min = srcStride < dstStride ? srcStride : dstStride;
+		//static void Interleave(void* dst, size_t dstStride, void* src, size_t srcStride, size_t Count) {
+		//	float min = srcStride < dstStride ? srcStride : dstStride;
 
-			unsigned char* Dst = (unsigned char*)dst;
-			unsigned char* Src = (unsigned char*)src;
-			for (int i = 0; i < Count; i++) {
-				memcpy(Dst, Src, min);
-				Dst += dstStride;
-				Src += srcStride;
-			}
-		}
+		//	unsigned char* Dst = (unsigned char*)dst;
+		//	unsigned char* Src = (unsigned char*)src;
+		//	for (int i = 0; i < Count; i++) {
+		//		memcpy(Dst, Src, min);
+		//		Dst += dstStride;
+		//		Src += srcStride;
+		//	}
+		//}
 
 		InterleavedArrayObject::InterleavedArrayObject(GLenum Mode, int VertexCount, Vector3D* Position, int IndexCount, int* Index, Vector3D* Normal, Vector3D* UV, Vector3D* Color) {
 			this->Mode = Mode;
 			Stride = sizeof(Vector3D);
-			Attributes.push_back({ "Position", 3, GL_FLOAT, false, 0, "vec3" });
+			Attributes.push_back({ false, "Position", 3, AttribType::FLOAT, false, 0, "vec3" });
 			NormalOffset = TexCoordOffset = ColorOffset = TangentOffset = 0;
 			if (Normal) {
-				Attributes.push_back({ "Normal", 3, GL_FLOAT, false, Stride, "vec3" });
+				Attributes.push_back({ false, "Normal", 3, AttribType::FLOAT, false, Stride, "vec3" });
 				NormalOffset = Stride;
 				Stride += sizeof(Vector3D);
 			}
 			if (UV) {
-				Attributes.push_back({ "UV", 2, GL_FLOAT, false, Stride, "vec2" });
+				Attributes.push_back({ false, "UV", 2, AttribType::FLOAT, false, Stride, "vec2" });
 				TexCoordOffset = Stride;
 				Stride += sizeof(Vector2D);
 			}
 			if (Color) {
-				Attributes.push_back({ "Color", 4, GL_FLOAT, false, Stride, "vec4" });
+				Attributes.push_back({ false, "Color", 4, AttribType::FLOAT, false, Stride, "vec4" });
 				ColorOffset = Stride;
 				Stride += sizeof(Vector4D);
 			}
@@ -525,24 +525,24 @@ namespace PVX {
 			Data.resize((Stride + sizeof(Vector4D)) * vCount);
 			Attributes.clear();
 
-			Attributes.push_back({ "Position", 3, GL_FLOAT, false, 0, "vec3" });
+			Attributes.push_back({ false, "Position", 3, AttribType::FLOAT, false, 0, "vec3" });
 			Stride = sizeof(Vector3D);
 
-			Attributes.push_back({ "Normal", 3, GL_FLOAT, false, Stride, "vec3" });
+			Attributes.push_back({ false, "Normal", 3, AttribType::FLOAT, false, Stride, "vec3" });
 			NormalOffset = Stride;
 			Stride += sizeof(Vector3D);
 
-			Attributes.push_back({ "UV", 2, GL_FLOAT, false, Stride, "vec2" });
+			Attributes.push_back({ false, "UV", 2, AttribType::FLOAT, false, Stride, "vec2" });
 			TexCoordOffset = Stride;
 			Stride += sizeof(Vector2D);
 
 			if (ColorOffset) {
-				Attributes.push_back({ "Color", 4, GL_FLOAT, false, Stride, "vec4" });
+				Attributes.push_back({ false, "Color", 4, AttribType::FLOAT, false, Stride, "vec4" });
 				ColorOffset = Stride;
 				Stride += sizeof(Vector4D);
 			}
 
-			Attributes.push_back({ "Tangent", 4, GL_FLOAT, false, Stride, "vec4" });
+			Attributes.push_back({ false, "Tangent", 4, AttribType::FLOAT, false, Stride, "vec4" });
 			TangentOffset = Stride;
 			Stride += sizeof(Vector4D);
 
@@ -652,7 +652,7 @@ namespace PVX {
 			int i = 0;
 			for (auto& a : Attributes) {
 				glEnableVertexAttribArray(i);
-				glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, Stride, (void*)a.Offset);
+				glVertexAttribPointer(i++, a.Size, GLenum(a.Type), a.Normalized, Stride, (void*)a.Offset);
 			}
 		}
 
@@ -686,7 +686,7 @@ namespace PVX {
 			int i = 0;
 			for (auto& a : Attributes) {
 				glEnableVertexAttribArray(i);
-				glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, Stride, (void*)a.Offset);
+				glVertexAttribPointer(i++, a.Size, GLenum(a.Type), a.Normalized, Stride, (void*)a.Offset);
 			}
 			glBindVertexArray(0);
 		}

@@ -11,6 +11,21 @@
 
 
 namespace PVX::Object3D {
+	enum class ItemUsage {
+		ItemUsage_Position = 0,
+		ItemUsage_Normal = 1,
+		ItemUsage_UV = 2,
+		ItemUsage_Tangent = 4,
+		ItemUsage_Weight = 8,
+		ItemUsage_WeightIndex = 16,
+
+		ItemUsage_MorphPosition = 32,
+		ItemUsage_MorphNormal = 64,
+		ItemUsage_MorphUV = 128,
+		ItemUsage_MorphTangent = 256,
+		
+		ItemUsage_General = 0xffffffff
+	};
 
 	struct PlaneMaterial {
 		PVX::Vector3D Color;
@@ -18,6 +33,11 @@ namespace PVX::Object3D {
 		PVX::Vector3D Diffuse;
 		PVX::Vector3D Specular;
 		PVX::Vector3D Emissive;
+
+		bool IsPBR = false;
+
+		float Metallic;
+		float Roughness;
 
 		float AmbientFactor;
 		float DiffuseFactor;
@@ -34,6 +54,7 @@ namespace PVX::Object3D {
 			std::string Emissive;
 			std::string Bump;
 			std::string Transparency;
+			std::string PBR;
 		} Textures;
 	protected:
 		void Save(BinSaver& bin, const std::string& Name);
@@ -50,6 +71,7 @@ namespace PVX::Object3D {
 		_Type Type;
 		int Count;
 		int Offset;
+		ItemUsage Usage;
 		std::string Name;
 	};
 
@@ -64,7 +86,8 @@ namespace PVX::Object3D {
 		std::vector<unsigned char> BlendShapeData;
 		int Stride;
 		int VertexCount;
-		ObjectSubPart FilterAttributes(const std::initializer_list<std::string>& Attrs) const;
+		int CustomShader = 0;
+		ObjectSubPart FilterAttributes(const std::vector<std::string>& Attrs) const;
 	};
 
 	class ObjectPart {
@@ -75,6 +98,7 @@ namespace PVX::Object3D {
 		std::string TransformNode;
 		std::vector<Matrix4x4> BonePostTransform;
 		std::vector<std::string> BoneNodes;
+		int BlendShapeCount;
 	};
 
 	struct Transform {
@@ -91,7 +115,7 @@ namespace PVX::Object3D {
 		int								RotationOrder;
 
 		struct {
-			float						FrameRate;
+			float						FrameRate = 0;
 			std::vector<PVX::Vector3D>	Position;
 			std::vector<PVX::Vector3D>	Rotation;
 			std::vector<PVX::Vector3D>	Scale;

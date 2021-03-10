@@ -391,9 +391,10 @@ namespace PVX {
 					}
 				}
 			}
+			inline int GetOutCount() const { return OutCount;	}
 		protected:
 			std::vector<Channel> Channels;
-			int OutCount;
+			int OutCount = 0;
 			float* LocalOutput;
 			float* Output;
 		};

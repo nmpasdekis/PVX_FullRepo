@@ -77,6 +77,17 @@ namespace PVX::OpenGL {
 		SwapBuffers(dc);
 	}
 
+	Context::GroupLimits Context::GetComputeGroupLimits() const {
+		GroupLimits ret;
+		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &ret.Count.x);
+		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &ret.Count.y);
+		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &ret.Count.z);
+		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &ret.Size.x);
+		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &ret.Size.y);
+		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &ret.Size.z);
+		return ret;
+	}
+
 	void Context::glThread_Func1(HWND hWnd, std::function<void(Context& gl)> Function) {
 		Init(hWnd);
 		Function(*this);

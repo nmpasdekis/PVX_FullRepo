@@ -1979,39 +1979,52 @@ namespace PVX {
 	inline Matrix4x4 rYaw(float y) {
 		float c = 0, s = 0;
 		sincosf(y, s, c);
-		Matrix4x4 out = { c, 0, -s, 0,
+		return {
+			c, 0, -s, 0,
 			0, 1, 0, 0,
 			s, 0, c, 0,
-			0, 0, 0, 1 };
-		return out;
+			0, 0, 0, 1
+		};
 	}
 
 	inline Matrix4x4 rPitch(float p) {
 		float c = 0, s = 0;
 		sincosf(p, s, c);
-		Matrix4x4 out = { 1, 0, 0, 0,
+		return { 
+			1, 0, 0, 0,
 			0, c, s, 0,
 			0, -s, c, 0,
-			0, 0, 0, 1 };
-		return out;
+			0, 0, 0, 1 
+		};
 	}
 
 	inline Matrix4x4 rRoll(float r) {
 		float c = 0, s = 0;
 		sincosf(r, &s, &c);
-		Matrix4x4 out = { c, s, 0, 0,
+		return { 
+			c, s, 0, 0,
 			-s, c, 0, 0,
 			0, 0, 1, 0,
-			0, 0, 0, 1 };
-		return out;
+			0, 0, 0, 1 
+		};
 	}
 
 	inline constexpr Matrix4x4 mTran(const Vector3D& p) {
-		Matrix4x4 out = { 1, 0, 0, 0,
+		return { 
+			1, 0, 0, 0,
 			0, 1, 0, 0,
 			0, 0, 1, 0,
-			p.x, p.y, p.z, 1 };
-		return out;
+			p.x, p.y, p.z, 1 
+		};
+	}
+
+	inline constexpr Matrix4x4 mScale(const Vector3D& s) {
+		return {
+			s.x, 0, 0, 0,
+			0, s.y, 0, 0,
+			0, 0, s.z, 0,
+			0, 0, 0, 1
+		};
 	}
 
 	inline void MatrixTranspose(Matrix4x4& m) {

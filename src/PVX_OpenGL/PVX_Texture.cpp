@@ -63,6 +63,8 @@ namespace PVX::OpenGL {
 		if (!Id)glGenTextures(1, &Id);
 		glBindTexture(GL_TEXTURE_2D, Id);
 
+		this->Width = Width;
+		this->Height = Height;
 		Format = TextureFormat::RGB;
 		Type = TextureType::FLOAT;
 		InternalFormat = PVX::OpenGL::InternalFormat(Channels);
@@ -196,6 +198,9 @@ namespace PVX::OpenGL {
 	}
 	TextureCube::TextureCube(int Width, int Height, int TilesX, int TilesY, int InternalFormat, int Format, int Type, void* Data, const std::initializer_list<int>& Tiles) {
 		Update(Width, Height, TilesX, TilesY, InternalFormat, Format, Type, Data, Tiles);
+	}
+	TextureCube::TextureCube(int Width, int Height, int TilesX, int TilesY, PVX::OpenGL::InternalFormat InternalFormat, PVX::OpenGL::TextureFormat Format, PVX::OpenGL::TextureType Type, void* Data, const std::initializer_list<int>& Tiles) {
+		Update(Width, Height, TilesX, TilesY, int(InternalFormat), int(Format), int(Type), Data, Tiles);
 	}
 	void TextureCube::Update(int Width, int Height, int TilesX, int TilesY, int Channels, int BytesPerChannel, void* Data, const std::initializer_list<int>& Tiles) {
 		if (!Id)glGenTextures(1, &Id);

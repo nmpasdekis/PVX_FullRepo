@@ -1,6 +1,8 @@
 #pragma once
 //#include <Windows.h>
 
+//#define _NO_GL_DEBUG_
+
 #include <gl/glcorearb.h>
 #include <gl/GL.h>
 #include <gl/GLU.h>
@@ -204,10 +206,27 @@ namespace PVX::OpenGL {
 		DYNAMIC_COPY = GL_DYNAMIC_COPY
 	};
 
+	enum class AttribType {
+		BYTE = GL_BYTE,
+		UNSIGNED_BYTE = GL_UNSIGNED_BYTE,
+		SHORT = GL_SHORT,
+		UNSIGNED_SHORT = GL_UNSIGNED_SHORT,
+		INT = GL_INT,
+		UNSIGNED_INT = GL_UNSIGNED_INT,
+		HALF_FLOAT = GL_HALF_FLOAT,
+		FLOAT = GL_FLOAT,
+		DOUBLE = GL_DOUBLE,
+		FIXED = GL_FIXED,
+		INT_2_10_10_10_REV = GL_INT_2_10_10_10_REV,
+		UNSIGNED_INT_2_10_10_10_REV = GL_UNSIGNED_INT_2_10_10_10_REV,
+		UNSIGNED_INT_10F_11F_11F_REV = GL_UNSIGNED_INT_10F_11F_11F_REV,
+	};
+
 	typedef struct Attribute {
+		bool IsInt;
 		std::string Name;
 		int Size;
-		GLenum Type;
+		AttribType Type;
 		int Normalized;
 		int Offset;
 		std::string GLSL;
@@ -253,6 +272,13 @@ namespace PVX::OpenGL {
 			static void SpecularPower(float p);
 		} Material;
 
+		struct GroupLimits {
+			PVX::iVector3D Count;
+			PVX::iVector3D Size;
+		};
+
+		GroupLimits GetComputeGroupLimits() const;
+
 	protected:
 		void glThread_Func1(HWND hWnd, std::function<void(Context& gl)> Function);
 		void glThread_Func2(HWND hWnd, std::function<void(Context& gl, void*)> Function, void * Data);
@@ -279,23 +305,80 @@ namespace PVX::OpenGL {
 		void Enable(int enable = 1);
 	};
 
+	//class Buffer {
+	//public:
+	//	~Buffer();
+	//	Buffer();
+	//	Buffer(const Buffer&) = default;
+	//	Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage = BufferUsege::STATIC_DRAW);
+	//	Buffer(const std::vector<unsigned char>& Data, bool IsUniformBlock, BufferUsege Usage = BufferUsege::STATIC_DRAW);
+
+	//	inline void Name(const char* nm) { glObjectLabel(GL_BUFFER, Id, -1, nm); }
+
+	//	enum class BufferType {
+	//		UNIFORM_BUFFER = GL_UNIFORM_BUFFER,
+	//		SHADER_STORAGE_BUFFER = GL_SHADER_STORAGE_BUFFER
+	//	};
+
+	//	void Update(const void* Data, int Size, BufferUsege Usage = BufferUsege::STATIC_DRAW);
+	//	void Update(const std::vector<unsigned char>& Data, BufferUsege Usage = BufferUsege::STATIC_DRAW);
+
+	//	void UpdateData(const void* Data, int Size, BufferUsege Usage = BufferUsege::STATIC_DRAW);
+	//	void UpdateData(const std::vector<unsigned char>& Data, BufferUsege Usage = BufferUsege::STATIC_DRAW);
+
+	//	inline unsigned int Get() const { return Id; }
+	//	inline GLenum GetType() const { return GLenum(Type); }
+	//protected:
+	//	unsigned int Id = 0;
+	//	BufferType Type = BufferType::UNIFORM_BUFFER;
+	//	PVX::RefCounter Ref;
+	//};
+
+	enum class BufferType {
+		UNIFORM_BUFFER = GL_UNIFORM_BUFFER,
+		SHADER_STORAGE_BUFFER = GL_SHADER_STORAGE_BUFFER
+	};
+
 	class Buffer {
+		struct Buffer_Data {
+			unsigned int Id = 0;
+			int Size = 0;
+			BufferType Type = BufferType::UNIFORM_BUFFER;
+			BufferUsege Usage = BufferUsege::STATIC_DRAW;
+			bool OnlyGrow = true;
+		};
 	public:
-		~Buffer();
+		enum class MapAccess {
+			READ_ONLY = GL_READ_ONLY,
+			WRITE_ONLY = GL_WRITE_ONLY,
+			READ_WRITE = GL_READ_WRITE
+		};
 		Buffer();
+		Buffer(BufferUsege Usage);
+		Buffer(bool IsUniformBlock, BufferUsege Usage);
 		Buffer(const Buffer&) = default;
 		Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage = BufferUsege::STATIC_DRAW);
 		Buffer(const std::vector<unsigned char>& Data, bool IsUniformBlock, BufferUsege Usage = BufferUsege::STATIC_DRAW);
 
-		void Update(const void* Data, int Size, BufferUsege Usage = BufferUsege::STATIC_DRAW);
-		void Update(const std::vector<unsigned char>& Data, BufferUsege Usage = BufferUsege::STATIC_DRAW);
-		inline unsigned int Get() const { return Id; }
-		inline GLenum GetType() const { return Type; }
+		inline void Name(const char* nm) { 
+			glObjectLabel(GL_BUFFER, Data->Id, -1, nm); 
+		}
+
+		void* Map(MapAccess access = MapAccess::WRITE_ONLY);
+		void Unmap();
+		template<typename T>
+		T* Map(MapAccess access = MapAccess::WRITE_ONLY) { return (T*)Map(access); }
+
+		void Update(int Size, const void* Data = nullptr);
+		template<typename T>
+		void Update(const std::vector<T>& Data) { Update(Data.size() * sizeof(T), Data.data()); }
+
+		inline unsigned int Get() const { return Data->Id; }
+		inline GLenum GetType() const { return GLenum(Data->Type); }
 	protected:
-		unsigned int Id = 0;
-		GLenum Type = GL_UNIFORM_BUFFER;
-		PVX::RefCounter Ref;
+		std::shared_ptr<Buffer_Data> Data;
 	};
+
 
 	class VertexBuffer {
 	public:
@@ -304,10 +387,10 @@ namespace PVX::OpenGL {
 		VertexBuffer(const void* Data, int SizeInBytes);
 		inline VertexBuffer(const std::vector<unsigned char>& Data) :VertexBuffer{ Data.data(), int(Data.size()) } {};
 		
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
+	private:
 		void Update(const void* Data, int SizeInBytes);
 		inline void Update(const std::vector<unsigned char>& Data) { Update(Data.data(), int(Data.size())); };
-	private:
 		unsigned int Id;
 		PVX::RefCounter Ref;
 	};
@@ -319,11 +402,11 @@ namespace PVX::OpenGL {
 		inline IndexBuffer(const std::vector<unsigned int>& Data) :IndexBuffer{ Data.data(), int(Data.size()) } {};
 		inline IndexBuffer(const std::vector<int>& Data) :IndexBuffer{ (const unsigned int*)Data.data(), int(Data.size()) } {};
 		
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
+	private:
 		void Update(const unsigned int* Data, int Count);
 		inline void Update(const std::vector<unsigned int>& Data) { Update(Data.data(), int(Data.size())); };
 		inline void Update(const std::vector<int>& Data) { Update((const unsigned int*)Data.data(), int(Data.size())); };
-	private:
 		unsigned int Id;
 		PVX::RefCounter Ref;
 	};
@@ -339,13 +422,16 @@ namespace PVX::OpenGL {
 			ComputeShader = GL_COMPUTE_SHADER,
 		};
 		~Shader();
+		Shader() = default;
+		Shader(const Shader&) = default;
 		Shader(ShaderType Type): Type{ Type }, Id{ 0 }{};
 		Shader(ShaderType Type, const std::string& Source);
 		void Source(const std::string& Source);
+		inline void Name(const char* nm) { glObjectLabel(GL_SHADER, Id, -1, nm); }
 
 		std::string Debug(const std::string& Code);
 
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
 	private:
 		ShaderType Type = ShaderType::Uninitialized;
 		unsigned int Id = 0;
@@ -380,7 +466,9 @@ namespace PVX::OpenGL {
 		void WrapAll(TextureWrap w = TextureWrap::REPEAT);
 		void FilterWrap(TextureFilter Min = TextureFilter::LINEAR, TextureFilter Max = TextureFilter::LINEAR, TextureWrap w = TextureWrap::REPEAT);
 
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
+
+		inline void Name(const char* nm) { glObjectLabel(GL_TEXTURE, Id, -1, nm); }
 	private:
 		Texture2D(unsigned int Id);
 		void Resize(int Width, int Height);
@@ -399,13 +487,17 @@ namespace PVX::OpenGL {
 		TextureCube();
 		TextureCube(int Width, int Height, int TilesX, int TilesY, int Channels, int BytesPerChannel, void* Data, const std::initializer_list<int>& Tiles);
 		TextureCube(int Width, int Height, int TilesX, int TilesY, int InternalFormat, int Format, int Type, void* Data, const std::initializer_list<int>& Tiles);
+		TextureCube(int Width, int Height, int TilesX, int TilesY, InternalFormat InternalFormat, TextureFormat Format, TextureType Type, void* Data, const std::initializer_list<int>& Tiles);
+
 		void Update(int Width, int Height, int TilesX, int TilesY, int Channels, int BytesPerChannel, void* Data, const std::initializer_list<int>& Tiles);
 		void Update(int Width, int Height, int TilesX, int TilesY, int InternalFormat, int Format, int Type, void* Data, const std::initializer_list<int>& Tiles);
 		void Update(void* Data, int Width, int Height, int TilesX, int TylesY, const std::initializer_list<int>& Tiles);
 		void Bind(int Unit = 0);
 		void Unbind();
 		void GenerateMipmaps();
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
+
+		inline void Name(const char* nm) { glObjectLabel(GL_TEXTURE, Id, -1, nm); }
 	private:
 		TextureCube(unsigned int Id);
 		unsigned int Id = 0;
@@ -420,7 +512,8 @@ namespace PVX::OpenGL {
 	public:
 		Sampler(TextureFilter MinAndMag = TextureFilter::LINEAR, TextureWrap Wrap = TextureWrap::REPEAT);
 		Sampler(TextureFilter Min, TextureFilter Mag, TextureWrap Wrap = TextureWrap::REPEAT);
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
+		inline void Name(const char* nm) { glObjectLabel(GL_SAMPLER, Id, -1, nm); }
 	};
 
 	class FrameBufferObject {
@@ -447,7 +540,8 @@ namespace PVX::OpenGL {
 		void Resize(int Width, int Height);
 		void Bind();
 		static void Unbind();
-		unsigned int Get() const { return Id; }
+		inline unsigned int Get() const { return Id; }
+		inline void Name(const char* nm) { glObjectLabel(GL_FRAMEBUFFER, Id, -1, nm); }
 	private:
 		int Width = 0;
 		int Height = 0;
@@ -467,19 +561,21 @@ namespace PVX::OpenGL {
 		std::vector<VertexBuffer> VertexBuffers;
 		IndexBuffer Indices;
 		PVX::RefCounter Ref;
-		PrimitiveType Type;
+		PrimitiveType Type{ PrimitiveType(0)};
 		unsigned int Id = 0;
-		int IndexCount;
+		int IndexCount = 0;
+		unsigned int Flags = 0;
 	public:
 		inline Geometry() {}
 		Geometry(const Geometry&) = default;
-		Geometry(Geometry&&) = default;
+		Geometry(Geometry&&) noexcept = default;
 		Geometry& operator=(const Geometry&) = default;
 		~Geometry();
 		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool OldVersion=false);
-		void Draw();
-		void Draw(int Count);
+		void Draw() const;
+		void Draw(int Count) const;
 		unsigned int Get() const { return Id; }
+		inline unsigned int GetFlags() const { return Flags; }
 	};
 
 
@@ -494,11 +590,11 @@ namespace PVX::OpenGL {
 		void Bind() const;
 		void Unbind() const;
 		unsigned int Get() const { return Id; }
+		inline void Name(const char* nm) { glObjectLabel(GL_PROGRAM, Id, -1, nm); }
 
 		unsigned int UniformBlockIndex(const char* Name);
 		unsigned int UniformLocation(const char* Name);
 		unsigned int StorageIndex(const char* Name);
-		void BindUniformBlock(int BlockIndex, const Buffer& Buffer);
 
 		void BindUniform(int Index, float Value);
 		void BindUniform(int Index, const PVX::Vector2D& Value);
@@ -535,6 +631,13 @@ namespace PVX::OpenGL {
 		void BindUniform(int Index, const PVX::iVector4D* Value, int Count);
 
 		void BindUniform(int Index, const PVX::Matrix4x4* Value, int Count);
+
+		void BindBuffer(int Index, const PVX::OpenGL::Buffer& buf);
+
+		bool SetUniformBlockIndex(const char* Name, int Index);
+		bool SetShaderStrorageIndex(const char* Name, int Index); 
+		bool SetTextureIndex(const char* Name, int Index);
+		bool SetTextureIndexAndSampler(const char* Name, int Index, const PVX::OpenGL::Sampler& sampler);
 	private:
 		std::vector<Shader> Shaders;
 		unsigned int Id = 0;
@@ -544,7 +647,12 @@ namespace PVX::OpenGL {
 
 		// Deprecated
 		unsigned int UniformIndex(const char* Name);
+		void BindUniformBlock(int BlockIndex, const Buffer& Buffer);
 	};
+
+	inline void BindBuffer(int Index, const PVX::OpenGL::Buffer& buf) {
+		glBindBufferBase(buf.GetType(), Index, buf.Get());
+	}
 
 	class Pipeline {
 	public:
@@ -627,7 +735,7 @@ namespace PVX::OpenGL {
 		inline Buffer GetConstantBuffer() {
 			return { &Storage, sizeof(Storage), true };
 		}
-		inline void UpdateConstantBuffer(Buffer& Buffer) { Buffer.Update(&Storage, sizeof(Storage)); };
+		inline void UpdateConstantBuffer(Buffer& Buffer) { Buffer.Update(sizeof(Storage), &Storage); };
 //#endif
 	};
 }

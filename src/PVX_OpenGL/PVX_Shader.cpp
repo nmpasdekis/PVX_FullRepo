@@ -146,7 +146,6 @@ namespace PVX::OpenGL {
 	void Pipeline::Textures2D(const std::string& n, const Sampler& s, const Texture2D& t) {
 		int texCount = int(Tex.size());
 		auto si = Prog.UniformLocation(n.c_str());
-		GL_CHECK();
 		if (si!=~0u) {
 			glUseProgram(Prog.Get());
 			GL_CHECK(glUniform1i(si, texCount));
@@ -198,7 +197,10 @@ namespace PVX::OpenGL {
 		else UniformStorage(Name, Buf);
 	}
 
-	void Pipeline::BindBuffer(const std::initializer_list<std::pair<std::string, Buffer>>& Buf) {}
+	void Pipeline::BindBuffer(const std::initializer_list<std::pair<std::string, Buffer>>& Buf) {
+		for (auto& [Name, b] : Buf)
+			BindBuffer(Name, b);
+	}
 
 
 	unsigned int Program::UniformBlockIndex(const char* Name) {
@@ -252,6 +254,45 @@ namespace PVX::OpenGL {
 	void Program::BindUniform(int Index, const PVX::iVector4D* Value, int Count) { glUniform4iv(Index, Count, (int*)Value); }
 	void Program::BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) { glUniformMatrix4fv(Index, Count, false, (float*)Value); }
 
+	void Program::BindBuffer(int Index, const PVX::OpenGL::Buffer& buf) {
+		glBindBufferBase(buf.GetType(), Index, buf.Get());
+	}
+
+	bool Program::SetUniformBlockIndex(const char* Name, int Index) {
+		auto loc = UniformBlockIndex(Name);
+		if (loc != ~0) {
+			glUniformBlockBinding(Id, loc, Index);
+			return true;
+		}
+		return false;
+	}
+	bool Program::SetShaderStrorageIndex(const char* Name, int Index) {
+		auto loc = glGetProgramResourceIndex(Id, GL_SHADER_STORAGE_BLOCK, Name);
+		if (loc != ~0) {
+			glShaderStorageBlockBinding(Id, loc, Index);
+			return true;
+		}
+		return false;
+	}
+	bool Program::SetTextureIndex(const char* Name, int Index) {
+		auto loc = UniformLocation(Name);
+		if (loc != ~0) {
+			glUniform1i(loc, Index);
+			return true;
+		}
+		return false;
+	}
+	bool Program::SetTextureIndexAndSampler(const char* Name, int Index, const PVX::OpenGL::Sampler& sampler) {
+		auto loc = UniformLocation(Name);
+		if (loc != ~0) {
+			glUniform1i(loc, Index);
+			glBindSampler(loc, sampler.Get());
+			return true;
+		}
+		return false;
+	}
+
+
 	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool old) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
@@ -262,7 +303,14 @@ namespace PVX::OpenGL {
 				glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
 				for (auto& a: b.Attributes) {
 					glEnableVertexAttribArray(i);
-					glVertexAttribPointer(i++, a.Size, a.Type, a.Normalized, b.Stride, (void*)a.Offset);
+					if(a.IsInt)
+						glVertexAttribIPointer(i++, a.Size, GLenum(a.Type), b.Stride, (void*)a.Offset);
+					else
+						glVertexAttribPointer(i++, a.Size, GLenum(a.Type), a.Normalized, b.Stride, (void*)a.Offset);
+					if (a.Name == "Normal") Flags |= 1;
+					else if (a.Name == "UV" || a.Name == "TexCoord") Flags |= 2;
+					else if (a.Name == "Tangent") Flags |= 4;
+					else if (a.Name == "Weights") Flags |= 8;
 				}
 			}
 		} else {
@@ -272,16 +320,18 @@ namespace PVX::OpenGL {
 				for (auto& a: b.Attributes) {
 					if (a.Name == "Position") {
 						glEnableClientState(GL_VERTEX_ARRAY);
-						glVertexPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
+						glVertexPointer(a.Size, GLenum(a.Type), b.Stride, (void*)a.Offset);
 					} else if (a.Name == "Normal") {
 						glEnableClientState(GL_NORMAL_ARRAY);
-						glNormalPointer(a.Type, b.Stride, (void*)a.Offset);
-					} else if (a.Name=="UV") {
+						glNormalPointer(GLenum(a.Type), b.Stride, (void*)a.Offset);
+						Flags |= 1;
+					} else if (a.Name == "UV" || a.Name == "TexCoord") {
 						glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-						glTexCoordPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
-					} else if (a.Name=="Color") {
+						glTexCoordPointer(a.Size, GLenum(a.Type), b.Stride, (void*)a.Offset);
+						Flags |= 2;
+					} else if (a.Name == "Color") {
 						glEnableClientState(GL_COLOR_ARRAY);
-						glColorPointer(a.Size, a.Type, b.Stride, (void*)a.Offset);
+						glColorPointer(a.Size, GLenum(a.Type), b.Stride, (void*)a.Offset);
 					}
 				}
 			}
@@ -292,13 +342,13 @@ namespace PVX::OpenGL {
 	Geometry::~Geometry() {
 		if (!Ref && Id) glDeleteVertexArrays(1, &Id);
 	}
-	void Geometry::Draw() {
+	void Geometry::Draw() const {
 		glBindVertexArray(Id);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
 		glDrawElements(int(Type), IndexCount, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 	}
-	void Geometry::Draw(int Count) {
+	void Geometry::Draw(int Count) const {
 		glBindVertexArray(Id);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
 		glDrawElementsInstanced(int(Type), IndexCount, GL_UNSIGNED_INT, 0, Count);

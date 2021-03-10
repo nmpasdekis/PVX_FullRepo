@@ -190,6 +190,35 @@ namespace PVX {
 		return ret;
 	}
 
+	template<typename T>
+	bool All(const T& Container, std::function<bool(const decltype(Container[0])&)> pred) {
+		return std::all_of(Container.begin(), Container.end(), pred);
+	}
+
+	inline bool All(size_t Size, std::function<bool(size_t)> pred) {
+		for (size_t i = 0; i<Size; i++) if (!pred(i))return false;
+		return true;
+	}
+
+	template<typename T>
+	bool Any(const T& Container, std::function<bool(const decltype(Container[0])&)> pred) {
+		return std::any_of(Container.begin(), Container.end(), pred);
+	}
+	inline bool Any(size_t Size, std::function<bool(size_t)> pred) {
+		for (size_t i = 0; i<Size; i++) if (pred(i))return true;
+		return false;
+	}
+
+	template<typename T>
+	void SortInplace(T& container, std::function<bool(const decltype(container[0])&, const decltype(container[0])&)> pred) {
+		std::sort(container.begin(), container.end(), pred);
+	}
+	template<typename T>
+	T&& Sort(T&& container, std::function<bool(const decltype(container[0])&, const decltype(container[0])&)> pred) {
+		std::sort(container.begin(), container.end(), pred);
+		return std::move(container);
+	}
+
 	template<typename T1, typename T2>
 	inline auto Map_Parallel(const std::vector<T1>& Array, T2 fnc) {
 		using returnType = decltype(fnc(Array[0]));
@@ -270,17 +299,25 @@ namespace PVX {
 		}
 		return -1;
 	}
-	inline void Interleave(void * Dest, int DestStride, const void * Src, int SrcStride, int Count) {
-		unsigned char * dst = (unsigned char*)Dest;
-		unsigned char * src = (unsigned char*)Src;
-		int dif = (DestStride - SrcStride);
-		int sz = SrcStride + (dif & (dif >> ((sizeof(int) << 3) - 1)));
+	inline void Interleave(void* dst, size_t dstStride, const void* src, size_t srcStride, size_t Count) {
+		float min = srcStride < dstStride ? srcStride : dstStride;
+
+		unsigned char* Dst = (unsigned char*)dst;
+		const unsigned char* Src = (const unsigned char*)src;
 		for (int i = 0; i < Count; i++) {
-			memcpy(dst, src, sz);
-			dst += DestStride;
-			src += SrcStride;
+			memcpy(Dst, Src, min);
+			Dst += dstStride;
+			Src += srcStride;
 		}
 	}
+
+	template<typename T>
+	void Append(std::vector<T>& out, const std::vector<T>& more) {
+		out.reserve(out.size() + more.size());
+		for (auto& i: more)
+			out.push_back(i);
+	}
+
 	inline void Append(std::vector<unsigned char>& Array, const unsigned char* more, size_t moreSize) {
 		auto sz = Array.size();
 		Array.resize(sz + moreSize);

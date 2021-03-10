@@ -10,9 +10,10 @@ namespace PVX::OpenGL {
 		Update(Data, Count);
 	}
 	void IndexBuffer::Update(const unsigned int* Data, int Count) {
-		GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Id));
-		GL_CHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, Count * sizeof(int), Data, GL_STATIC_DRAW));
-		GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Id);
+		//GL_CHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, Count * sizeof(int), Data, GL_STATIC_DRAW));
+		glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, Count * sizeof(int), Data, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 	
 	VertexBuffer::~VertexBuffer() {
@@ -24,32 +25,47 @@ namespace PVX::OpenGL {
 		Update(Data, SizeInBytes);
 	}
 	void VertexBuffer::Update(const void* Data, int SizeInBytes) {
-		GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, Id));
-		GL_CHECK(glBufferData(GL_ARRAY_BUFFER, SizeInBytes, Data, GL_STATIC_DRAW));
-		GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
+		glBindBuffer(GL_ARRAY_BUFFER, Id);
+		//GL_CHECK(glBufferData(GL_ARRAY_BUFFER, SizeInBytes, Data, GL_STATIC_DRAW));
+		glBufferStorage(GL_ARRAY_BUFFER, SizeInBytes, Data, 0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-
-	Buffer::~Buffer() {
-		if (!Ref&&Id)
-			glDeleteBuffers(1, &Id);
+	Buffer::Buffer() : Data{ new Buffer_Data(), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
+	Buffer::Buffer(BufferUsege Usage) : Buffer() { Data->Usage = Usage; }
+	Buffer::Buffer(bool IsUniformBlock, BufferUsege Usage) : Buffer(){
+		if (!IsUniformBlock) this->Data->Type = BufferType::SHADER_STORAGE_BUFFER;
+		this->Data->Usage = Usage;
 	}
-	Buffer::Buffer() {}
-	Buffer::Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage) {
-		if (!IsUniformBlock)Type = GL_SHADER_STORAGE_BUFFER;
-		Update(Data, Size, Usage);
+	Buffer::Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage) : Buffer(IsUniformBlock, Usage) {
+		Update(Size, Data);
 	}
-	Buffer::Buffer(const std::vector<unsigned char>& Data, bool IsUniformBlock, BufferUsege Usage) {
-		if (!IsUniformBlock)Type = GL_SHADER_STORAGE_BUFFER;
-		Update(Data.data(), int(Data.size()), Usage);
+	Buffer::Buffer(const std::vector<unsigned char>& Data, bool IsUniformBlock, BufferUsege Usage) : Buffer(IsUniformBlock, Usage) {
+		Update(int(Data.size()), Data.data());
 	}
-	void Buffer::Update(const void* Data, int Size, BufferUsege Usage) {
-		if (!Id) glGenBuffers(1, &Id);
-		GL_CHECK(glBindBuffer(Type, Id));
-		GL_CHECK(glNamedBufferData(Id, Size, Data, int(Usage)));
-		GL_CHECK(glBindBuffer(Type, 0));
+	void* Buffer::Map(MapAccess access) {
+		return glMapNamedBuffer(Data->Id, GLenum(access)) ;
 	}
-	void Buffer::Update(const std::vector<unsigned char>& Data, BufferUsege Usage) {
-		Update(Data.data(), int(Data.size()), Usage);
+	void Buffer::Unmap() {
+		glUnmapNamedBuffer(Data->Id);
 	}
+	void Buffer::Update(int Size, const void* Data) {
+		if (this->Data->Id) {
+			if (this->Data->Size == Size || (this->Data->OnlyGrow && this->Data->Size > Size))
+				glNamedBufferSubData(this->Data->Id, 0, Size, Data);
+			else {
+				glNamedBufferData(this->Data->Id, Size, Data, GLenum(this->Data->Usage));
+				this->Data->Size = Size;
+			}
+		} else {
+			this->Data->Size = Size;
+			glGenBuffers(1, &(this->Data->Id));
+			glBindBuffer(GLenum(this->Data->Type), this->Data->Id);
+			glBufferData(GLenum(this->Data->Type), Size, Data, GLenum(this->Data->Usage));
+			glBindBuffer(GLenum(this->Data->Type), 0);
+		}
+	}
+	//void Buffer::Update(const std::vector<unsigned char>& Data) {
+	//	Update(Data.data(), int(Data.size()));
+	//}
 }
