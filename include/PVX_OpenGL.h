@@ -347,6 +347,7 @@ namespace PVX::OpenGL {
 			BufferUsege Usage = BufferUsege::STATIC_DRAW;
 			bool OnlyGrow = true;
 		};
+		Buffer(const Buffer_Data& dt);
 	public:
 		enum class MapAccess {
 			READ_ONLY = GL_READ_ONLY,
@@ -360,9 +361,7 @@ namespace PVX::OpenGL {
 		Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage = BufferUsege::STATIC_DRAW);
 		Buffer(const std::vector<unsigned char>& Data, bool IsUniformBlock, BufferUsege Usage = BufferUsege::STATIC_DRAW);
 
-		inline void Name(const char* nm) { 
-			glObjectLabel(GL_BUFFER, Data->Id, -1, nm); 
-		}
+		inline void Name(const char* nm) { glObjectLabel(GL_BUFFER, Data->Id, -1, nm); }
 
 		void* Map(MapAccess access = MapAccess::WRITE_ONLY);
 		void Unmap();
@@ -375,6 +374,8 @@ namespace PVX::OpenGL {
 
 		inline unsigned int Get() const { return Data->Id; }
 		inline GLenum GetType() const { return GLenum(Data->Type); }
+
+		static Buffer MakeImmutableShaderStorage(int Size, void* Data);
 	protected:
 		std::shared_ptr<Buffer_Data> Data;
 	};

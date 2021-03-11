@@ -143,21 +143,21 @@ namespace PVX::OpenGL::Helpers {
 					mat.Normal_Tex = LoadTexture2D(m.Textures.Bump).Get();
 			}
 		}
-
+		
 		ret.Parts.reserve(obj.Parts.size());
 		for (auto& p : obj.Parts) {
 			auto& pp = ret.Parts.emplace_back();
 
-			pp.MorphCount = p.BlendShapeCount;
+			ret.MorphCount += (pp.MorphCount = int(p.BlendShapes.size()));
 
 			if (!p.BoneNodes.size()) {
-				pp.UseMatrices.push_back(IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return t.Name == p.TransformNode; }));
+				pp.UseMatrices.push_back((int)IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return t.Name == p.TransformNode; }));
 			} else {
 				for (auto i = 0; i<p.BoneNodes.size(); i++) {
 					pp.PostTransform.reserve(p.BoneNodes.size());
 					pp.UseMatrices.reserve(p.BoneNodes.size());
 
-					pp.UseMatrices.push_back(IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return p.BoneNodes[i] == t.Name; }));
+					pp.UseMatrices.push_back((int)IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return p.BoneNodes[i] == t.Name; }));
 					pp.PostTransform.push_back(p.BonePostTransform[i]);
 				}
 			}
@@ -197,7 +197,7 @@ namespace PVX::OpenGL::Helpers {
 						GeoFlags = PVX::Reduce(SubPart.BlendAttributes, GeoFlags, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
 							return acc | unsigned int(attr.Usage);
 						});
-						sp.Morph = PVX::OpenGL::Buffer(fsp.BlendShapeData.data(), fsp.BlendShapeData.size(), false);
+						sp.Morph = PVX::OpenGL::Buffer::MakeImmutableShaderStorage((int)fsp.BlendShapeData.size(), fsp.BlendShapeData.data());
 					}
 					sp.ShaderProgram = { GetDefaultProgram(GeoFlags, MatFlags), GeneralSampler };
 				} else {
@@ -212,59 +212,11 @@ namespace PVX::OpenGL::Helpers {
 		return Id;
 	}
 
-	void ObjectGL::UpdateInstances() {
-		DrawCount = 0;
-
-		for (auto& instData: Instances) {
-			if (!instData->Active) continue;
-
-			auto& trans = instData->Transforms;
-			int curPart = 0;
-			for (auto& ct: TransformConstants) {
-				auto& tran = trans[curPart++];
-				if (ct.ParentIndex!=-1) {
-					ct.Result = TransformConstants[ct.ParentIndex].Result *
-						PVX::mTran(tran.Position) * ct.PostTranslate *
-						PVX::Rotate(ct.RotationOrder, tran.Rotation) * ct.PostRotate *
-						PVX::mScale(tran.Scale) * ct.PostScale;
-				} else {
-					ct.Result =
-						PVX::mTran(tran.Position) * ct.PostTranslate *
-						PVX::Rotate(ct.RotationOrder, tran.Rotation) * ct.PostRotate *
-						PVX::mScale(tran.Scale) * ct.PostScale;
-				}
-			}
-			for (auto& p : Parts) {
-				if (!p.PostTransform.size()) {
-					p.TransformBufferData[DrawCount] = TransformConstants[p.UseMatrices[0]].Result;
-				} else {
-					size_t index = p.UseMatrices.size() * DrawCount;
-					for (auto i = 0; i < p.UseMatrices.size(); i++) {
-						p.TransformBufferData[index++] = TransformConstants[p.UseMatrices[i]].Result *  p.PostTransform[i];
-					}
-				}
-			}
-			DrawCount++;
-		}
-		if (DrawCount) {
-			for (auto& p : Parts) {
-				p.TransformBuffer.Update(DrawCount * p.UseMatrices.size() * sizeof(PVX::Matrix4x4), p.TransformBufferData.data());
-				if (p.MorphCount) p.MorphPtr = p.MorphControlBuffer.Map<float>();
-			}
-
-			for (auto& p : Parts) {
-				if (p.MorphCount) p.MorphControlBuffer.Unmap();
-			}
-		}
-	}
-
 	InstanceData& Renderer::GetInstance(int InstanceId) {
 		auto& [objectId, Index] = Instances.at(InstanceId);
 		auto& obj = Objects.at(objectId);
 		return *obj->Instances.at(Index);
 	}
-
-	
 
 	int Renderer::CreateInstance(int oId, bool Active) {
 		int Id = NextInstanceId++;
@@ -272,12 +224,13 @@ namespace PVX::OpenGL::Helpers {
 		Instances[Id] = { oId, obj->InstanceCount++ };
 
 		obj->Instances.push_back(std::make_unique<InstanceData>(*obj, obj->InitialTransform, Active));
+		obj->Instances.back()->MorphControls.resize(obj->MorphCount);
 
 		for (auto& p: obj->Parts) {
-			p.TransformBufferData.resize(p.TransformBufferData.size() + p.UseMatrices.size());
 			if (p.MorphCount)
 				p.MorphControlBuffer.Update(obj->InstanceCount * p.MorphCount * sizeof(float));
-			//p.MorphControls.resize(p.MorphControls.size() + p.MorphCount);
+			
+			p.TransformBuffer.Update(obj->InstanceCount * p.UseMatrices.size() * sizeof(PVX::Matrix4x4));
 		}
 		return Id;
 	}

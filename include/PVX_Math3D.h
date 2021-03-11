@@ -15,66 +15,66 @@ namespace PVX {
 
 	union ucVector2D {
 		struct {
-			unsigned char r, g;
-		};
-		struct {
 			unsigned char x, y;
+		};
+		unsigned char Array[2];
+		struct {
+			unsigned char r, g;
 		};
 		struct {
 			unsigned char u, v;
 		};
 		unsigned short Word;
-		unsigned char Array[2];
 	};
 	union ucVector3D {
+		struct {
+			unsigned char x, y, z;
+		};
+		unsigned char Array[3];
 		struct {
 			unsigned char r, g, b;
 		};
 		struct {
 			unsigned char _b, _g, _r;
 		};
-		struct {
-			unsigned char x, y, z;
-		};
-		unsigned char Array[3];
 	};
 	union ucVector4D {
-		struct {
-			unsigned char r, g, b, a;
-		};
 		struct {
 			unsigned char x, y, z, w;
 		};
 		unsigned char Array[4];
+		struct {
+			unsigned char r, g, b, a;
+		};
 		unsigned int dWord;
 	};
 	union cVector2D {
 		struct {
-			char r, g;
-		};
-		struct {
 			char x, y;
 		};
-		unsigned short Word;
 		char Array[2];
+		struct {
+			char r, g;
+		};
+		unsigned short Word;
 	};
 	union cVector3D {
-		struct {
-			char r, g, b;
-		};
 		struct {
 			char x, y, z;
 		};
 		char Array[3];
+		struct {
+			char r, g, b;
+		};
 	};
 	union cVector4D {
-		struct {
-			char r, g, b, a;
-		};
 		struct {
 			char x, y, z, w;
 		};
 		char Array[4];
+		struct {
+			char r, g, b, a;
+		};
 		unsigned int dWord;
 	};
 	union Vector2D {
@@ -90,13 +90,13 @@ namespace PVX {
 		struct {
 			float x, y;
 		};
+		float Array[2];
 		struct {
 			float u, v;
 		};
 		struct {
 			float Width, Height;
 		};
-		float Array[2];
 		inline Vector2D operator-() const { return Vector2D{ -x, -y }; }
 		inline float Length() const { return sqrtf(x*x+y*y); }
 		inline float Length2() const { return (x*x+y*y); }
@@ -118,6 +118,7 @@ namespace PVX {
 		struct {
 			float x, y, z;
 		};
+		float Array[3];
 		struct {
 			float r, g, b;
 		};
@@ -133,7 +134,6 @@ namespace PVX {
 		struct {
 			float Width, Height, Depth;
 		};
-		float Array[3];
 		struct {
 			Vector2D vec2;
 			float unused1;
@@ -162,6 +162,7 @@ namespace PVX {
 		struct {
 			float x, y, z, w;
 		};
+		float Array[4];
 		struct {
 			float r, g, b, a;
 		};
@@ -172,7 +173,6 @@ namespace PVX {
 		struct {
 			float Width, Height, Depth, Imagination;
 		};
-		float Array[4];
 		inline Vector4D operator-() const { return Vector4D{ -x, -y, -z, -w }; }
 		inline Vector4D operator*(const Vector4D& v) const { return Vector4D{ v.x*x, v.y*y, v.z * z, v.w * w }; }
 		inline float Length() const { return sqrtf(x*x+y*y+z*z+w*w); }
@@ -188,19 +188,20 @@ namespace PVX {
 		struct {
 			int x, y;
 		};
+		int Array[2];
 		struct {
 			int u, v;
 		};
 		struct {
 			int Width, Height;
 		};
-		int Array[2];
 		inline iVector2D operator-() const { return iVector2D{ -x, -y }; }
 	};
 	union iVector3D {
 		struct {
 			int x, y, z;
 		};
+		int Array[3];
 		struct {
 			int r, g, b;
 		};
@@ -210,7 +211,6 @@ namespace PVX {
 		struct {
 			int Width, Height, Depth;
 		};
-		int Array[3];
 		inline iVector3D operator-() const { return iVector3D{ -x, -y, -z }; }
 	};
 	__declspec(align(16))
@@ -218,6 +218,7 @@ namespace PVX {
 		struct {
 			int x, y, z, w;
 		};
+		int Array[4];
 		struct {
 			int r, g, b, a;
 		};
@@ -228,7 +229,6 @@ namespace PVX {
 		struct {
 			int Width, Height, Depth, Imagination;
 		};
-		int Array[4];
 		inline iVector4D operator-() const { return iVector4D{ -x, -y, -z, -w }; }
 	};
 
@@ -236,18 +236,19 @@ namespace PVX {
 		struct {
 			unsigned int x, y;
 		};
+		unsigned int Array[2];
 		struct {
 			unsigned int u, v;
 		};
 		struct {
 			unsigned int Width, Height;
 		};
-		unsigned int Array[2];
 	};
 	union uVector3D {
 		struct {
 			unsigned int x, y, z;
 		};
+		unsigned int Array[3];
 		struct {
 			unsigned int r, g, b;
 		};
@@ -257,13 +258,13 @@ namespace PVX {
 		struct {
 			unsigned int Width, Height, Depth;
 		};
-		unsigned int Array[3];
 	};
 	__declspec(align(16))
 	union uVector4D {
 		struct {
 			unsigned int x, y, z, w;
 		};
+		unsigned int Array[4];
 		struct {
 			unsigned int r, g, b, a;
 		};
@@ -274,7 +275,6 @@ namespace PVX {
 		struct {
 			unsigned int Width, Height, Depth, Imagination;
 		};
-		unsigned int Array[4];
 	};
 
 	//////////////////////////////////////////////////////////////////////////////
@@ -283,14 +283,14 @@ namespace PVX {
 		struct {
 			float x, y, Width, Height;
 		};
-		Vector4D Vec4;
 		float Array[4];
+		Vector4D Vec4;
 	};
 	union Quaternion {
-		float Array[4];
 		struct {
 			float i, j, k, r;
 		};
+		float Array[4];
 		Vector4D Vec;
 		inline Quaternion& Normalize() {
 			float w = 1.0f / sqrtf(i*i + j*j + k * k + r * r);
@@ -306,10 +306,10 @@ namespace PVX {
 		}
 	};
 	union DualQuaternion {
-		float Array[8];
 		struct {
 			Quaternion Real, Dual;
 		};
+		float Array[8];
 		Quaternion q[2];
 		struct {
 			float r_i, r_j, r_k, r_r, d_i, d_j, d_k, d_r;
@@ -355,13 +355,13 @@ namespace PVX {
 	__declspec(align(16))
 	union Matrix4x4 {
 		Matrix4x4() = default;
+		float m[4][4];
 		struct {
 			float m00, m01, m02, m03,
 				m10, m11, m12, m13,
 				m20, m21, m22, m23,
 				m30, m31, m32, m33;
 		};
-		float m[4][4];
 		float m16[16];
 		struct {
 			Vector4D Vec0, Vec1, Vec2, Vec3;
@@ -1736,28 +1736,6 @@ namespace PVX {
 			m2.m30*m1.m02 + m2.m31*m1.m12 + m2.m32*m1.m22 + m2.m33 * m1.m32,
 			m2.m30*m1.m03 + m2.m31*m1.m13 + m2.m32*m1.m23 + m2.m33 * m1.m33
 		};
-		//Matrix4x4 out;
-		//out.m00 = m2.m00*m1.m00 + m2.m01*m1.m10 + m2.m02*m1.m20 + m2.m03 * m1.m30;
-		//out.m01 = m2.m00*m1.m01 + m2.m01*m1.m11 + m2.m02*m1.m21 + m2.m03 * m1.m31;
-		//out.m02 = m2.m00*m1.m02 + m2.m01*m1.m12 + m2.m02*m1.m22 + m2.m03 * m1.m32;
-		//out.m03 = m2.m00*m1.m03 + m2.m01*m1.m13 + m2.m02*m1.m23 + m2.m03 * m1.m33;
-
-		//out.m10 = m2.m10*m1.m00 + m2.m11*m1.m10 + m2.m12*m1.m20 + m2.m13 * m1.m30;
-		//out.m11 = m2.m10*m1.m01 + m2.m11*m1.m11 + m2.m12*m1.m21 + m2.m13 * m1.m31;
-		//out.m12 = m2.m10*m1.m02 + m2.m11*m1.m12 + m2.m12*m1.m22 + m2.m13 * m1.m32;
-		//out.m13 = m2.m10*m1.m03 + m2.m11*m1.m13 + m2.m12*m1.m23 + m2.m13 * m1.m33;
-
-		//out.m20 = m2.m20*m1.m00 + m2.m21*m1.m10 + m2.m22*m1.m20 + m2.m23 * m1.m30;
-		//out.m21 = m2.m20*m1.m01 + m2.m21*m1.m11 + m2.m22*m1.m21 + m2.m23 * m1.m31;
-		//out.m22 = m2.m20*m1.m02 + m2.m21*m1.m12 + m2.m22*m1.m22 + m2.m23 * m1.m32;
-		//out.m23 = m2.m20*m1.m03 + m2.m21*m1.m13 + m2.m22*m1.m23 + m2.m23 * m1.m33;
-
-		//out.m30 = m2.m30*m1.m00 + m2.m31*m1.m10 + m2.m32*m1.m20 + m2.m33 * m1.m30;
-		//out.m31 = m2.m30*m1.m01 + m2.m31*m1.m11 + m2.m32*m1.m21 + m2.m33 * m1.m31;
-		//out.m32 = m2.m30*m1.m02 + m2.m31*m1.m12 + m2.m32*m1.m22 + m2.m33 * m1.m32;
-		//out.m33 = m2.m30*m1.m03 + m2.m31*m1.m13 + m2.m32*m1.m23 + m2.m33 * m1.m33;
-
-		//return out;
 	}
 
 	inline void MatrixMutily(Matrix4x4& out, const Matrix4x4& m1, const Matrix4x4& m2) {

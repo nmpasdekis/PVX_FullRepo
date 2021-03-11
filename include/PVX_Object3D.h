@@ -11,7 +11,7 @@
 
 
 namespace PVX::Object3D {
-	enum class ItemUsage {
+	enum class ItemUsage : unsigned int {
 		ItemUsage_Position = 0,
 		ItemUsage_Normal = 1,
 		ItemUsage_UV = 2,
@@ -98,7 +98,7 @@ namespace PVX::Object3D {
 		std::string TransformNode;
 		std::vector<Matrix4x4> BonePostTransform;
 		std::vector<std::string> BoneNodes;
-		int BlendShapeCount;
+		std::vector<std::string> BlendShapes;
 	};
 
 	struct Transform {

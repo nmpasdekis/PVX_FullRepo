@@ -67,10 +67,14 @@ namespace PVX::OpenGL::Helpers {
 		std::vector<ObjectGL_SubPart> SubPart;
 		std::vector<int> UseMatrices;
 		//std::vector<float> MorphControls;
-		std::vector<PVX::Matrix4x4> TransformBufferData;
+		//std::vector<PVX::Matrix4x4> TransformBufferData;
 		std::vector<PVX::Matrix4x4> PostTransform;
+		PVX::Matrix4x4* TransformBufferPtr = nullptr;
+
 		int MorphCount = 0;
 		float* MorphPtr = nullptr;
+
+
 		PVX::OpenGL::Buffer TransformBuffer{ false, PVX::OpenGL::BufferUsege::STREAM_DRAW };
 		PVX::OpenGL::Buffer MorphControlBuffer{ false, PVX::OpenGL::BufferUsege::STREAM_DRAW };
 		//ObjectGL_Part() { TransformBuffer.Name("TransformBuffer"); }
@@ -101,15 +105,17 @@ namespace PVX::OpenGL::Helpers {
 		std::vector<float> MorphControls;
 		friend struct ObjectGL;
 		friend class Renderer;
+		bool Active = false;
 	public:
-		inline InstanceData(ObjectGL& obj, const std::vector<PVX::OpenGL::Helpers::Transform>& tran, bool Active) :Object{ obj }, Transforms{ tran }, Active{ Active } {}
-		bool Active = true;
+		inline InstanceData(ObjectGL& obj, const std::vector<PVX::OpenGL::Helpers::Transform>& tran, bool Active) :Object{ obj }, Transforms{ tran } { SetActive(Active); }
 
 		inline PVX::OpenGL::Helpers::Transform& Transform(size_t index) { return Transforms[index]; }
 		inline size_t TransformCount() { return Transforms.size(); }
 
 		inline float& Morph(size_t index) { return MorphControls[index]; }
 		inline size_t MorphCount() { return MorphControls.size(); }
+
+		void SetActive(bool isActive);
 	};
 
 	struct ObjectGL {
@@ -125,6 +131,8 @@ namespace PVX::OpenGL::Helpers {
 		std::vector<PVX::OpenGL::Buffer> InstanceData;
 		size_t InstanceCount = 0;
 		size_t DrawCount = 0;
+		size_t ActiveInstances = 0;
+		int MorphCount = 0;
 
 		void UpdateInstances();
 	};
@@ -137,7 +145,7 @@ namespace PVX::OpenGL::Helpers {
 	struct LightRig {
 		int Count, padd1, padd2, padd3;
 		float Attenuation3 = 0;
-		float Attenuation2 = 0.001;
+		float Attenuation2 = 0.001f;
 		float Attenuation1 = 0;
 		float Attenuation0 = 1.0f;
 		aLight light[128];

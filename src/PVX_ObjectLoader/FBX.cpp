@@ -283,7 +283,8 @@ namespace PVX::Object3D {
 		// Position
 		{
 			auto* Vertices = Shape->GetControlPoints();
-			Items.push_back(DeinterleavedItem("Position", "float4", ItemUsage::ItemUsage_MorphPosition, PVX::Map(PolyVertexCount, [&](size_t i) { return ToVec4(Vertices[Index[i]]); })));
+			auto dt = PVX::Map(PolyVertexCount, [&](size_t i) { return ToVec3(Vertices[Index[i]]); });
+			Items.push_back(DeinterleavedItem("Position", "float3", ItemUsage::ItemUsage_MorphPosition, dt));
 		}
 
 		// Normal
@@ -291,12 +292,13 @@ namespace PVX::Object3D {
 			FbxLayerElementArrayTemplate<FbxVector4>* Normals;
 			Shape->GetNormals(&Normals);
 			if (Normals) {
-				Items.push_back(DeinterleavedItem("Normal", "float4", ItemUsage::ItemUsage_MorphNormal, [&] {
+				auto dt = [&] {
 					if (Normals->GetCount() == PolyVertexCount)
-						return PVX::Map(PolyVertexCount, [Normals](size_t i) { return ToVec4(Normals->GetAt(int(i))); });
+						return PVX::Map(PolyVertexCount, [Normals](size_t i) { return ToVec3(Normals->GetAt(int(i))); });
 					else
-						return PVX::Map(PolyVertexCount, [Normals, Index](size_t i) { return ToVec4(Normals->GetAt(Index[i])); });
-				}()));
+						return PVX::Map(PolyVertexCount, [Normals, Index](size_t i) { return ToVec3(Normals->GetAt(Index[i])); });
+				}();
+				Items.push_back(DeinterleavedItem("Normal", "float3", ItemUsage::ItemUsage_MorphNormal, dt));
 			}
 		}
 
@@ -307,7 +309,7 @@ namespace PVX::Object3D {
 			int UV_Count = UV_Names.GetCount();
 
 			for (auto i = 1; i <= UV_Count; i++) {
-				std::vector<PVX::Vector4D> UVs;
+				std::vector<PVX::Vector2D> UVs;
 
 				std::stringstream uvName;
 				uvName << "TexCoord";
@@ -319,15 +321,15 @@ namespace PVX::Object3D {
 					case FbxLayerElement::eByPolygonVertex:
 					{
 						auto& Map = uv->GetIndexArray();
-						UVs = PVX::Map(PolyVertexCount, [&](size_t j) { return ToVec4(Direct[Map[int(j)]]); });
+						UVs = PVX::Map(PolyVertexCount, [&](size_t j) { return ToVec2(Direct[Map[int(j)]]); });
 					}
 					break;
 					case FbxLayerElement::eByControlPoint:
-						UVs = PVX::Map(PolyVertexCount, [&](size_t j) { return ToVec4(Direct[Index[j]]); });
+						UVs = PVX::Map(PolyVertexCount, [&](size_t j) { return ToVec2(Direct[Index[j]]); });
 						break;
 				}
 
-				Items.push_back(DeinterleavedItem(uvName.str(), "float4", ItemUsage::ItemUsage_MorphUV, UVs));
+				Items.push_back(DeinterleavedItem(uvName.str(), "float2", ItemUsage::ItemUsage_MorphUV, UVs));
 
 				// Tangents
 				{
@@ -487,8 +489,8 @@ namespace PVX::Object3D {
 		return Items;
 	}
 
-	std::vector<std::vector<DeinterleavedItem>> GetBlendShapes(FbxMesh* Mesh, int& MorphCount) {
-		MorphCount = 0;
+	std::vector<std::vector<DeinterleavedItem>> GetBlendShapes(FbxMesh* Mesh, std::vector<std::string>& Morphs) {
+		Morphs.clear();
 		int* Index = Mesh->GetPolygonVertices();
 		int PolyVertexCount = Mesh->GetPolygonVertexCount();
 		std::vector<std::vector<DeinterleavedItem>> Items;
@@ -502,12 +504,11 @@ namespace PVX::Object3D {
 				FbxBlendShapeChannel* cnl = Blend->GetBlendShapeChannel(j);
 				int bsCount = cnl->GetTargetShapeCount();
 				double* full = cnl->GetTargetShapeFullWeights();
-				auto cur = cnl->DeformPercent.Get();
-
+				
 				for (int k = 0; k < bsCount; k++) {
 					cnl->DeformPercent = full[k];
 					Items.push_back(LoadMorphShape(cnl->GetTargetShape(k), Index, PolyVertexCount));
-					MorphCount++;
+					Morphs.push_back(cnl->GetTargetShape(k)->GetName());
 				}
 				cnl->DeformPercent = 0;
 			}
@@ -798,17 +799,38 @@ namespace PVX::Object3D {
 		LoadSkin(Mesh, MainParts, part.BoneNodes, part.BonePostTransform);
 		size_t MainPartsSize = MainParts.size();
 
-
-
-		auto BlendShapes = GetBlendShapes(Mesh, part.BlendShapeCount);
+		auto BlendShapes = GetBlendShapes(Mesh, part.BlendShapes);
 
 		for (auto& vi : BlendShapes) {
 			for (auto& i : vi) {
 				if (auto& m = *FindDeinterleavedItem(MainParts, i.Description.Name); &m) {
-					size_t count = i.Data.size() / sizeof(float);
-					float* out = (float*)&i.Data[0];
-					float* in = (float*)&m.Data[0];
-					for (int j = 0; j<count; j++) out[j] -= in[j];
+					switch (i.Description.Usage) {
+						case ItemUsage::ItemUsage_MorphPosition:
+						case ItemUsage::ItemUsage_MorphNormal: {
+							PVX::Vector3D* morph = (PVX::Vector3D*)i.Data.data();
+							PVX::Vector3D* original = (PVX::Vector3D*)m.Data.data();
+							i = DeinterleavedItem(i.Description.Name, "float4", i.Description.Usage, PVX::Map(i.Data.size() / sizeof(PVX::Vector3D), [&](size_t c) -> PVX::Vector4D {
+								return { morph[c] - original[c] ,1.0f };
+							}));
+							break;
+						}
+						case ItemUsage::ItemUsage_MorphUV: {
+							PVX::Vector2D* morph = (PVX::Vector2D*)i.Data.data();
+							PVX::Vector2D* original = (PVX::Vector2D*)m.Data.data();
+							i = DeinterleavedItem(i.Description.Name, "float4", i.Description.Usage, PVX::Map(i.Data.size() / sizeof(PVX::Vector2D), [&](size_t c) -> PVX::Vector4D {
+								return { morph[c].x - original[c].x, morph[c].y - original[c].y, 0, 1.0f };
+							}));
+							break;
+						}
+						case ItemUsage::ItemUsage_MorphTangent: {
+							PVX::Vector4D* morph = (PVX::Vector4D*)i.Data.data();
+							PVX::Vector4D* original = (PVX::Vector4D*)m.Data.data();
+							i = DeinterleavedItem(i.Description.Name, "float4", i.Description.Usage, PVX::Map(i.Data.size() / sizeof(PVX::Vector4D), [&](size_t c) -> PVX::Vector4D {
+								return { (morph[c].Vec3 - original[c].Vec3) , original[c].w };
+							}));
+							break;
+						}
+					}
 				}
 			}
 		}

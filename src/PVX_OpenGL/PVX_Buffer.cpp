@@ -31,7 +31,8 @@ namespace PVX::OpenGL {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-	Buffer::Buffer() : Data{ new Buffer_Data(), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
+	Buffer::Buffer() : Data{ new Buffer_Data(), [](Buffer_Data* dt) { if (dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
+	Buffer::Buffer(const Buffer_Data& dt) : Data{ new Buffer_Data(dt), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
 	Buffer::Buffer(BufferUsege Usage) : Buffer() { Data->Usage = Usage; }
 	Buffer::Buffer(bool IsUniformBlock, BufferUsege Usage) : Buffer(){
 		if (!IsUniformBlock) this->Data->Type = BufferType::SHADER_STORAGE_BUFFER;
@@ -65,7 +66,16 @@ namespace PVX::OpenGL {
 			glBindBuffer(GLenum(this->Data->Type), 0);
 		}
 	}
-	//void Buffer::Update(const std::vector<unsigned char>& Data) {
-	//	Update(Data.data(), int(Data.size()));
-	//}
+	Buffer Buffer::MakeImmutableShaderStorage(int Size, void* Data) {
+		Buffer_Data ret{
+			0,
+			Size,
+			BufferType::SHADER_STORAGE_BUFFER,
+		};
+		glGenBuffers(1, &ret.Id);
+		glBindBuffer(GLenum(BufferType::SHADER_STORAGE_BUFFER), ret.Id);
+		glBufferStorage(GLenum(BufferType::SHADER_STORAGE_BUFFER), Size, Data, 0);
+		glBindBuffer(GLenum(BufferType::SHADER_STORAGE_BUFFER), 0);
+		return { ret };
+	}
 }

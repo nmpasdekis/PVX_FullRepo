@@ -300,7 +300,7 @@ namespace PVX {
 		return -1;
 	}
 	inline void Interleave(void* dst, size_t dstStride, const void* src, size_t srcStride, size_t Count) {
-		float min = srcStride < dstStride ? srcStride : dstStride;
+		auto min = srcStride < dstStride ? srcStride : dstStride;
 
 		unsigned char* Dst = (unsigned char*)dst;
 		const unsigned char* Src = (const unsigned char*)src;

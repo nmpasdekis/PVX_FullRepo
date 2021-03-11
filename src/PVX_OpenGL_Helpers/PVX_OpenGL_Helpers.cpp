@@ -110,6 +110,58 @@ namespace PVX::OpenGL::Helpers {
 		}
 	}
 
+	void ObjectGL::UpdateInstances() {
+		DrawCount = 0;
+		if (!ActiveInstances) return;
+		for (auto& p: Parts) {
+			p.TransformBufferPtr = p.TransformBuffer.Map<PVX::Matrix4x4>();
+			if (p.MorphCount) p.MorphPtr = p.MorphControlBuffer.Map<float>();
+		}
+
+		for (auto& instData: Instances) {
+			if (!instData->Active) continue;
+
+			auto& trans = instData->Transforms;
+			int curPart = 0;
+			for (auto& ct: TransformConstants) {
+				auto& tran = trans[curPart++];
+				if (ct.ParentIndex!=-1) {
+					ct.Result = TransformConstants[ct.ParentIndex].Result *
+						PVX::mTran(tran.Position) * ct.PostTranslate *
+						PVX::Rotate(ct.RotationOrder, tran.Rotation) * ct.PostRotate *
+						PVX::mScale(tran.Scale) * ct.PostScale;
+				} else {
+					ct.Result =
+						PVX::mTran(tran.Position) * ct.PostTranslate *
+						PVX::Rotate(ct.RotationOrder, tran.Rotation) * ct.PostRotate *
+						PVX::mScale(tran.Scale) * ct.PostScale;
+				}
+			}
+			for (auto& p : Parts) {
+				if (!p.PostTransform.size()) {
+					p.TransformBufferPtr[DrawCount] = TransformConstants[p.UseMatrices[0]].Result;
+				} else {
+					size_t index = p.UseMatrices.size() * DrawCount;
+					for (auto i = 0; i < p.UseMatrices.size(); i++) {
+						p.TransformBufferPtr[index++] = TransformConstants[p.UseMatrices[i]].Result *  p.PostTransform[i];
+					}
+				}
+			}
+			if (instData->MorphControls.size()) {
+				float* Morphs = instData->MorphControls.data();
+				for (auto& p : Parts) {
+					memcpy(p.MorphPtr + p.MorphCount * DrawCount, Morphs, p.MorphCount * sizeof(float));
+					Morphs += p.MorphCount;
+				}
+			}
+			DrawCount++;
+		}
+		for (auto& p : Parts) {
+			p.TransformBuffer.Unmap();
+			if (p.MorphCount) p.MorphControlBuffer.Unmap();
+		}
+	}
+
 	void Renderer::DrawInstances() {
 		for (auto& [n, o] : Objects) {
 			o->UpdateInstances();
@@ -121,10 +173,12 @@ namespace PVX::OpenGL::Helpers {
 			if (!Object.DrawCount) continue;
 			for (auto& p: Object.Parts) {
 				BindBuffer(2, p.TransformBuffer);
+				BindBuffer(3, p.MorphControlBuffer);
 				for (auto& pp: p.SubPart) {
 					auto& mat = Object.Materials[pp.MaterialIndex];
 
 					BindBuffer(1, mat.Data);
+					BindBuffer(4, pp.Morph);
 					if (mat.Color_Tex) glBindTextureUnit(0, mat.Color_Tex);
 					
 
@@ -138,5 +192,11 @@ namespace PVX::OpenGL::Helpers {
 			}
 		}
 		glUseProgram(0);
+	}
+	void InstanceData::SetActive(bool isActive) {
+		if (isActive!=Active) {
+			Active = isActive;
+			Object.ActiveInstances += Active ? 1 : -1;
+		}
 	}
 }
