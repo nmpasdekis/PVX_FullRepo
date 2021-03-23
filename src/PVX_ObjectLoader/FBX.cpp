@@ -261,7 +261,7 @@ namespace PVX::Object3D {
 						//for (auto i = 0; i<Data.size(); i++) {
 						//	Data[i].w = DataB[i].Dot(NormalData[i].Cross(Data[i].Vec3))>0 ? 1.0f : -1.0f;
 						//}
-						Items.push_back(DeinterleavedItem("Tangents", "float4", ItemUsage::ItemUsage_Tangent, [&] {
+						Items.push_back(DeinterleavedItem("Tangent", "float4", ItemUsage::ItemUsage_Tangent, [&] {
 							if (Tangents->GetCount() == PolyVertexCount)
 								return PVX::Map(PolyVertexCount, [Tangents](size_t i) { return ToVec4(Tangents->GetAt(int(i))); });
 							else
@@ -335,7 +335,7 @@ namespace PVX::Object3D {
 				{
 					FbxLayerElementArrayTemplate<FbxVector4>* Tangents, * Binormals;
 					if (Shape->GetTangents(&Tangents, i - 1) && Shape->GetBinormals(&Binormals, i - 1)) {
-						Items.push_back(DeinterleavedItem("Tangents", "float4", ItemUsage::ItemUsage_MorphTangent, [&] {
+						Items.push_back(DeinterleavedItem("Tangent", "float4", ItemUsage::ItemUsage_MorphTangent, [&] {
 							if (Tangents->GetCount() == PolyVertexCount)
 								return PVX::Map(PolyVertexCount, [Tangents](size_t i) { return ToVec4(Tangents->GetAt(int(i))); });
 							else
@@ -662,7 +662,14 @@ namespace PVX::Object3D {
 		for (int i = 0; i < mCount; i++) {
 			FbxSurfaceMaterial* mat = fbxScene->GetMaterial(i);
 
-			PVX::Object3D::PlaneMaterial& stdMat = Scene.Material[ToMatName(mat->GetName())];
+
+			
+			//auto metallic = mat->GetSrcObject<float>(0);
+			
+
+			auto Name = ToMatName(mat->GetName());
+
+			PVX::Object3D::PlaneMaterial& stdMat = Scene.Material[Name];
 
 			FbxSurfaceLambert* Lambert = (FbxSurfaceLambert*)mat;
 
@@ -679,7 +686,7 @@ namespace PVX::Object3D {
 			PVX::Vector3D tmpVec;
 			tmpVec = ToVec3(Lambert->TransparentColor.Get());
 			tmpVec *= (float)Lambert->TransparencyFactor.Get();
-			stdMat.Transparency = 1.0f - (tmpVec.x + tmpVec.y + tmpVec.z) / 3.0f;
+			stdMat.Alpha = 1.0f - (tmpVec.x + tmpVec.y + tmpVec.z) / 3.0f;
 
 
 			if (FbxTexture* Tex = Lambert->Diffuse.GetSrcObject<FbxTexture>())
@@ -691,8 +698,31 @@ namespace PVX::Object3D {
 			if (FbxTexture* Tex = Lambert->Emissive.GetSrcObject<FbxTexture>())
 				stdMat.Textures.Emissive = FbxCast<FbxFileTexture>(Tex)->GetFileName();
 
+			//int tmp = 0;
+
+			//auto nrm = Lambert->NormalMap;
+			//auto nrmc = nrm.GetSrcObjectCount();
+			//for (auto i = 0; i< nrmc; i++) {
+			//	auto test = nrm.GetSrcObject(i);
+			//	tmp++;
+			//}
+			////auto nrmt = Lambert->NormalMap.GetSrcObject<FbxTexture>();
+
+			//auto bmp = Lambert->NormalMap;
+			//auto bmpc = nrm.GetSrcObjectCount();
+			//for (auto i = 0; i< bmpc; i++) {
+			//	auto test = bmp.GetSrcObject(i);
+			//	tmp++;
+			//}
+			////auto bmpt = Lambert->NormalMap.GetSrcObject<FbxTexture>();
+
 			if (FbxTexture* Tex = Lambert->Bump.GetSrcObject<FbxTexture>())
 				stdMat.Textures.Bump = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+
+			if (FbxTexture* Tex = Lambert->NormalMap.GetSrcObject<FbxTexture>())
+				stdMat.Textures.Bump = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+
+
 			if (FbxTexture* Tex = Lambert->TransparencyFactor.GetSrcObject<FbxTexture>())
 				stdMat.Textures.Transparency = FbxCast<FbxFileTexture>(Tex)->GetFileName();
 
@@ -705,6 +735,20 @@ namespace PVX::Object3D {
 
 				if (FbxTexture* Tex = Phong->Specular.GetSrcObject<FbxTexture>())
 					stdMat.Textures.Specular = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+			}
+
+
+			
+			if (auto pbr = mat->FindProperty("Metallic"); pbr.IsValid()) {
+				stdMat.Metallic = pbr.Get<double>();
+			} else {
+				stdMat.Metallic = 0;
+			}
+			
+			if (auto pbr = mat->FindProperty("Roughness"); pbr.IsValid()) {
+				stdMat.Roughness = pbr.Get<double>();
+			} else {
+				stdMat.Roughness = 1.0f - stdMat.SpecularFactor /(stdMat.AmbientFactor + stdMat.DiffuseFactor + stdMat.SpecularFactor);
 			}
 		}
 		return 0;
@@ -1052,8 +1096,11 @@ namespace PVX::Object3D {
 			bin.Write("FSPC", SpecularFactor);
 			bin.Write("FEMT", EmissiveFactor);
 
-			bin.Write("CSPC", SpecularPower);
-			bin.Write("CTRN", Transparency);
+			bin.Write("FMTL", Metallic);
+			bin.Write("FRGH", Roughness);
+
+			bin.Write("CSPP", SpecularPower);
+			bin.Write("CTRN", Alpha);
 			bin.Write("CBMP", Bump);
 
 			bin.Write("TAMB", Textures.Ambient);
@@ -1094,6 +1141,7 @@ namespace PVX::Object3D {
 					bin.Write("TYPE", a.Type);
 					bin.Write("TCNT", a.Count);
 					bin.Write("OFST", a.Offset);
+					bin.Write("USAG", a.Usage);
 				}bin.End();
 			}
 			if (BlendShapeData.size()) {
@@ -1103,6 +1151,7 @@ namespace PVX::Object3D {
 						bin.Write("TYPE", a.Type);
 						bin.Write("TCNT", a.Count);
 						bin.Write("OFST", a.Offset);
+						bin.Write("USAG", a.Usage);
 					}bin.End();
 				}
 				bin.Write("BVRT", BlendShapeData);
@@ -1209,6 +1258,7 @@ namespace PVX::Object3D {
 						bin.Process("TYPE", a.Type);
 						bin.Process("TCNT", a.Count);
 						bin.Process("OFST", a.Offset);
+						bin.Process("USAG", a.Usage);
 						bin.Execute();
 					});
 					bin.Process("BATR", [&](BinLoader& bin) {
@@ -1217,6 +1267,7 @@ namespace PVX::Object3D {
 						bin.Process("TYPE", a.Type);
 						bin.Process("TCNT", a.Count);
 						bin.Process("OFST", a.Offset);
+						bin.Process("USAG", a.Usage);
 						bin.Execute();
 					});
 					bin.Execute();
@@ -1275,8 +1326,11 @@ namespace PVX::Object3D {
 			bin.Process("FSPC", mat.SpecularFactor);
 			bin.Process("FEMT", mat.EmissiveFactor);
 
-			bin.Process("CSPC", mat.SpecularPower);
-			bin.Process("CTRN", mat.Transparency);
+			bin.Process("FMTL", mat.Metallic);
+			bin.Process("FRGH", mat.Roughness);
+
+			bin.Process("CSPP", mat.SpecularPower);
+			bin.Process("CTRN", mat.Alpha);
 			bin.Process("CBMP", mat.Bump);
 
 			bin.Process("TAMB", mat.Textures.Ambient);

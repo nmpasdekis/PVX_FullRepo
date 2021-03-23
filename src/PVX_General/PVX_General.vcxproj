@@ -93,11 +93,14 @@
     <ClCompile Include="PVX_Encrypt.cpp" />
     <ClCompile Include="PVX_File.cpp" />
     <ClCompile Include="PVX_Image.cpp" />
+    <ClCompile Include="PVX_ImageRaw.cpp" />
     <ClCompile Include="PVX_json.cpp" />
     <ClCompile Include="PVX_Kinect.cpp" />
     <ClCompile Include="PVX_String.cpp" />
     <ClCompile Include="PVX_Threading.cpp" />
     <ClCompile Include="PVX_XML.cpp" />
+    <ClCompile Include="stb_implementation.cpp" />
+    <ClCompile Include="stb_implementation_raw.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\PVX_BinSaver.h" />

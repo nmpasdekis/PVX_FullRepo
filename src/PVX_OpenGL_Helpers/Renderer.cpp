@@ -5,211 +5,121 @@
 #include <PVX.inl>
 
 namespace PVX::OpenGL::Helpers {
-	Renderer::Renderer(int Width, int Height, PVX::OpenGL::Context& gl) : gl{ gl },
-		FrameGeometry{ PVX::OpenGL::MakeSquareWithUV() },
-		FullFrameBuffer(Width, Height),
+
+
+	const PVX::OpenGL::Shader& RefPostProcess_VertexShader();
+	void DeRefPostProcess_VertexShader();
+	const PVX::OpenGL::Geometry& RefPostProcess_Geometry();
+	void DeRefPostProcess_Geometry();
+	const PVX::OpenGL::Sampler& RefPostProcess_Sampler();
+	void DeRefPostProcess_Sampler();
+	void DeRef_ALL();
+
+	Renderer::Renderer(int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target) : gl{ gl },
+		gBufferFBO(gl, Width, Height),
 		GeneralSampler{ PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::REPEAT },
-		PostSampler(PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::CLAMP)
+		PostProcesses{ gl }
 	{
-		Position = FullFrameBuffer.AddColorAttachmentRGB32F();
-		Color = FullFrameBuffer.AddColorAttachmentRGB8UB();
-		Normal = FullFrameBuffer.AddColorAttachmentRGB16F();
-		PBR = FullFrameBuffer.AddColorAttachment(PVX::OpenGL::InternalFormat::RG16F, PVX::OpenGL::TextureFormat::RG, PVX::OpenGL::TextureType::HALF_FLOAT);
-		Depth = FullFrameBuffer.AddDepthAttachment();
-		FullFrameBuffer.Build();
+		gBuffer.Position = gBufferFBO.AddColorAttachmentRGB32F();
+		gBuffer.Albedo = gBufferFBO.AddColorAttachmentRGBA8UB();
+		gBuffer.Normal = gBufferFBO.AddColorAttachmentRGB16F();
+		gBuffer.Material = gBufferFBO.AddColorAttachment(PVX::OpenGL::InternalFormat::RG16F, PVX::OpenGL::TextureFormat::RG, PVX::OpenGL::TextureType::HALF_FLOAT);
+		gBuffer.Depth = gBufferFBO.AddDepthAttachment();
+		gBufferFBO.Build();
+		gBufferFBO.Name("GBuffer");
 
-		FullFrameBuffer.Name("G Buffer");
-		Position.Name("PositionBuffer");
-		Color.Name("ColorBuffer");
-		Normal.Name("NormalBuffer");
-		PBR.Name("PBR_Buffer");
-		Depth.Name("DepthBuffer");
+		gBuffer.Position.Name("gPosition");
+		gBuffer.Albedo.Name("gAlbedo");
+		gBuffer.Normal.Name("gNormal");
+		gBuffer.Material.Name("gMaterial");
+		gBuffer.Depth.Name("DepthBuffer");
 
-		PostProcessPipeline.Shaders({
-			{ PVX::OpenGL::Shader::ShaderType::VertexShader, PVX::IO::ReadText("shaders\\PostProcessVertex.glsl") },
-			{ PVX::OpenGL::Shader::ShaderType::FragmentShader, PVX::IO::ReadText("shaders\\PostProcessLights.glsl") },
-		});
+		LightBuffer.Update(sizeof(Lights), &Lights);
 
-		LightBuffer.Update(sizeof(LightRig), &Lights);
-
-		PostProcessPipeline.BindBuffer("Lights", LightBuffer);
-
-		PostProcessPipeline.Textures2D({
-			{ "NormalTex", PostSampler, Normal },
-			{ "ColorTex", PostSampler, Color },
-			{ "PositionTex", PostSampler, Position },
-			{ "MetallicRoughness", PostSampler, PBR },
-		});
+		//PostProcesses.MakeSimple(Width, Height, gPosition, gAlbedo, gNormal, gMaterial, Target);
+		//PostProcesses.MakeBloom(Width, Height, gBuffer, Target);
+		PostProcesses.MakeSimple(Width, Height, gBuffer, Target);
 	}
 
 	void Renderer::SetCameraBuffer(PVX::OpenGL::Buffer& CamBuffer) {
 		CameraBuffer = CamBuffer;
-		PostProcessPipeline.BindBuffer("Camera", CamBuffer);
+	}
+
+	Renderer::~Renderer() {
+		//DeRef_ALL();
 	}
 
 	void Renderer::Render(std::function<void()> RenderClb) {
-		FullFrameBuffer.Bind();
+		BindBuffer(0, CameraBuffer);
+
+		gBufferFBO.Bind();
 		RenderClb();
-		FullFrameBuffer.Unbind();
+		//GBuffer.Unbind();
 
-		gl.Viewport();
+		//gl.Viewport();
 
-		LightBuffer.Update(sizeof(LightRig), &Lights);
+		LightBuffer.Update(sizeof(Lights), &Lights);
 
-		PostProcessPipeline.Bind();
-		FrameGeometry.Draw();
-		PostProcessPipeline.Unbind();
+		//PVX::OpenGL::FrameBufferObject::Unbind();
+
+		BindBuffer(0, CameraBuffer);
+		BindBuffer(1, LightBuffer);
+
+		PostProcesses.Process();
+
+		//for (auto& p : PostProcesses) p.Process();
 	}
+
 	PVX::OpenGL::Texture2D Renderer::LoadTexture2D(const std::wstring& Filename) {
 		if (!Textures.count(Filename)) {
-			auto img = PVX::ImageData::Load(Filename.c_str());
-			Textures[Filename] = PVX::OpenGL::Texture2D(img.Width, img.Height, img.Channels, 4, img.Data.data());
-			Textures[Filename].Name(PVX::Encode::ToString(Filename).c_str());
+			auto img = PVX::ImageData::LoadLinear(Filename.c_str());
+			auto& ret = Textures[Filename] = PVX::OpenGL::Texture2D::MakeTexture16F(img.Width, img.Height, img.Channels, img.Data.data());
+			ret.Name(PVX::Encode::ToString(Filename).c_str());
+			return ret;
 		}
-		return Textures[Filename];
+		return Textures.at(Filename);
 	}
 	PVX::OpenGL::Texture2D Renderer::LoadTexture2D(const std::string& Filename) {
 		return LoadTexture2D(PVX::Encode::ToString(Filename));
 	}
 
-	Geometry ToGeomerty2(const Object3D::ObjectSubPart& so) {
-		return {
-			PrimitiveType::TRIANGLES,
-			int(so.Index.size()),
-			so.Index,
-			{
-				{
-					so.VertexData,
-					PVX::Map(so.Attributes, [](const auto& a) { return FromObjectAttribute(a); }),
-					so.Stride
-				}
-			},
-			false
-		};
+	PVX::OpenGL::Texture2D Renderer::LoadNormalTexture2D(const std::string& Filename, bool flipY) {
+		return LoadNormalTexture2D(PVX::Encode::ToString(Filename), flipY);
+	}
+
+	PVX::OpenGL::Texture2D Renderer::LoadNormalTexture2D(const std::wstring& Filename, bool flipY) {
+		auto NormalName = L"Normal_" + Filename;
+		if (!Textures.count(NormalName)) {
+			auto img = PVX::ImageData::LoadRaw(Filename.c_str()).Bias(false, flipY, false);;
+
+			auto & ret = Textures[NormalName] = PVX::OpenGL::Texture2D::MakeTexture16F(img.Width, img.Height, img.Channels, img.Data.data());
+
+			ret.Name(PVX::Encode::ToString(NormalName).c_str());
+			return ret;
+		}
+		return Textures.at(NormalName);
 	}
 
 	PVX::OpenGL::Program Renderer::GetDefaultProgram(unsigned int VertexFormat, unsigned int Fragment) {
-		auto Id = (Fragment<<9) |VertexFormat;
+		auto Id = (VertexFormat << 10) | Fragment;
 		if (DefaultShaderPrograms.count(Id)) return DefaultShaderPrograms.at(Id);
+		if (DefaultVertexShaders.find(VertexFormat)==DefaultVertexShaders.end()) {
+			DefaultVertexShaders[VertexFormat] = { PVX::OpenGL::Shader::ShaderType::VertexShader, GetDefaultVertexShader(VertexFormat) };
+		}
+
+		auto fId = ((VertexFormat & (
+			uint32_t(PVX::Object3D::ItemUsage::ItemUsage_Normal) |
+			uint32_t(PVX::Object3D::ItemUsage::ItemUsage_UV) |
+			uint32_t(PVX::Object3D::ItemUsage::ItemUsage_Tangent)
+
+			)) << 10) | Fragment;
+		if (DefaultFragmentShaders.find(fId) == DefaultFragmentShaders.end()) {
+			DefaultFragmentShaders[fId] = { PVX::OpenGL::Shader::ShaderType::FragmentShader, GetDefaultFragmentShader(VertexFormat, Fragment) };
+		}
 		return DefaultShaderPrograms[Id] = {
-			GetDefaultVertexShader(VertexFormat),
-			GetDefaultFragmentShader(VertexFormat, Fragment)
+			DefaultVertexShaders.at(VertexFormat),
+			DefaultFragmentShaders.at(fId)
 		};
-	}
-
-	int Renderer::LoadObject(const std::string& Filename) {
-		return LoadObject(PVX::Object3D::LoadFbx(Filename));
-	}
-
-	int Renderer::LoadObject(const Object3D::Object& obj) {
-		int Id = NextObjectId++;
-		ObjectGL& ret = *(Objects[Id] = std::make_unique<ObjectGL>()).get();
-		ret.TransformConstants.reserve(obj.Heirarchy.size());
-		for (auto& t : obj.Heirarchy) {
-			ret.TransformConstants.emplace_back(t);
-			ret.InitialTransform.push_back({ t.Position, t.Rotation, t.Scale });
-		}
-
-		std::map<std::string, int> MatLookup;
-		for (auto& [Name, m]: obj.Material) {
-			MatLookup[Name] = int(MatLookup.size());
-			if (m.IsPBR) {
-				auto& mat = ret.Materials.emplace_back(DataPBR{
-					{ m.Color, 1.0f - m.Transparency },
-					m.Metallic,
-					m.Roughness,
-					m.Bump,
-					m.EmissiveFactor * (m.Emissive.x + m.Emissive.y + m.Emissive.z) * (1.0f/3.0f)
-				});
-				mat.Data.Name(Name.c_str());
-				if (m.Textures.Diffuse.size())
-					mat.Color_Tex = LoadTexture2D(m.Textures.Diffuse).Get();
-				if (m.Textures.Bump.size())
-					mat.Normal_Tex = LoadTexture2D(m.Textures.Bump).Get();
-				if (m.Textures.PBR.size())
-					mat.PBR_Tex = LoadTexture2D(m.Textures.PBR).Get();
-			} else {
-				auto& mat = ret.Materials.emplace_back(DataPBR{
-					{ m.Color, 1.0f - m.Transparency },
-					0,
-					1.0f - m.SpecularFactor /(m.AmbientFactor + m.DiffuseFactor + m.SpecularFactor),
-					m.Bump,
-					m.EmissiveFactor * (m.Emissive.x + m.Emissive.y + m.Emissive.z) * (1.0f/3.0f)
-				});
-				mat.Data.Name(Name.c_str());
-				if (m.Textures.Diffuse.size())
-					mat.Color_Tex = LoadTexture2D(m.Textures.Diffuse).Get();
-				if (m.Textures.Bump.size())
-					mat.Normal_Tex = LoadTexture2D(m.Textures.Bump).Get();
-			}
-		}
-		
-		ret.Parts.reserve(obj.Parts.size());
-		for (auto& p : obj.Parts) {
-			auto& pp = ret.Parts.emplace_back();
-
-			ret.MorphCount += (pp.MorphCount = int(p.BlendShapes.size()));
-
-			if (!p.BoneNodes.size()) {
-				pp.UseMatrices.push_back((int)IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return t.Name == p.TransformNode; }));
-			} else {
-				for (auto i = 0; i<p.BoneNodes.size(); i++) {
-					pp.PostTransform.reserve(p.BoneNodes.size());
-					pp.UseMatrices.reserve(p.BoneNodes.size());
-
-					pp.UseMatrices.push_back((int)IndexOf(obj.Heirarchy, [&](const Object3D::Transform& t) { return p.BoneNodes[i] == t.Name; }));
-					pp.PostTransform.push_back(p.BonePostTransform[i]);
-				}
-			}
-			for (auto& [Mat, SubPart]: p.Parts) {
-				auto& sp = pp.SubPart.emplace_back();
-				sp.MaterialIndex = MatLookup[Mat];
-
-				if (!SubPart.CustomShader) {
-					auto& Mater = ret.Materials[sp.MaterialIndex];
-					unsigned int MatFlags = (Mater.Color_Tex ? 1 : 0) | (Mater.PBR_Tex ? 2 : 0) | (Mater.Normal_Tex ? 4 : 0);
-
-					unsigned int GeoFlags = PVX::Reduce(SubPart.Attributes, 0, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
-						return acc | unsigned int(attr.Usage);
-					});
-
-					std::vector<std::string> Filters;
-					Filters.reserve(SubPart.Attributes.size());
-					Filters.push_back("Position");
-					if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_Normal)) 
-						Filters.push_back("Normal");
-					if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_UV) && MatFlags) {
-						Filters.push_back("UV");
-						Filters.push_back("TexCoord");
-						if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_Tangent) && (MatFlags&4)) Filters.push_back("Tangent");
-					}
-					if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_Weight)) {
-						Filters.push_back("Weights");
-						Filters.push_back("WeightIndices");
-					}
-					auto fsp = SubPart.FilterAttributes(Filters);
-
-					sp.Mesh = ToGeomerty2(fsp);
-					GeoFlags = sp.Mesh.GetFlags();
-
-					
-					if (fsp.BlendAttributes.size()) {
-						GeoFlags = PVX::Reduce(SubPart.BlendAttributes, GeoFlags, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
-							return acc | unsigned int(attr.Usage);
-						});
-						sp.Morph = PVX::OpenGL::Buffer::MakeImmutableShaderStorage((int)fsp.BlendShapeData.size(), fsp.BlendShapeData.data());
-					}
-					sp.ShaderProgram = { GetDefaultProgram(GeoFlags, MatFlags), GeneralSampler };
-				} else {
-					sp.Mesh = ToGeomerty2(SubPart);
-					if (SubPart.BlendAttributes.size()) {
-						sp.Morph = PVX::OpenGL::Buffer(SubPart.BlendShapeData.data(), SubPart.BlendShapeData.size(), false);
-					}
-					sp.ShaderProgram = { GetDefaultProgram(1, 0), GeneralSampler };
-				}
-			}
-		}
-		return Id;
 	}
 
 	InstanceData& Renderer::GetInstance(int InstanceId) {
@@ -235,21 +145,21 @@ namespace PVX::OpenGL::Helpers {
 		return Id;
 	}
 
-	ProgramPlus::ProgramPlus(const PVX::OpenGL::Program& p, const PVX::OpenGL::Sampler& DefSampler) : Prog{ p } {
-		glUseProgram(Prog.Get());
-		Prog.SetUniformBlockIndex("Camera", 0);
-		Prog.SetUniformBlockIndex("Material", 1);
-		Prog.SetShaderStrorageIndex("Transform", 2);
-		Prog.SetShaderStrorageIndex("MorphControl", 3);
-		Prog.SetShaderStrorageIndex("MorphData", 4);
-		MorphCountIndex = Prog.UniformLocation("MorphCount");
-		BoneCountIndex = Prog.UniformLocation("BoneCount");
+	//ProgramPlus::ProgramPlus(const PVX::OpenGL::Program& p, const PVX::OpenGL::Sampler& DefSampler) : Prog{ p } {
+	//	glUseProgram(Prog.Get());
+	//	Prog.SetUniformBlockIndex("Camera", 0);
+	//	Prog.SetUniformBlockIndex("Material", 2);
+	//	Prog.SetShaderStrorageIndex("Transform", 3);
+	//	Prog.SetShaderStrorageIndex("MorphControl", 4);
+	//	Prog.SetShaderStrorageIndex("MorphData", 5);
+	//	MorphCountIndex = Prog.UniformLocation("MorphCount");
+	//	BoneCountIndex = Prog.UniformLocation("BoneCount");
 
-		Prog.SetTextureIndexAndSampler("Color_Tex", 0, DefSampler);
-		Prog.SetTextureIndexAndSampler("PBR_Tex", 1, DefSampler);
-		Prog.SetTextureIndexAndSampler("Bump_Tex", 2, DefSampler);
-		glUseProgram(0);
-	}
-	void ProgramPlus::SetBoneCount(int n) {  if(BoneCountIndex!=-1) glUniform1i(BoneCountIndex, n); }
-	void ProgramPlus::SetMorphCount(int n) { if (MorphCountIndex!=-1) glUniform1i(MorphCountIndex, n); }
+	//	Prog.SetTextureIndexAndSampler("Color_Tex", 0, DefSampler);
+	//	Prog.SetTextureIndexAndSampler("PBR_Tex", 1, DefSampler);
+	//	Prog.SetTextureIndexAndSampler("Bump_Tex", 2, DefSampler);
+	//	glUseProgram(0);
+	//}
+	//void ProgramPlus::SetBoneCount(int n) {  if(BoneCountIndex!=-1) glUniform1i(BoneCountIndex, n); }
+	//void ProgramPlus::SetMorphCount(int n) { if (MorphCountIndex!=-1) glUniform1i(MorphCountIndex, n); }
 }

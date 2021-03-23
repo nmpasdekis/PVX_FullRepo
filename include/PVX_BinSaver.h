@@ -100,10 +100,10 @@ namespace PVX {
 
 	class BinLoader {
 	private:
-		FILE* fin;
-		size_t cur;
-		size_t Size;
-		BinLoader* Parent;
+		FILE* fin = nullptr;
+		size_t cur = 0;
+		size_t Size = 0;
+		BinLoader* Parent = nullptr;
 		std::map<unsigned int, std::function<void(BinLoader& bin)>> Loader;
 		std::function<void(BinLoader& bin, const char*)> AnyLoader = nullptr;
 		BinLoader(FILE* fin, size_t Size, BinLoader* Parent);

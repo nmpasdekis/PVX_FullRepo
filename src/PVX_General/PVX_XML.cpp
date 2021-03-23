@@ -168,7 +168,7 @@ namespace PVX::XML {
 
 	static void _Print(const Element& xml, int level, std::wstringstream& out) {
 		auto tp = xml.Type;
-		if (tp==Element::ElementType::Tag&xml._Child.size())tp = Element::ElementType::OpenTag;
+		if (tp==Element::ElementType::Tag&&xml._Child.size())tp = Element::ElementType::OpenTag;
 		switch (tp) {
 			case PVX::XML::Element::ElementType::CDATA:
 				out << L"<![CDATA[" << xml.Text << L"]]>";

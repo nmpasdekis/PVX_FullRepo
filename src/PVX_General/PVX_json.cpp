@@ -297,6 +297,25 @@ namespace PVX {
 				return &(ret->second);
 			return nullptr;
 		}
+		Item* Item::Has(const std::wstring& Name) {
+			auto& Object = Value.Object();
+			if (auto ret = Object.find(Name); ret != Object.end())
+				return &(ret->second);
+			return nullptr;
+		}
+
+		bool Item::If(const std::wstring& Name, std::function<void(JSON::Item&)> Then) {
+			if (IsObject()) {
+				if (auto& it = *Has(Name); &it) { Then(it); return true; }
+			}
+			return false;
+		}
+		bool Item::If(const std::wstring& Name, std::function<void(const JSON::Item&)> Then) const {
+			if (IsObject()) {
+				if (auto& it = *Has(Name); &it) { Then(it); return true; }
+			}
+			return false;
+		}
 
 		Item& Item::operator<<(const std::wstring& s) {
 			*this = parse(s.c_str());
@@ -356,7 +375,7 @@ namespace PVX {
 				case jsElementType::Float: return Value.Double();
 				case jsElementType::Integer: return (double)Value.Integer();
 				case jsElementType::String: return _wtof(Value.String().c_str());
-				default: 0.0;
+				default: return 0.0;
 			}
 		}
 
@@ -365,7 +384,7 @@ namespace PVX {
 				case jsElementType::Float: return (long long)Value.Double();
 				case jsElementType::Integer: return Value.Integer();
 				case jsElementType::String: return _wtoi(Value.String().c_str());
-				default: 0ll;
+				default: return 0ll;
 			}
 		}
 

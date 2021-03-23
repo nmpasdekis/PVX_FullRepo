@@ -1,192 +1,244 @@
-#include <PVX_OpenGL.h>
+﻿#include <PVX_OpenGL.h>
 #include <PVX_Image.h>
 #include <array>
 
 namespace PVX::OpenGL {
-	Texture2D::Texture2D(unsigned int Id) : Id{ Id } {}
-	Texture2D::Texture2D() {}
-	Texture2D::~Texture2D() {
-		if (!Ref&&Id) {
-			GL_CHECK(glDeleteTextures(1, &Id));
-		}
+	Texture2D::Texture2D() : ptr{ new TextureData(), [](TextureData* p) {
+		if (p->Id) 
+			glDeleteTextures(1, &p->Id);
+		delete p;
+	} } {}
+
+	Texture2D::Texture2D(const TextureData& dt) : ptr{ new TextureData(dt), [](TextureData* p) {
+		if (p->Id)
+			glDeleteTextures(1, &p->Id);
+		delete p;
+	} } {}
+
+	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel): Texture2D() {
+		if (!ptr->Id)glGenTextures(1, &ptr->Id);
+		Update(Width, Height, Channels, BytesPerChannel, nullptr);
 	}
-	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel) {
-		if (!Id)glGenTextures(1, &Id);
-
-		Format = TextureFormat::RGB;
-		Type = TextureType::FLOAT;
-		InternalFormat = PVX::OpenGL::InternalFormat(Channels);
-
-		if (Channels == 4) Format = TextureFormat::RGBA;
-		else if (Channels == 1) Format = TextureFormat::LUMINANCE;
-		if (BytesPerChannel == 1) Type = TextureType::UNSIGNED_BYTE;
-
-		this->Width = Width;
-		this->Height = Height;
-		this->InternalFormat = InternalFormat;
-		this->Format = Format;
-		this->Type = Type;
-
-		glBindTexture(GL_TEXTURE_2D, Id);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
-	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
+	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data): Texture2D() {
 		Update(Width, Height, Channels, BytesPerChannel, Data);
 	}
-	Texture2D::Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
+	Texture2D::Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data): Texture2D() {
 		Update(Width, Height, InternalFormat, Format, Type, Data);
 	}
-	Texture2D::Texture2D(int Width, int Height, PVX::OpenGL::InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data) {
+	Texture2D::Texture2D(int Width, int Height, PVX::OpenGL::InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data): Texture2D() {
 		Update(Width, Height, (int)internalFormat, (int)Format, (int)Type, Data);
 	}
+	void Texture2D::UpdateAndBind(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
+		if (!ptr->Id)glGenTextures(1, &ptr->Id);
+		glBindTexture(GL_TEXTURE_2D, ptr->Id);
+		ptr->Size = { Width, Height };
+		ptr->InternalFormat = PVX::OpenGL::InternalFormat(InternalFormat);
+		ptr->Format = PVX::OpenGL::TextureFormat(Format);
+		ptr->Type = PVX::OpenGL::TextureType(Type);
+
+		glTexStorage2D(GL_TEXTURE_2D, 1, InternalFormat, Width, Height);
+		if(Data) glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, Format, Type, Data);
+		//glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
+	}
 	void Texture2D::Update(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
-		if (!Id)glGenTextures(1, &Id);
-		glBindTexture(GL_TEXTURE_2D, Id);
-		this->Width = Width;
-		this->Height = Height;
-		this->InternalFormat = PVX::OpenGL::InternalFormat(InternalFormat);
-		this->Format = PVX::OpenGL::TextureFormat(Format);
-		this->Type = PVX::OpenGL::TextureType(Type);
-		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
+		UpdateAndBind(Width, Height, InternalFormat, Format, Type, Data);
 		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	void Texture2D::UpdateAndBind(const void* Data) {
+		if (!ptr->Id)glGenTextures(1, &ptr->Id);
+		glBindTexture(GL_TEXTURE_2D, ptr->Id);
+
+		//glTexStorage2D(GL_TEXTURE_2D, 1, int(ptr->InternalFormat), ptr->Size.Width, ptr->Size.Height);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, ptr->Size.Width, ptr->Size.Height, int(ptr->Format), int(ptr->Type), Data);
+
+		//glTexImage2D(GL_TEXTURE_2D, 0, int(ptr->InternalFormat), ptr->Size.Width, ptr->Size.Height, 0, GLenum(ptr->Format), GLenum(ptr->Type), Data);
 	}
 	void Texture2D::Update(void* Data) {
-		glBindTexture(GL_TEXTURE_2D, Id);
-		glTexImage2D(GL_TEXTURE_2D, 0, int(InternalFormat), Width, Height, 0, GLenum(Format), GLenum(Type), Data);
+		UpdateAndBind(Data);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
-	void Texture2D::Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
-		if (!Id)glGenTextures(1, &Id);
-		glBindTexture(GL_TEXTURE_2D, Id);
+	void Texture2D::UpdateAndBind(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
+		if (!ptr->Id)glGenTextures(1, &ptr->Id);
+		glBindTexture(GL_TEXTURE_2D, ptr->Id);
 
-		this->Width = Width;
-		this->Height = Height;
-		Format = TextureFormat::RGB;
-		Type = TextureType::FLOAT;
-		InternalFormat = PVX::OpenGL::InternalFormat(Channels);
+		ptr->Format = TextureFormat::RGB;
+		ptr->Type = TextureType::FLOAT;
+		ptr->InternalFormat = InternalFormat::RGB;
 
-		if (Channels == 4) Format = TextureFormat::RGBA;
-		else if (Channels == 1) Format = TextureFormat::LUMINANCE;
-		if (BytesPerChannel == 1) Type = TextureType::UNSIGNED_BYTE;
+		if (Channels == 4) {
+			ptr->Format = TextureFormat::RGBA;
+			ptr->InternalFormat = InternalFormat::RGBA;
+		} else if (Channels == 1) {
+			ptr->Format = TextureFormat::RED;
+			ptr->InternalFormat = InternalFormat::RED;
+		}
+		if (BytesPerChannel == 1) ptr->Type = TextureType::UNSIGNED_BYTE;
 
-		glTexImage2D(GL_TEXTURE_2D, 0, int(InternalFormat), Width, Height, 0, GLenum(Format), GLenum(Type), Data);
+		ptr->Size = { Width, Height };
+
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+	void Texture2D::Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
+		UpdateAndBind(Width, Height, Channels, BytesPerChannel, Data);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
-
-	void Texture2D::UpdateAndBind(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
-		if (!Id)glGenTextures(1, &Id);
-		glBindTexture(GL_TEXTURE_2D, Id);
-		this->Width = Width;
-		this->Height = Height;
-		this->InternalFormat = PVX::OpenGL::InternalFormat(InternalFormat);
-		this->Format = PVX::OpenGL::TextureFormat(Format);
-		this->Type = PVX::OpenGL::TextureType(Type);
-		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
-	}
-	void Texture2D::UpdateAndBind(const void* Data) {
-		glBindTexture(GL_TEXTURE_2D, Id);
-		glTexImage2D(GL_TEXTURE_2D, 0, int(InternalFormat), Width, Height, 0, GLenum(Format), GLenum(Type), Data);
-	}
 	void Texture2D::GenerateMipmaps() {
 		Bind();
 		glGenerateMipmap(GL_TEXTURE_2D);
 		Unbind();
 	}
-	void Texture2D::UpdateAndBind(int Width, int Height, int Channels, int BytesPerChannel, void* Data) {
-		if (!Id)glGenTextures(1, &Id);
-		glBindTexture(GL_TEXTURE_2D, Id);
-		Format = TextureFormat::RGB;
-		Type = TextureType::FLOAT;
-		InternalFormat = PVX::OpenGL::InternalFormat(Channels);
-
-		if (Channels == 4) Format = TextureFormat::RGBA;
-		else if (Channels == 1) Format = TextureFormat::LUMINANCE;
-		if (BytesPerChannel == 1) Type = TextureType::UNSIGNED_BYTE;
-
-		glTexImage2D(GL_TEXTURE_2D, 0, int(InternalFormat), Width, Height, 0, GLenum(Format), GLenum(Type), Data);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	}
 
 	void Texture2D::Resize(int Width, int Height) {
-		this->Width = Width;
-		this->Height = Height;
-		glBindTexture(GL_TEXTURE_2D, Id);
-		glTexImage2D(GL_TEXTURE_2D, 0, GLint(this->InternalFormat), Width, Height, 0, GLenum(Format), GLenum(Type), 0);
+		ptr->Size = { Width, Height };
+		glBindTexture(GL_TEXTURE_2D, ptr->Id);
+
+
+		glTexStorage2D(GL_TEXTURE_2D, 1, int(ptr->InternalFormat), ptr->Size.Width, ptr->Size.Height);
+
+		//glTexImage2D(GL_TEXTURE_2D, 0, GLint(ptr->InternalFormat), Width, Height, 0, GLenum(ptr->Format), GLenum(ptr->Type), 0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
-	void Texture2D::Bind(int Unit) {
+	void Texture2D::Bind(int Unit) const {
 		glActiveTexture(GL_TEXTURE0 + Unit);
-		glBindTexture(GL_TEXTURE_2D, Id);
+		glBindTexture(GL_TEXTURE_2D, ptr->Id);
+	}
+	void Texture2D::BindToUnit(int Unit) const {
+		glBindTextureUnit(Unit, ptr->Id);
 	}
 	void Texture2D::Unbind() {
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	Texture2D Texture2D::MakeDepthBuffer32F(int Width, int Height) {
-		Texture2D ret;
-		ret.Update(Width, Height, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-		//ret.Bind();
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		//ret.Unbind();
-		return ret;
+		return std::move(Texture2D{ Width, Height, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT, 0 });
 	}
 	Texture2D Texture2D::MakeStencilBuffer(int Width, int Height) {
-		Texture2D ret;
-		ret.Update(Width, Height, 1, GL_STENCIL_COMPONENTS, GL_UNSIGNED_BYTE, 0);
-		//ret.Bind();
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		//ret.Unbind();
-		return ret;
+		return std::move(Texture2D{ Width, Height, 1, GL_STENCIL_COMPONENTS, GL_UNSIGNED_BYTE, 0 });
 	}
 	Texture2D Texture2D::MakeDepthStencilBuffer24_8(int Width, int Height) {
-		Texture2D ret;
-		ret.Update(Width, Height, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
-		//ret.Bind();
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		//ret.Unbind();
-		return ret;
+		return std::move(Texture2D{ Width, Height, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0 });
 	}
+
+	Texture2D Texture2D::MakeTextureRGB8UB(int Width, int Height) { return std::move(Texture2D{ Width, Height, InternalFormat::RGB8, TextureFormat::RGB, TextureType::UNSIGNED_BYTE, nullptr }); }
+	Texture2D Texture2D::MakeTextureRGBA8UB(int Width, int Height) { return std::move(Texture2D{ Width, Height, InternalFormat::RGBA8, TextureFormat::RGBA, TextureType::UNSIGNED_BYTE, nullptr }); }
+	Texture2D Texture2D::MakeTextureRGB16F(int Width, int Height) { return std::move(Texture2D{ Width, Height, InternalFormat::RGB16F, TextureFormat::RGB, TextureType::HALF_FLOAT, nullptr }); }
+	Texture2D Texture2D::MakeTextureRGBA16F(int Width, int Height) { return std::move(Texture2D{ Width, Height, InternalFormat::RGBA16F, TextureFormat::RGBA, TextureType::HALF_FLOAT, nullptr }); }
+	Texture2D Texture2D::MakeTextureRGB32F(int Width, int Height) { return std::move(Texture2D{ Width, Height, InternalFormat::RGB32F, TextureFormat::RGB, TextureType::FLOAT, nullptr }); }
+	Texture2D Texture2D::MakeTextureRGBA32F(int Width, int Height) { return std::move(Texture2D{ Width, Height, InternalFormat::RGBA32F, TextureFormat::RGBA, TextureType::FLOAT, nullptr }); }
+
 	void Texture2D::Filter(TextureFilter Min, TextureFilter Max) {
 		Bind();
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, int(Min));
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, int(Max));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GLint(Min));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GLint(Max));
 		Unbind();
 	}
 	void Texture2D::WrapAll(TextureWrap w) {
 		Bind();
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, int(w));
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, int(w));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLint(w));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLint(w));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GLint(w));
 		Unbind();
 	}
 	void Texture2D::FilterWrap(TextureFilter Min, TextureFilter Max, TextureWrap w) {
 		Bind();
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, int(Min));
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, int(Max));
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, int(w));
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, int(w));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GLint(Min));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GLint(Max));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLint(w));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLint(w));
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GLint(w));
 		Unbind();
 	}
+
+	Texture2D Texture2D::MakeTexture8UB(int width, int height, int channels, const float* data) {
+		switch (channels) {
+			case 1:	return  PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::R8UI,
+				PVX::OpenGL::TextureFormat::RED,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 2:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RG8UI,
+				PVX::OpenGL::TextureFormat::RG,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 3:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RGB8UI,
+				PVX::OpenGL::TextureFormat::RGB,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 4:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RGBA8UI,
+				PVX::OpenGL::TextureFormat::RGBA,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+		}
+	}
+
+	Texture2D Texture2D::MakeTexture16F(int width, int height, int channels, const float* data) {
+		switch (channels) {
+			case 1:	return  PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::R16F,
+				PVX::OpenGL::TextureFormat::RED,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 2:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RG16F,
+				PVX::OpenGL::TextureFormat::RG,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 3:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RGB16F,
+				PVX::OpenGL::TextureFormat::RGB,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 4:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RGBA16F,
+				PVX::OpenGL::TextureFormat::RGBA,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+		}
+	}
+	Texture2D Texture2D::MakeTexture32F(int width, int height, int channels, const float* data) {
+		switch (channels) {
+			case 1:	return  PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::R32F,
+				PVX::OpenGL::TextureFormat::RED,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 2:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RG32F,
+				PVX::OpenGL::TextureFormat::RG,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 3:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RGB32F,
+				PVX::OpenGL::TextureFormat::RGB,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+			case 4:	return PVX::OpenGL::Texture2D(
+				width, height,
+				PVX::OpenGL::InternalFormat::RGBA32F,
+				PVX::OpenGL::TextureFormat::RGBA,
+				PVX::OpenGL::TextureType::FLOAT,
+				(void*)data);
+		}
+	}
 }
+
 namespace PVX::OpenGL {
 	TextureCube::~TextureCube() {
 		if (!Ref&&Id)
@@ -265,5 +317,71 @@ namespace PVX::OpenGL {
 		Bind();
 		glGenerateMipmap(GL_TEXTURE_2D);
 		Unbind();
+	}
+
+
+	Texture2D Texture2D::MakeMultisampleTextureRGB8UB(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGB8 };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleTextureRGBA8UB(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGBA8 };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleTextureRGB16F(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGB16F };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleTextureRGBA16F(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGBA16F };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleTextureRGB32F(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGB32F };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleTextureRGBA32F(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGBA32F };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleDepthBuffer32F(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat(GL_DEPTH_COMPONENT32F) };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
+	}
+	Texture2D Texture2D::MakeMultisampleDepthStencilBuffer24_8(int Width, int Height, int Samples) {
+		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat(GL_DEPTH24_STENCIL8) };
+		glGenTextures(1, &ret.Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+		return ret;
 	}
 }

@@ -186,7 +186,7 @@ namespace PVX {
 		private:
 			BSON_Type BsonType;
 			jsElementType Type;
-			unsigned short Padding;
+			unsigned short Padding = 0;
 			union {
 				bool Boolean;
 				long long Integer;
@@ -342,6 +342,10 @@ namespace PVX {
 			const Item& operator[](int) const;
 			Item Get(const std::wstring&, const Item& Default = jsElementType::Undefined) const;
 			const Item* Has(const std::wstring&) const;
+			Item* Has(const std::wstring&);
+
+			bool If(const std::wstring& Name, std::function<void(JSON::Item&)> Then);
+			bool If(const std::wstring& Name, std::function<void(const JSON::Item&)> Then) const;
 
 			Item& operator<<(const std::wstring&);
 
@@ -358,6 +362,8 @@ namespace PVX {
 			bool IsEmpty() const;
 			inline bool IsInteger() const { return Value.GetType() == jsElementType::Integer; }
 			inline bool IsDouble() const { return Value.GetType() == jsElementType::Float; }
+			inline bool IsObject() const { return Value.GetType() == jsElementType::Object; }
+			inline bool IsArray() const { return Value.GetType() == jsElementType::Array; }
 
 			std::vector<std::wstring> Keys() const;
 			std::vector<PVX::JSON::Item> Values() const;
@@ -466,6 +472,9 @@ namespace PVX {
 		void ToBSON(const JSON::Item& obj, std::vector<unsigned char>& Data);
 		JSON::Item ObjectId(const std::string_view& hexId);
 		JSON::Item ObjectId(const std::wstring_view& hexId);
+
+		inline const JSON::Item EmptyObject() { return PVX::JSON::jsElementType::Object; }
+		inline const JSON::Item EmptyArray() { return PVX::JSON::jsElementType::Array; }
 	}
 	inline const JSON::Item operator ""_json(const wchar_t* Text, size_t sz) {
 		return JSON::parse(Text);

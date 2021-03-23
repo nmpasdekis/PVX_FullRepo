@@ -13,6 +13,36 @@ namespace PVX {
 	constexpr float ToDEGREES(float x) { return ((float)(x*180.0/PI)); }
 	constexpr double ToDEGREES(double x) { return x*180.0/PI; }
 
+	constexpr float Q_rsqrt(float y) {
+		float x2 = y * 0.5f;
+		constexpr float threeHalfs = 1.5f;
+		uint32_t i = 0x5f3759df - ((*(uint32_t*)&y) >> 1);
+		y = *(float*)&i;
+		y *= threeHalfs - x2 * y * y;
+		return y;
+	}
+
+	constexpr float Q_rsqrt2(float y) {
+		float x2 = y * 0.5f;
+		constexpr float threeHalfs = 1.5f;
+		uint32_t i = 0x5f3759df - ((*(uint32_t*)&y) >> 1);
+		y = *(float*)&i;
+		y *= threeHalfs - x2 * y * y;
+		y *= threeHalfs - x2 * y * y;
+		return y;
+	}
+	constexpr float Q_rsqrt4(float y) {
+		float x2 = y * 0.5f;
+		constexpr float threeHalfs = 1.5f;
+		uint32_t i = 0x5f3759df - ((*(uint32_t*)&y) >> 1);
+		y = *(float*)&i;
+		y *= threeHalfs - x2 * y * y;
+		y *= threeHalfs - x2 * y * y;
+		y *= threeHalfs - x2 * y * y;
+		y *= threeHalfs - x2 * y * y;
+		return y;
+	}
+
 	union ucVector2D {
 		struct {
 			unsigned char x, y;
@@ -143,12 +173,12 @@ namespace PVX {
 		inline float Length2() const { return (x*x+y*y+z*z); }
 		inline float Dot(const Vector3D& v) const { return x*v.x + y*v.y + z*v.z; }
 		inline Vector3D& Normalize() { float w = 1.0f / Length(); x *= w; y *= w; z *= w; return *this; }
-		inline Vector3D Normalized() const { float w = 1.0f / Length(); return{ x * w, y * w, z * w }; }
+		inline const Vector3D& Normalized() const { float w = 1.0f / Length(); return{ x * w, y * w, z * w }; }
 		inline Vector3D Cross(const Vector3D& v) const { return { y* v.z - z*v.y, v.x* z - v.z*x, x* v.y - y*v.x }; }
 		inline static Vector3D Normal(float x, float y, float z) { return Vector3D{ x, y, z }.Normalized(); }
 	};
 	__declspec(align(16))
-		union Vector4D {
+	union Vector4D {
 		enum Traits {
 			HasX = true,
 			HasY = true,
@@ -179,7 +209,7 @@ namespace PVX {
 		inline float Length2() const { return (x*x+y*y+z*z+w*w); }
 		inline float Dot(const Vector4D& v) const { return x*v.x + y*v.y+z*v.z+w*v.w; }
 		inline Vector4D& Normalize() { float i = 1.0f / Length(); x *= i; y *= i; z *= i; w *= i; return *this; }
-		inline Vector4D Normalized() const { float i = 1.0f / Length(); return{ x * i, y * i, z * i, w * i }; }
+		inline const Vector4D& Normalized() const { float i = 1.0f / Length(); return{ x * i, y * i, z * i, w * i }; }
 	};
 
 	//////////////////////////////////////////////////////////////////////////////
@@ -304,6 +334,9 @@ namespace PVX {
 			float w = 1.0f / sqrtf(i*i + j*j + k * k + r * r);
 			return { i * w, j * w, k * w, r * w };
 		}
+		inline const Quaternion& Conjugated() const {
+			return { -i, -j, -k, r };
+		}
 	};
 	union DualQuaternion {
 		struct {
@@ -339,6 +372,9 @@ namespace PVX {
 				Dual.Vec.w * l
 			};
 		}
+		inline const DualQuaternion& Conjugated() {
+			return{ -r_i, -r_j, -r_k, r_r, -d_i, -d_j, -d_k, d_r };
+		}
 		//inline Matrix4x4 Matrix() const {
 		//	Matrix4x4 ret;
 		//	GetQuaternionMatrix(Real, ret);
@@ -369,13 +405,43 @@ namespace PVX {
 		Vector4D m4[4];
 
 
-		static constexpr Matrix4x4 Identity() {
+		inline static constexpr Matrix4x4 Identity() {
 			return {
 				1.0f, 0, 0, 0,
 				0, 1.0f, 0, 0,
 				0, 0, 1.0f, 0,
 				0, 0, 0, 1.0f
 			};
+		}
+
+		inline void Scale(const PVX::Vector3D& s) {
+			Vec0.x *= s.x;
+			Vec0.y *= s.y;
+			Vec0.z *= s.z;
+
+			Vec1.x *= s.x;
+			Vec1.y *= s.y;
+			Vec1.z *= s.z;
+
+			Vec2.x *= s.x;
+			Vec2.y *= s.y;
+			Vec2.z *= s.z;
+
+			Vec3.x *= s.x;
+			Vec3.y *= s.y;
+			Vec3.z *= s.z;
+		}
+		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>
+		inline void TranslateAfter(const T& p) {
+			m30 = p.x;
+			m31 = p.y;
+			m32 = p.z;
+		}
+		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>
+		inline void TranslateBefore(const T& p) {
+			m30 = -p.x * m00 - p.y * m10 - p.z * m20;
+			m31 = -p.x * m01 - p.y * m11 - p.z * m21;
+			m32 = -p.x * m02 - p.y * m12 - p.z * m22;
 		}
 
 		inline void SetDiag3(const Vector3D& vec) {
@@ -396,13 +462,13 @@ namespace PVX {
 			m33 = vec.w;
 		}
 
-		constexpr bool IsIdentity(const float e) const {
+		constexpr bool IsIdentity(const float e = 1e-6) const {
 			float sum = 0;
 			for (auto i = 0; i<16; i++)
 				sum += std::abs(Identity().m16[i] - m16[i]);
 			return sum < e;
 		}
-		static constexpr Matrix4x4 Scale(const Vector3D& s) {
+		static constexpr Matrix4x4 ScaleMatrix(const Vector3D& s) {
 			return {
 				s.x, 0, 0, 0,
 				0, s.y, 0, 0,
@@ -410,7 +476,7 @@ namespace PVX {
 				0, 0, 0, 1.0f
 			};
 		}
-		static constexpr Matrix4x4 Scale(const float s) {
+		static constexpr Matrix4x4 ScaleMatrix(const float s) {
 			return {
 				s, 0, 0, 0,
 				0, s, 0, 0,
@@ -425,12 +491,6 @@ namespace PVX {
 				0, 0, 1.0f, 0,
 				t.x, t.y, t.z, 1.0f
 			};
-		}
-		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>
-		inline void TranslateBefore(const T& p) {
-			m30 = -p.x * m00 - p.y * m10 - p.z * m20;
-			m31 = -p.x * m01 - p.y * m11 - p.z * m21;
-			m32 = -p.x * m02 - p.y * m12 - p.z * m22;
 		}
 		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>
 		inline void MatStoreX(const T& vec){
@@ -889,7 +949,7 @@ namespace PVX {
 		return _RotationOrder[int(Order)](ypr, r);
 	}
 
-	inline Matrix4x4 Rotate_XYZ(Vector3D& r) {
+	inline Matrix4x4 Rotate_XYZ(const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
 		float cp = cosf(r.Pitch);
@@ -904,7 +964,7 @@ namespace PVX {
 			0, 0, 0, 1.0f
 		};
 	}
-	inline Matrix4x4 Rotate_XZY(Vector3D& r) {
+	inline Matrix4x4 Rotate_XZY(const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
 		float cp = cosf(r.Pitch);
@@ -919,7 +979,7 @@ namespace PVX {
 			0, 0, 0, 1.0f
 		};
 	}
-	inline Matrix4x4 Rotate_YXZ(Vector3D& r) {
+	inline Matrix4x4 Rotate_YXZ(const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
 		float cp = cosf(r.Pitch);
@@ -934,7 +994,7 @@ namespace PVX {
 			0, 0, 0, 1.0f
 		};
 	}
-	inline Matrix4x4 Rotate_YZX(Vector3D& r) {
+	inline Matrix4x4 Rotate_YZX(const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
 		float cp = cosf(r.Pitch);
@@ -949,7 +1009,7 @@ namespace PVX {
 			0, 0, 0, 1.0f
 		};
 	}
-	inline Matrix4x4 Rotate_ZXY(Vector3D& r) {
+	inline Matrix4x4 Rotate_ZXY(const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
 		float cp = cosf(r.Pitch);
@@ -964,7 +1024,7 @@ namespace PVX {
 			0, 0, 0, 1.0f
 		};
 	}
-	inline Matrix4x4 Rotate_ZYX(Vector3D& r) {
+	inline Matrix4x4 Rotate_ZYX(const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
 		float cp = cosf(r.Pitch);
@@ -980,8 +1040,8 @@ namespace PVX {
 		};
 	}
 
-	inline Matrix4x4 Rotate(RotationOrder Order, Vector3D& r) {
-		const std::function<Matrix4x4(Vector3D&)> _RotationOrder[]{
+	inline Matrix4x4 Rotate(RotationOrder Order, const Vector3D& r) {
+		const std::function<Matrix4x4(const Vector3D&)> _RotationOrder[]{
 			PVX::Rotate_XYZ,
 			PVX::Rotate_XZY,
 			PVX::Rotate_YXZ,
@@ -1558,12 +1618,6 @@ namespace PVX {
 	}
 
 	inline Quaternion& GetMatrixQuaternion(const Matrix4x4& m, Quaternion& Out) {
-		//Out.r = sqrtf(1.0f + m.m00 + m.m11 + m.m22) * 0.5f;
-		//float w4 = Out.r * 4.0f;
-		//Out.i = (m.m21 - m.m12) / w4;
-		//Out.j = (m.m02 - m.m20) / w4;
-		//Out.k = (m.m10 - m.m01) / w4;
-
 		float tr = m.m00 + m.m11 + m.m22;
 
 		if (tr > 0) {
@@ -2593,7 +2647,28 @@ namespace PVX {
 		return Out;
 	}
 
-	inline DualQuaternion CreateDualQuaternion(const Quaternion& Rotation, const Vector3D& Position) {
+	inline const Matrix4x4& GetQuaternionMatrix(const Quaternion& q) {
+		return {
+			1.0f - 2.0f * q.j * q.j - 2.0f * q.k * q.k,
+			2.0f * q.i * q.j + 2.0f * q.k*q.r,
+			2.0f * q.i * q.k - 2.0f * q.j*q.r,
+			0,
+
+			2.0f * q.i * q.j - 2.0f * q.k * q.r,
+			1.0f - 2.0f * q.i * q.i - 2.0f * q.k * q.k,
+			2.0f * q.j * q.k + 2.0f * q.i *q.r,
+			0,
+
+			2.0f * q.i * q.k + 2.0f * q.j * q.r,
+			2.0f * q.j * q.k - 2.0f * q.i * q.r,
+			1.0f - 2.0f * q.i * q.i - 2.0f * q.j * q.j,
+			0,
+
+			0, 0, 0, 1.0f
+		};
+	}
+
+	inline const DualQuaternion& CreateDualQuaternion(const Quaternion& Rotation, const Vector3D& Position) {
 		return{
 			Rotation.i,
 			Rotation.j,

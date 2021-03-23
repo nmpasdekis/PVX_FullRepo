@@ -31,12 +31,12 @@ namespace PVX::OpenGL {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-	Buffer::Buffer() : Data{ new Buffer_Data(), [](Buffer_Data* dt) { if (dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
-	Buffer::Buffer(const Buffer_Data& dt) : Data{ new Buffer_Data(dt), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
-	Buffer::Buffer(BufferUsege Usage) : Buffer() { Data->Usage = Usage; }
+	Buffer::Buffer() : ptr{ new Buffer_Data(), [](Buffer_Data* dt) { if (dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
+	Buffer::Buffer(const Buffer_Data& dt) : ptr{ new Buffer_Data(dt), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
+	Buffer::Buffer(BufferUsege Usage) : Buffer() { ptr->Usage = Usage; }
 	Buffer::Buffer(bool IsUniformBlock, BufferUsege Usage) : Buffer(){
-		if (!IsUniformBlock) this->Data->Type = BufferType::SHADER_STORAGE_BUFFER;
-		this->Data->Usage = Usage;
+		if (!IsUniformBlock) ptr->Type = BufferType::SHADER_STORAGE_BUFFER;
+		ptr->Usage = Usage;
 	}
 	Buffer::Buffer(const void* Data, int Size, bool IsUniformBlock, BufferUsege Usage) : Buffer(IsUniformBlock, Usage) {
 		Update(Size, Data);
@@ -45,25 +45,25 @@ namespace PVX::OpenGL {
 		Update(int(Data.size()), Data.data());
 	}
 	void* Buffer::Map(MapAccess access) {
-		return glMapNamedBuffer(Data->Id, GLenum(access)) ;
+		return glMapNamedBuffer(ptr->Id, GLenum(access)) ;
 	}
 	void Buffer::Unmap() {
-		glUnmapNamedBuffer(Data->Id);
+		glUnmapNamedBuffer(ptr->Id);
 	}
 	void Buffer::Update(int Size, const void* Data) {
-		if (this->Data->Id) {
-			if (this->Data->Size == Size || (this->Data->OnlyGrow && this->Data->Size > Size))
-				glNamedBufferSubData(this->Data->Id, 0, Size, Data);
+		if (this->ptr->Id) {
+			if (ptr->Size == Size || (ptr->OnlyGrow && ptr->Size > Size))
+				glNamedBufferSubData(ptr->Id, 0, Size, Data);
 			else {
-				glNamedBufferData(this->Data->Id, Size, Data, GLenum(this->Data->Usage));
-				this->Data->Size = Size;
+				glNamedBufferData(ptr->Id, Size, Data, GLenum(ptr->Usage));
+				ptr->Size = Size;
 			}
 		} else {
-			this->Data->Size = Size;
-			glGenBuffers(1, &(this->Data->Id));
-			glBindBuffer(GLenum(this->Data->Type), this->Data->Id);
-			glBufferData(GLenum(this->Data->Type), Size, Data, GLenum(this->Data->Usage));
-			glBindBuffer(GLenum(this->Data->Type), 0);
+			ptr->Size = Size;
+			glGenBuffers(1, &(ptr->Id));
+			glBindBuffer(GLenum(ptr->Type), ptr->Id);
+			glBufferData(GLenum(ptr->Type), Size, Data, GLenum(ptr->Usage));
+			glBindBuffer(GLenum(ptr->Type), 0);
 		}
 	}
 	Buffer Buffer::MakeImmutableShaderStorage(int Size, void* Data) {

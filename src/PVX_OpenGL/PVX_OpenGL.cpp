@@ -7,7 +7,7 @@ namespace PVX::OpenGL {
 		glEnable
 	};
 
-	void Context::Init(HWND hWnd, int Flags) {
+	void Context::Init(HWND hWnd, bool DepthStencil) {
 		this->hWnd = hWnd;
 		PIXELFORMATDESCRIPTOR pfd = {
 			sizeof(PIXELFORMATDESCRIPTOR),	// size of this pfd 
@@ -23,14 +23,14 @@ namespace PVX::OpenGL {
 			0,								// shift bit ignored
 			0,								// no accumulation buffer
 			0, 0, 0, 0,						// accum bits ignored
-			32,								// 32-bit z-buffer
-			8,								// Stencil buffer
+			DepthStencil?32:0,				// 32-bit z-buffer
+			DepthStencil?8:0,				// Stencil buffer
 			0,								// no auxiliary buffer
 			PFD_MAIN_PLANE,					// main layer
 			0,								// reserved
 			0, 0, 0							// layer masks ignored
 		};
-		pfd.dwFlags |= Flags;
+
 		dc = GetDC(hWnd);
 		int  iPixelFormat = ChoosePixelFormat(dc, &pfd);
 		SetPixelFormat(dc, iPixelFormat, &pfd);
@@ -88,13 +88,13 @@ namespace PVX::OpenGL {
 		return ret;
 	}
 
-	void Context::glThread_Func1(HWND hWnd, std::function<void(Context& gl)> Function) {
-		Init(hWnd);
+	void Context::glThread_Func1(HWND hWnd, bool DepthStencil, std::function<void(Context& gl)> Function) {
+		Init(hWnd, DepthStencil);
 		Function(*this);
 		Running = 0;
 	}
-	void Context::glThread_Func2(HWND hWnd, std::function<void(Context& gl, void*)> Function, void* Data) {
-		Init(hWnd);
+	void Context::glThread_Func2(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void* Data) {
+		Init(hWnd, DepthStencil);
 		Function(*this, Data);
 		Running = 0;
 	}
@@ -106,18 +106,18 @@ namespace PVX::OpenGL {
 		}
 	}
 
-	Context::Context(HWND hWnd) {
-		Init(hWnd);
+	Context::Context(HWND hWnd, bool DepthStencil) {
+		Init(hWnd, DepthStencil);
 	}
 
-	Context::Context(HWND hWnd, std::function<void(Context& gl)> Function) {
+	Context::Context(HWND hWnd, bool DepthStencil, std::function<void(Context& gl)> Function) {
 		Running = true;
-		glThread = std::thread(&Context::glThread_Func1, this, hWnd, Function);
+		glThread = std::thread(&Context::glThread_Func1, this, hWnd, DepthStencil, Function);
 	}
 
-	Context::Context(HWND hWnd, std::function<void(Context& gl, void*)> Function, void* Data) {
+	Context::Context(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void* Data) {
 		Running = true;
-		glThread = std::thread(&Context::glThread_Func2, this, hWnd, Function, Data);
+		glThread = std::thread(&Context::glThread_Func2, this, hWnd, DepthStencil, Function, Data);
 	}
 
 	void Context::MakeCurrent() const {
@@ -127,14 +127,34 @@ namespace PVX::OpenGL {
 		wglMakeCurrent(0, 0);
 	}
 	void Context::Viewport() {
-		glViewport(0, 0, Width, Height);
+		if (CurrentViewportWidth != Width || CurrentViewportHeight != Height) {
+			CurrentViewportWidth = Width;
+			CurrentViewportHeight = Height;
+			glViewport(0, 0, Width, Height);
+		}
+	}
+	void Context::Viewport(int Width, int Height) {
+		if (CurrentViewportWidth != Width || CurrentViewportHeight != Height) {
+			CurrentViewportWidth = Width;
+			CurrentViewportHeight = Height;
+			glViewport(0, 0, Width, Height);
+		}
+	}
+	void Context::Viewport(const PVX::iVector2D& Size) {
+		if (CurrentViewportWidth != Size.Width || CurrentViewportHeight != Size.Height) {
+			CurrentViewportWidth = Size.Width;
+			CurrentViewportHeight = Size.Height;
+			glViewport(0, 0, Size.Width, Size.Height);
+		}
 	}
 	void Context::Resized() {
 		RECT cl;
 		GetClientRect(hWnd, &cl);
-		Width = cl.right - cl.left;
-		Height = cl.bottom - cl.top;
-		glViewport(0, 0, Width, Height);
+		Viewport(Width = cl.right - cl.left, Height = cl.bottom - cl.top);
+	}
+
+	void Context::Resized(int w, int h) {
+		Viewport(Width = w, Height = h);
 	}
 	void Context::AddTask(std::function<void(PVX::OpenGL::Context&)> Task) {
 		std::lock_guard<std::mutex> lock{ AsyncTaskMutex };
@@ -835,6 +855,11 @@ namespace PVX::OpenGL {
 		wglSwapInterval = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 	}
 
+	Sampler::~Sampler() {
+		if (!Ref&&Id) {
+			GL_CHECK(glDeleteSamplers(1, &Id));
+		}
+	}
 	Sampler::Sampler(TextureFilter MinAndMax, TextureWrap Wrap) {
 		glGenSamplers(1, &Id);
 		glSamplerParameteri(Id, (int)TextureProperty::TEXTURE_MIN_FILTER, (int)MinAndMax);

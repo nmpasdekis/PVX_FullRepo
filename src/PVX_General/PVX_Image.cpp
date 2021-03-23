@@ -2,8 +2,15 @@
 #include <map>
 #include <PVX_File.h>
 
-#define STB_IMAGE_IMPLEMENTATION
+namespace STB_Linear {
 #include <stb/stb_image.h>
+}
+
+//#undef STBI_INCLUDE_STB_IMAGE_H
+//
+//namespace NonLinear {
+//#include <stb/stb_image.h>
+//}
 
 #include <PVX_String.h>
 #include <Eigen/dense>
@@ -11,8 +18,6 @@
 #include <mutex>
 
 #define __FLIP_V__ 0
-
-std::mutex LoadMutex;
 
 namespace PVX {
 	//ImageF::ImageF(const Eigen::MatrixXf& mat) : Width{ int(mat.rows()) }, Height{ int(mat.cols()) }, Pixels(mat.size()) {
@@ -49,12 +54,12 @@ namespace PVX {
 	}
 
 	ImageF ImageF::Load(const char * Filename) {
-		stbi_set_flip_vertically_on_load(__FLIP_V__);
+		STB_Linear::stbi_set_flip_vertically_on_load(__FLIP_V__);
 		int w, h, c;
-		auto vec = stbi_loadf(Filename, &w, &h, &c, 1);
+		auto vec = STB_Linear::stbi_loadf(Filename, &w, &h, &c, 1);
 		ImageF ret(w, h);
 		memcpy(ret.Pixels.data(), vec, sizeof(float) * ret.Pixels.size());
-		stbi_image_free(vec);
+		STB_Linear::stbi_image_free(vec);
 		return ret;
 	}
 
@@ -227,10 +232,10 @@ namespace PVX {
 	//	return ret;
 	//}
 	Image3F Image3F::Load(const char * Filename) {
-		stbi_set_flip_vertically_on_load(__FLIP_V__);
+		STB_Linear::stbi_set_flip_vertically_on_load(__FLIP_V__);
 		int w, h, c;
 		constexpr double inv = 1.0f / 255.0f;
-		auto vec = stbi_load(Filename, &w, &h, &c, 3);
+		auto vec = STB_Linear::stbi_load(Filename, &w, &h, &c, 3);
 		Image3F ret(w, h);
 
 		float* dst = (float*)&ret.Pixels[0];
@@ -239,16 +244,16 @@ namespace PVX {
 		for (size_t i = 0; i<sz; i++) {
 			dst[i] = float(vec[i] * inv);
 		}
-		stbi_image_free(vec);
+		STB_Linear::stbi_image_free(vec);
 		return ret;
 	}
 	Image3F Image3F::Load(const wchar_t* Filename) {
-		stbi_set_flip_vertically_on_load(__FLIP_V__);
+		STB_Linear::stbi_set_flip_vertically_on_load(__FLIP_V__);
 		int w, h, c;
 		FILE* fin;
 		_wfopen_s(&fin, Filename, L"rb");
 		if (fin) {
-			auto vec = stbi_load_from_file(fin, &w, &h, &c, 3);
+			auto vec = STB_Linear::stbi_load_from_file(fin, &w, &h, &c, 3);
 			fclose(fin);
 			Image3F ret(w, h);
 			constexpr double inv = 1.0f / 255.0f;
@@ -258,23 +263,23 @@ namespace PVX {
 			for (size_t i = 0; i<sz; i++) {
 				dst[i] = float(vec[i] * inv);
 			}
-			stbi_image_free(vec);
+			STB_Linear::stbi_image_free(vec);
 			return ret;
 		}
 		return {};
 	}
-	/* std::tuple<Width, Height, Channels, BitsPerChannel> */
+	/* std::tuple<Width, Height, Channels, BitsPerChannel, IsHDR> */
 	std::tuple<int, int, int, int, bool> ImageInfo(FILE* f) {
 		int w = 0, h = 0, c = 0, BitsPerChannel = 0;
 		bool IsHDR = false;;
-		if (stbi_info_from_file(f, &w, &h, &c)) {
-			BitsPerChannel = stbi_is_16_bit_from_file(f) ? 16 : 8;
-			IsHDR = stbi_is_hdr_from_file(f);
+		if (STB_Linear::stbi_info_from_file(f, &w, &h, &c)) {
+			BitsPerChannel = STB_Linear::stbi_is_16_bit_from_file(f) ? 16 : 8;
+			IsHDR = STB_Linear::stbi_is_hdr_from_file(f);
 		}
 		return { w, h, c, BitsPerChannel, IsHDR };
 	}
 
-	/* std::tuple<Width, Height, Channels, BitsPerChannel> */
+	/* std::tuple<Width, Height, Channels, BitsPerChannel, IsHDR> */
 	std::tuple<int, int, int, int, bool> ImageInfo(const char* Filename) {
 		FILE* fin;
 		fopen_s(&fin, Filename, "rb");
@@ -286,7 +291,7 @@ namespace PVX {
 		return { 0, 0, 0, 0, false };
 	}
 
-	/* std::tuple<Width, Height, Channels, BitsPerChannel> */
+	/* std::tuple<Width, Height, Channels, BitsPerChannel, IsHDR> */
 	std::tuple<int, int, int, int, bool> ImageInfo(const wchar_t* Filename) {
 		FILE* fin;
 		_wfopen_s(&fin, Filename, L"rb");
@@ -328,9 +333,9 @@ namespace PVX {
 	}
 
 	Image4F Image4F::Load(const char * Filename) {
-		stbi_set_flip_vertically_on_load(__FLIP_V__);
+		STB_Linear::stbi_set_flip_vertically_on_load(__FLIP_V__);
 		int w, h, c;
-		auto vec = stbi_load(Filename, &w, &h, &c, 4);
+		auto vec = STB_Linear::stbi_load(Filename, &w, &h, &c, 4);
 		Image4F ret(w, h);
 		constexpr double inv = 1.0f / 255.0f;
 		float* dst = (float*)&ret.Pixels[0];
@@ -338,17 +343,17 @@ namespace PVX {
 		for (size_t i = 0; i<sz; i++) {
 			dst[i] = float(vec[i] * inv);
 		}
-		stbi_image_free(vec);
+		STB_Linear::stbi_image_free(vec);
 		return ret;
 	}
 
 	Image4F Image4F::Load(const wchar_t * Filename) {
-		stbi_set_flip_vertically_on_load(__FLIP_V__);
+		STB_Linear::stbi_set_flip_vertically_on_load(__FLIP_V__);
 		int w, h, c;
 		FILE* fin;
 		_wfopen_s(&fin, Filename, L"rb");
 		if (fin) {
-			auto vec = stbi_load_from_file(fin, &w, &h, &c, 3);
+			auto vec = STB_Linear::stbi_load_from_file(fin, &w, &h, &c, 3);
 			fclose(fin);
 			Image4F ret(w, h);
 			constexpr double inv = 1.0f / 255.0f;
@@ -357,7 +362,7 @@ namespace PVX {
 			for (size_t i = 0; i<sz; i++)
 				dst[i] = float(vec[i] * inv);
 			
-			stbi_image_free(vec);
+			STB_Linear::stbi_image_free(vec);
 			return ret;
 		}
 		return {};
@@ -569,66 +574,73 @@ namespace PVX {
 		return ret;
 	}
 
-	/*std::tuple<int, int, int, int, bool> ImageInfo(const char* Filename) {
+	ImageData ImageData::LoadLinear(const char* Filename) {
 		FILE* fin;
 		fopen_s(&fin, Filename, "rb");
 		if (fin) {
-			auto ret = ImageInfo(fin);
-			fclose(fin);
-			return ret;
-		}
-		return { 0, 0, 0, 0, false };
-	}
-	std::tuple<int, int, int, int, bool> ImageInfo(const wchar_t* Filename) {
-		FILE* fin;
-		_wfopen_s(&fin, Filename, L"rb");
-		if (fin) {
-			auto ret = ImageInfo(fin);
-			fclose(fin);
-			return ret;
-		}
-		return { 0, 0, 0, 0, false };
-	}*/
-
-	ImageData ImageData::Load(const char* Filename) {
-		FILE* fin;
-		fopen_s(&fin, Filename, "rb");
-		if (fin) {
-			auto ret = Load(fin);
+			auto ret = LoadLinear(fin);
 			fclose(fin);
 			return ret;
 		}
 		return {};
 	}
-	ImageData ImageData::Load(const wchar_t* Filename) {
+	ImageData ImageData::LoadLinear(const wchar_t* Filename) {
 		FILE* fin;
 		_wfopen_s(&fin, Filename, L"rb");
 		if (fin) {
-			auto ret = Load(fin);
+			auto ret = LoadLinear(fin);
 			fclose(fin);
 			return ret;
 		}
 		return {};
 	}
-	ImageData ImageData::Load(FILE* File) {
-		stbi_set_flip_vertically_on_load(1);
+	ImageData ImageData::LoadLinear(FILE* File) {
+		STB_Linear::stbi_set_flip_vertically_on_load(1);
 		auto [Width, Height, Channels, BitsPerChannel, IsHDR] = ImageInfo(File);
 		if (Width) {
-			std::vector<float> dataOut(Width * Height * Channels);
+			std::vector<float> dataOut(size_t(Width) * Height * Channels);
 			if (BitsPerChannel==8) {
-				auto dataIn = stbi_loadf_from_file(File, &Width, &Height, &Channels, Channels);
+				auto dataIn = STB_Linear::stbi_loadf_from_file(File, &Width, &Height, &Channels, Channels);
 				memcpy(dataOut.data(), dataIn, dataOut.size() * sizeof(float));
-				stbi_image_free(dataIn);
+				STB_Linear::stbi_image_free(dataIn);
 			}
 			else {
 				constexpr float div = float(0x0000ffff);
-				auto dataIn = stbi_load_from_file_16(File, &Width, &Height, &Channels, Channels);
+				auto dataIn = STB_Linear::stbi_load_from_file_16(File, &Width, &Height, &Channels, Channels);
 				for (auto i = 0; i<dataOut.size(); i++) 
 					dataOut[i] = float(dataIn[i]) / div;
-				stbi_image_free(dataIn);
+				STB_Linear::stbi_image_free(dataIn);
 			}
 			return { Width, Height, Channels, std::move(dataOut) };
 		}
 		return {};
+	}
+
+	ImageData& ImageData::Bias(bool FlipR, bool FlipG, bool FlipB) {
+		size_t pCount = size_t(Width) * Height;
+
+		PVX::Vector3D bias = {
+			FlipR ? 1.0f : -1.0f,
+			FlipG ? 1.0f : -1.0f,
+			FlipB ? 1.0f : -1.0f,
+		};
+		PVX::Vector3D mul = {
+			FlipR ? -2.0f : 2.0f,
+			FlipG ? -2.0f : 2.0f,
+			FlipB ? -2.0f : 2.0f,
+		};
+
+		if (Channels == 4) {
+			PVX::Vector4D* p = (PVX::Vector4D*) Data.data();
+			for (auto i = 0; i<pCount; i++) {
+				p[i] = { (p[i].Vec3 * mul + bias).Normalized(), p[i].w };
+			}
+		} else {
+			PVX::Vector3D* p = (PVX::Vector3D*) Data.data();
+			for (auto i = 0; i<pCount; i++) {
+				p[i] = (p[i] * mul + bias).Normalized();
+			}
+		}
+		return *this;
 	}
 }

@@ -18,7 +18,8 @@ namespace PVX {
 			int ret, flush;
 			unsigned have;
 			z_stream strm;
-			unsigned char out[CHUNK];
+			std::vector<unsigned char> _out(CHUNK);
+			unsigned char* out = _out.data();
 			int cur = 0;
 
 			/* allocate deflate state */
@@ -64,7 +65,7 @@ namespace PVX {
 		}
 		std::vector<unsigned char> Deflate(const std::vector<unsigned char> & data, DeflateLevel Level) {
 			std::vector<unsigned char> ret;
-			if (Deflate(ret, data.data(), data.size(), Level)) ret.clear();
+			if (Deflate(ret, data.data(), int(data.size()), Level)) ret.clear();
 			return ret;
 		}
 
@@ -72,7 +73,8 @@ namespace PVX {
 			int ret;
 			unsigned have;
 			z_stream strm;
-			unsigned char out[CHUNK];
+			std::vector<unsigned char> _out(CHUNK);
+			unsigned char* out = _out.data();
 			int cur = 0;
 
 			/* allocate inflate state */
@@ -107,6 +109,8 @@ namespace PVX {
 					switch (ret) {
 					case Z_NEED_DICT:
 						ret = Z_DATA_ERROR;     /* and fall through */
+						inflateEnd(&strm);
+						return ret;
 					case Z_DATA_ERROR:
 					case Z_MEM_ERROR:
 						inflateEnd(&strm);
@@ -129,7 +133,7 @@ namespace PVX {
 		}
 		std::vector<unsigned char> Inflate(const std::vector<unsigned char> & data) {
 			std::vector<unsigned char> ret;
-			if (Inflate(ret, data.data(), data.size())) ret.clear();
+			if (Inflate(ret, data.data(), int(data.size()))) ret.clear();
 			return ret;
 		}
 	}

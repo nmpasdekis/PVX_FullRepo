@@ -154,13 +154,24 @@ namespace PVX::Windows {
 		void Resize(int Width, int Height);
 		void ResizeClient(int Width, int Height);
 		RECT ClientRect();
+		RECT GetWindowRectangle();
 
 		Eventer& MakeEventer(int DialogItem);
 		Eventer& MakeEventer(HWND hWnd);
 		inline ComboBox GetComboBox(int Id) { return { *(HWND*)WindowData, Id }; };
+
+		void LockCursor();
+		void UnlockCursor();
+		std::pair<int, int> GetLockedRelative();
 	protected:
 		void Init(int w, int h, const wchar_t* className);
 		std::vector<Eventer*> Eventers;
+		struct {
+			int x;
+			int y;
+			int CenterX, CenterY;
+			int locked;
+		} lockCursor;
 	};
 
 	class RawInput {

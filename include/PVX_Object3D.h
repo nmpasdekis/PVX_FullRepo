@@ -34,8 +34,6 @@ namespace PVX::Object3D {
 		PVX::Vector3D Specular;
 		PVX::Vector3D Emissive;
 
-		bool IsPBR = false;
-
 		float Metallic;
 		float Roughness;
 
@@ -45,7 +43,7 @@ namespace PVX::Object3D {
 		float EmissiveFactor;
 
 		float SpecularPower;
-		float Transparency;
+		float Alpha;
 		float Bump;
 		struct {
 			std::string Ambient;

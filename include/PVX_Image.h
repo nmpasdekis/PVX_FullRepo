@@ -132,9 +132,15 @@ namespace PVX {
 		int Height = 0;
 		int Channels = 0;
 		std::vector<float> Data;
-		static ImageData Load(const char* Filename);
-		static ImageData Load(const wchar_t* Filename);
-		static ImageData Load(FILE* File);
+		static ImageData LoadLinear(const char* Filename);
+		static ImageData LoadLinear(const wchar_t* Filename);
+		static ImageData LoadLinear(FILE* File);
+
+		static ImageData LoadRaw(const char* Filename);
+		static ImageData LoadRaw(const wchar_t* Filename);
+		static ImageData LoadRaw(FILE* File);
+
+		ImageData& Bias(bool FlipR, bool FlipG, bool FlipB);
 	};
 
 	struct ImageF {

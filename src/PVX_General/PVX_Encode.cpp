@@ -328,7 +328,7 @@ namespace PVX {
 			std::string ret;
 			ret.reserve(data.size());
 			for (auto & c : data)
-				ret.push_back(c);
+				ret.push_back(char(c));
 			return ret;
 		}
 		std::wstring ToString(const std::string & data) {
@@ -483,19 +483,19 @@ namespace PVX {
 		}
 
 		std::vector<unsigned char> UTF0(const wstring & Text) {
-			int sz = UTF_Length(Text.c_str());
+			auto sz = UTF_Length(Text.c_str());
 			std::vector<unsigned char> ret(sz + 1);
 			if (sz)Encode::UTF(&ret[0], Text.c_str());
 			return ret;
 		}
 		std::vector<unsigned char> UTF(const wstring & Text) {
-			int sz = UTF_Length(Text.c_str());
+			auto sz = UTF_Length(Text.c_str());
 			std::vector<unsigned char> ret(sz);
 			if (sz)Encode::UTF(&ret[0], Text.c_str());
 			return ret;
 		}
 		void UTF(std::vector<unsigned char> & utf, const wstring & Text) {
-			int sz = UTF_Length(Text.c_str());
+			auto sz = UTF_Length(Text.c_str());
 			utf.clear();
 			utf.resize(sz);
 			if (sz)UTF(&utf[0], Text.c_str());
@@ -544,7 +544,7 @@ namespace PVX {
 				std::string ret;
 				char* u = (char*)&s[0];
 				ret.resize(Uri_Length(u, s.size()));
-				UriEncode(&ret[0], u, s.size());
+				UriEncode(&ret[0], u, int(s.size()));
 				return ret;
 			}
 			return "";
@@ -565,7 +565,7 @@ namespace PVX {
 			std::string ret;
 			ret.reserve(data.size());
 			for(auto c : data)
-				ret.push_back(Windows1253_Greek_unordered_map[c]);
+				ret.push_back(char(Windows1253_Greek_unordered_map[c]));
 			return ret;
 		}
 	}

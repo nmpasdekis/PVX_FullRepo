@@ -29,5 +29,16 @@
     <ClCompile Include="DefaultShaders.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PostProcessor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Load.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PostShaders.inl">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

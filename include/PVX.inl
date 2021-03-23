@@ -12,7 +12,34 @@
 #include <execution>
 #include <type_traits>
 
+
+#ifdef __PVX_InitialValue__
+#define __InitialValue1__(x) x
+#define __InitialValue2__(x) __InitialValue1__(x), __InitialValue1__(x)
+#define __InitialValue4__(x) __InitialValue2__(x), __InitialValue2__(x)
+#define __InitialValue8__(x) __InitialValue4__(x), __InitialValue4__(x)
+#define __InitialValue16__(x) __InitialValue8__(x), __InitialValue8__(x)
+#define __InitialValue32__(x) __InitialValue16__(x), __InitialValue16__(x)
+#define __InitialValue64__(x) __InitialValue32__(x), __InitialValue32__(x)
+#define __InitialValue128__(x) __InitialValue64__(x), __InitialValue64__(x)
+#define __InitialValue256__(x) __InitialValue128__(x), __InitialValue128__(x)
+#define __InitialValue512__(x) __InitialValue256__(x), __InitialValue256__(x)
+#define __InitialValue1024__(x) __InitialValue512__(x), __InitialValue512__(x)
+#endif
+
 namespace PVX {
+	class Timer {
+		decltype(std::chrono::high_resolution_clock::now()) lastTime = std::chrono::high_resolution_clock::now();
+	public:
+		inline float get() {
+			auto now = std::chrono::high_resolution_clock::now();
+			float ret = float((now - lastTime).count() / 1000000000.0);
+			lastTime = now;
+			return ret;
+		}
+	};
+
+
 	template<typename T>
 	inline std::vector<T> ToVector(const T * Array, size_t Count) {
 		std::vector<T> ret;
@@ -61,9 +88,9 @@ namespace PVX {
 	}
 	template<typename T>
 	inline long long IndexOf(const std::vector<T> & Array, std::function<bool(decltype(Array[0])& a)> fnc) {
-		for (long long i = 1; i < Array.size(); i++) {
+		for (auto i = 1; i < Array.size(); i++) {
 			if (fnc(Array[i]))
-				return i;
+				return (long long)i;
 		}
 		return -1;
 	}
@@ -170,13 +197,13 @@ namespace PVX {
 		for (auto& a : Array) ret.push_back(fnc(a));
 		return std::move(ret);
 	}
-	template<typename T1, typename T2, typename T>
-	auto Map(const std::vector<T>& Array, T2 clb) {
-		std::vector<T1> ret;
-		ret.reserve(Array.size());
-		for (auto& x: Array) ret.emplace_back(clb(x));
-		return std::move(ret);
-	}
+	//template<typename T1, typename T2, typename = std::enable_if<std::is_integral<T1>::value>>
+	//auto Map(const T1& Array, T2 clb) {
+	//	std::vector<decltype(clb(Array.begin()))> ret;
+	//	ret.reserve(Array.size());
+	//	for (auto& x: Array) ret.emplace_back(clb(x));
+	//	return std::move(ret);
+	//}
 
 	template<typename T1, typename T2>
 	inline auto Map_Parallel2(const std::vector<T1>& Array, T2 fnc) {
@@ -276,7 +303,7 @@ namespace PVX {
 		int * ref;
 	public:
 		inline RefCounter() : ref{ new int[1] } { *ref = 1; }
-		inline RefCounter(const RefCounter && r) : ref{ r.ref } { (*ref)++; }
+		inline RefCounter(RefCounter && r) : ref{ r.ref } { (*ref)++; }
 		inline RefCounter(const RefCounter & r) : ref{ r.ref } { (*ref)++; }
 		inline ~RefCounter() { 
 			if (!--(*ref)) delete ref; 

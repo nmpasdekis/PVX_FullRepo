@@ -159,6 +159,11 @@ namespace PVX::Windows {
 		GetClientRect(((WindowPrivate*)WindowData)->hWnd, &cl);
 		return cl;
 	}
+	RECT Window::GetWindowRectangle() {
+		RECT rc;
+		GetWindowRect(((WindowPrivate*)WindowData)->hWnd, &rc);
+		return rc;
+	}
 
 	Eventer& Window::MakeEventer(int DialogItem) {
 		return MakeEventer(GetDlgItem(((WindowPrivate*)WindowData)->hWnd, DialogItem));
@@ -167,6 +172,42 @@ namespace PVX::Windows {
 	Eventer& Window::MakeEventer(HWND hWnd) {
 		Eventers.push_back(new Eventer(hWnd));
 		return *Eventers.back();
+	}
+
+	void Window::LockCursor() {
+		lockCursor.locked++;
+		if (lockCursor.locked == 1) {
+			POINT cur;
+			GetCursorPos(&cur);
+			auto rc = GetWindowRectangle();
+			lockCursor.x = cur.x;
+			lockCursor.y = cur.y;
+			lockCursor.locked = true;
+			lockCursor.CenterX = (rc.right + rc.left) / 2;
+			lockCursor.CenterY = (rc.top + rc.bottom) / 2;
+			SetCursorPos(lockCursor.CenterX, lockCursor.CenterY);
+			ClipCursor(&rc);
+			ShowCursor(0);
+		}
+	}
+
+	void Window::UnlockCursor() {
+		lockCursor.locked--;
+		if (!lockCursor.locked) {
+			ClipCursor(nullptr);
+			ShowCursor(1);
+			SetCursorPos(lockCursor.x, lockCursor.y);
+		}
+	}
+
+	std::pair<int, int> Window::GetLockedRelative() {
+		if (lockCursor.locked) {
+			POINT cur;
+			GetCursorPos(&cur);
+			SetCursorPos(lockCursor.CenterX, lockCursor.CenterY);
+			return { cur.x - lockCursor.CenterX, cur.y - lockCursor.CenterY };
+		}
+		return { 0, 0 };
 	}
 
 	int Eventer::DoEvents() {

@@ -83,11 +83,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DefaultShaders.cpp" />
+    <ClCompile Include="Load.cpp" />
+    <ClCompile Include="PostProcessor.cpp" />
     <ClCompile Include="PVX_OpenGL_Helpers.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\PVX_OpenGL_Helpers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PostShaders.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

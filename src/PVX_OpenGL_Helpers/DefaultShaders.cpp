@@ -163,7 +163,7 @@ void Morph(std::stringstream& ret, unsigned int Format) {
 }
 
 
-PVX::OpenGL::Shader PVX::OpenGL::Helpers::Renderer::GetDefaultVertexShader(unsigned int Format) {
+std::string PVX::OpenGL::Helpers::Renderer::GetDefaultVertexShader(unsigned int Format) {
 	std::stringstream ret;
 	ret << R"(#version 440
 
@@ -175,21 +175,21 @@ PVX::OpenGL::Shader PVX::OpenGL::Helpers::Renderer::GetDefaultVertexShader(unsig
 
 
 	ret << R"shader(
-layout(std140) uniform Camera{
+layout(std140, binding = 0) uniform Camera{
 	mat4 View;
 	mat4 Projection;
 	vec3 CameraPosition;
 };
 
-layout(std430) readonly buffer Transform {
+layout(std430, binding = 3) readonly buffer Transform {
 	mat4 Model[];
 };
 
-layout(std430) readonly buffer MorphControl {
+layout(std430, binding = 4) readonly buffer MorphControl {
 	float MorphWeight[];
 };
 
-layout(std430) readonly buffer MorphData {
+layout(std430, binding = 5) readonly buffer MorphData {
 	MorphItem_t[] MorphItem;
 };
 
@@ -212,7 +212,7 @@ void main(){
 	ret<<"}";
 
 	auto str = ret.str();
-	return { PVX::OpenGL::Shader::ShaderType::VertexShader, str };
+	return str;
 }
 
 namespace {
@@ -236,13 +236,13 @@ in Vert_t{
 
 #define UserBump (HasTexBump && HasNorm && HasTan && HasUV)
 
-PVX::OpenGL::Shader PVX::OpenGL::Helpers::Renderer::GetDefaultFragmentShader(unsigned int Format, unsigned int Frag) { // )shdr"  R"shdr(
+std::string PVX::OpenGL::Helpers::Renderer::GetDefaultFragmentShader(unsigned int Format, unsigned int Frag) { // )shdr"  R"shdr(
 	std::stringstream ret;
 
 	ret << R"shdr(#version 440
 
 out vec3 Position;
-out vec3 Color;
+out vec4 Color;
 out vec3 Normal;
 out vec2 PBR;)shdr";
 	
@@ -250,13 +250,13 @@ out vec2 PBR;)shdr";
 	
 	ret << R"shdr(
 
-layout(std140) uniform Camera{
+layout(std140, binding = 0) uniform Camera{
 	mat4 View;
 	mat4 Projection;
 	vec3 CameraPosition;
 };
 
-layout(std140) uniform Material{
+layout(std140, binding = 2) uniform Material{
 	vec4 MatColor;
 	vec4 MatPBR;
 };)shdr";
@@ -274,8 +274,15 @@ uniform sampler2D Bump_Tex;
 
 )shdr";
 
+	auto hTexBumb = HasTexBump;
+	auto hNormals = HasNorm;
+	auto hTan = HasTan;
+	auto hUV = HasUV;
+
+	auto test = UserBump;
+
 	if(UserBump) ret << R"shdr(
-vec3 TransformNorma(){
+vec3 TransformNormal(){
 	vec3 norm = normalize(inVert.Normal);
 	vec3 bin = normalize(cross(inVert.Tangent.xyz, norm) * inVert.Tangent.w);
 	vec3 tang = cross(norm, bin);
@@ -292,7 +299,7 @@ void main(){
 	if (UserBump) {
 
 		ret << R"shdr(
-	Normal = TransformNorma();)shdr";
+	Normal = TransformNormal();)shdr";
 		
 	} else {
 		if (HasNorm) ret << R"shdr(
@@ -302,9 +309,9 @@ void main(){
 	}
 
 	if (HasTexColor && HasUV) ret << R"shdr(
-	Color = texture(Color_Tex, inVert.UV).xyz * MatColor.xyz;)shdr";
+	Color = texture(Color_Tex, inVert.UV) * MatColor;)shdr";
 	else ret << R"shdr(
-	Color = MatColor.xyz;)shdr";
+	Color = MatColor;)shdr";
 
 	if (HasTexMat && HasUV) ret << R"shdr(
 	PBR = MatPBR.xy * texture(PBR_Tex, inVert.UV).xy;)shdr";
@@ -314,5 +321,5 @@ void main(){
 	ret << R"shdr(
 })shdr";
 	auto str = ret.str();
-	return { PVX::OpenGL::Shader::ShaderType::FragmentShader, str };
+	return str;
 }

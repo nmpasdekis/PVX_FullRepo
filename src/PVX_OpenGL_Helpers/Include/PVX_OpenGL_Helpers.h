@@ -9,10 +9,45 @@
 namespace PVX::OpenGL::Helpers {
 
 	Attribute FromObjectAttribute(const PVX::Object3D::VertexAttribute& attr);
-	Geometry ToGeomerty(const PVX::OpenGL::InterleavedArrayObject& obj);
-	Geometry ToGeomerty(const PVX::OpenGL::BufferObject& obj);
+	Geometry ToGeomerty(const PVX::OpenGL::InterleavedArrayObject& obj, bool OldVersion = true);
+	Geometry ToGeomerty(const PVX::OpenGL::BufferObject& obj, bool OldVersion = true);
 	Geometry ToGeomerty(const PVX::Object3D::ObjectSubPart& so, bool OldVersion = false);
 
+	class Reflector140 {
+		std::vector<uint8_t> Data;
+		std::unordered_map<std::string, std::tuple<int, int>> Variables;
+	public:
+		template<typename T>
+		T& Add(const std::string& Name) {
+			constexpr int vSize = sizeof(T) <= 8 ? sizeof(T) : (16 * ((sizeof(T) + 15) / 16));
+			constexpr int align = sizeof(T) <= 8 ? sizeof(T) : 16;
+			int offset = align * ((int(Data.size()) + align - 1) / align);
+			Data.resize(offset + vSize);
+			Variables[Name] = { offset, sizeof(T) };
+			return *(T*)&Data[offset];
+		}
+		template<typename T>
+		T& Get(const std::string& Name) { 
+			return *(T*)&Data[std::get<0>(Variables[Name])]; 
+		}
+		template<typename T>
+		int SizeOf(const std::string& Name) { 
+			return *(T*)&Data[std::get<1>(Variables[Name])]; 
+		}
+	};
+
+	class TextPrinter {
+		PVX::OpenGL::Geometry geo;
+		PVX::OpenGL::Texture2D Atlas;
+		PVX::OpenGL::Buffer Text;
+		PVX::OpenGL::Program Shaders;
+		int xTiles, yTiles;
+		PVX::Vector2D TileSize;
+	public:
+		TextPrinter(const std::string& Texture, int xTiles, int yTiles, const PVX::iVector2D& ScreenSize);
+		void Render(const std::string& Text, const PVX::Vector2D& pos, const PVX::Vector4D& Color = {1.0f, 1.0f, 1.0f, 1.0f });
+		PVX::iVector2D ScreenSize;
+	};
 
 	struct TransformConstant {
 		PVX::Matrix4x4	PostTranslate;
@@ -30,37 +65,64 @@ namespace PVX::OpenGL::Helpers {
 			ParentIndex{ t.ParentIndex },
 			RotationOrder{ t.RotationOrder },
 			Result{ 0 }
-		{}
+		{
+		}
 	};
 
 	struct Transform {
+		PVX::Matrix4x4 Matrix;
+		PVX::Vector3D Position;
+		PVX::Vector3D Rotation;
+		PVX::Vector3D Scale;
+		Transform(const Transform&) = default;
+
+		void TransformAll(TransformConstant& Const, const TransformConstant* All) const;
+		void TransformNoParent(TransformConstant& Const, const TransformConstant* All) const;
+		void TransformAll_Identity(TransformConstant& Const, const TransformConstant* All) const;
+		void TransformNoParent_Identity(TransformConstant& Const, const TransformConstant* All) const;
+		void PreTransformed(TransformConstant& Const, const TransformConstant* All) const;
+		void PreTransformedNoParent(TransformConstant& Const, const TransformConstant* All) const;
+
+		void(Transform::* curTransform)(TransformConstant& Const, const TransformConstant* All) const;
+		inline void GetTransform(TransformConstant& Const, const TransformConstant* All) const {
+			(this->*curTransform)(Const, All);
+		}
+		inline Transform(const PVX::Vector3D& Pos, const PVX::Vector3D& Rot, const PVX::Vector3D& Scl, bool Parent, bool Identity) :
+			Position{ Pos }, Rotation{ Rot }, Scale{ Scl },
+			Matrix{ PVX::Matrix4x4::Identity() }
+		{
+			if (Identity) {
+				if (Parent) {
+					curTransform = &Transform::TransformAll_Identity;
+				} else {
+					curTransform = &Transform::TransformNoParent_Identity;
+				}
+			} else {
+				if (Parent) {
+					curTransform = &Transform::TransformAll;
+				} else {
+					curTransform = &Transform::TransformNoParent;
+				}
+			}
+		}
+	};
+
+	struct AnimationFrame {
 		PVX::Vector3D Position;
 		PVX::Vector3D Rotation;
 		PVX::Vector3D Scale;
 	};
 
-
-	class ProgramPlus {
-		PVX::OpenGL::Program Prog;
-		int MorphCountIndex = -1;
-		int BoneCountIndex = -1;
-	public:
-		ProgramPlus(const PVX::OpenGL::Program& p, const PVX::OpenGL::Sampler& DefSampler);
-		ProgramPlus(){}
-		inline void Use() { Prog.Bind(); }
-		inline void SetCamera(const PVX::OpenGL::Buffer& Cam) { Prog.BindBuffer(0, Cam); }
-		inline void SetMaterial(const PVX::OpenGL::Buffer& Mat) { Prog.BindBuffer(1, Mat); }
-		inline void SetTransform(const PVX::OpenGL::Buffer& Tran) { Prog.BindBuffer(2, Tran); }
-		void SetBoneCount(int n);
-		void SetMorphCount(int n);
-	};
-
 	struct ObjectGL_SubPart {
 		PVX::OpenGL::Geometry Mesh;
-		ProgramPlus ShaderProgram;
+		PVX::OpenGL::Program ShaderProgram;
 		//PVX::OpenGL::Pipeline Pip;
 		PVX::OpenGL::Buffer Morph;
-		int MaterialIndex;
+		int MaterialIndex = -1;
+		int MorphCountIndex = -1;
+		int BoneCountIndex = -1;
+
+		void SetProgram(const PVX::OpenGL::Program& prog);
 	};
 
 	struct ObjectGL_Part {
@@ -115,6 +177,8 @@ namespace PVX::OpenGL::Helpers {
 		inline float& Morph(size_t index) { return MorphControls[index]; }
 		inline size_t MorphCount() { return MorphControls.size(); }
 
+		void Animate(float time);
+
 		void SetActive(bool isActive);
 	};
 
@@ -133,6 +197,10 @@ namespace PVX::OpenGL::Helpers {
 		size_t DrawCount = 0;
 		size_t ActiveInstances = 0;
 		int MorphCount = 0;
+		float FrameRate;
+		size_t AnimationMaxFrame;
+
+		std::vector<std::vector<AnimationFrame>> Animation;
 
 		void UpdateInstances();
 	};
@@ -142,53 +210,180 @@ namespace PVX::OpenGL::Helpers {
 		PVX::Vector4D Color;
 	};
 
+	template<int LightCount = 16>
 	struct LightRig {
-		int Count, padd1, padd2, padd3;
-		float Attenuation3 = 0;
-		float Attenuation2 = 0.001f;
-		float Attenuation1 = 0;
-		float Attenuation0 = 1.0f;
-		aLight light[128];
+		float Attenuation3 = 0.01f;
+		float Attenuation2 = 0.01f;
+		float Attenuation1 = 0.1f;
+		int Count = 0;
+
+		aLight light[LightCount];
+	};
+
+	struct GBuffer {		
+		PVX::OpenGL::Texture2D Position;
+		PVX::OpenGL::Texture2D Albedo;
+		PVX::OpenGL::Texture2D Normal;
+		PVX::OpenGL::Texture2D Material;
+		PVX::OpenGL::Texture2D Depth;
+	};
+
+	class PostProcessStep {
+		PVX::OpenGL::Shader FragmentShader;
+		PVX::OpenGL::FrameBufferObject* FBO{ nullptr };
+		std::vector<std::tuple<int, PVX::OpenGL::Texture2D>> TextureInputs;
+		std::vector<PVX::OpenGL::Texture2D> Targets{};
+		float ScaleX;
+		float ScaleY;
+
+		PostProcessStep(
+			const std::string& FragmentCode,
+			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
+			const std::initializer_list<PVX::OpenGL::Texture2D>& Targets,
+			float ScaleX = 1.0f, float ScaleY = 0
+		) : 
+			FragmentShader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, FragmentCode },
+			TextureInputs{ Inputs },
+			Targets{ Targets },
+			ScaleX{ ScaleX },
+			ScaleY{ ScaleY ? ScaleY : ScaleX }
+		{};
+		PostProcessStep(
+			const std::string& FragmentCode,
+			PVX::OpenGL::FrameBufferObject& FBO,
+			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
+			float ScaleX = 1.0f, float ScaleY = 0
+		) :
+			FragmentShader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, FragmentCode },
+			TextureInputs{ Inputs },
+			FBO{ &FBO },
+			ScaleX{ ScaleX },
+			ScaleY{ ScaleY ? ScaleY : ScaleX }
+		{};
+		PostProcessStep(
+			const PVX::OpenGL::Shader & FragmentShader,
+			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
+			const std::initializer_list<PVX::OpenGL::Texture2D>& Targets,
+			float ScaleX = 1.0f, float ScaleY = 0
+		) :
+			FragmentShader{ FragmentShader },
+			TextureInputs{ Inputs },
+			Targets{ Targets },
+			ScaleX{ ScaleX },
+			ScaleY{ ScaleY ? ScaleY : ScaleX }
+		{};
+		PostProcessStep(
+			const PVX::OpenGL::Shader& FragmentShader,
+			PVX::OpenGL::FrameBufferObject& FBO,
+			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
+			float ScaleX = 1.0f, float ScaleY = 0
+		) :
+			FragmentShader{ FragmentShader },
+			TextureInputs{ Inputs },
+			FBO{ &FBO },
+			ScaleX{ ScaleX },
+			ScaleY{ ScaleY ? ScaleY : ScaleX }
+		{};
+	};
+
+	class PostProcessor {
+		struct Process_t {
+			PVX::OpenGL::Program Shaders;
+			PVX::OpenGL::FrameBufferObject* FBO;
+			std::vector<std::tuple<int, PVX::OpenGL::Texture2D>> TextureInputs;
+		};
+		std::map<int, std::pair<PVX::OpenGL::Texture2D, PVX::Vector2D>> Scales;
+		PVX::OpenGL::Context& gl;
+		PVX::OpenGL::Shader VertexShader;
+		PVX::OpenGL::Geometry FrameGeometry;
+		PVX::OpenGL::Sampler TexSampler;
+		std::vector<Process_t> Processes;
+		std::vector<GLuint> BindSamplers;
+		std::vector<std::unique_ptr<PVX::OpenGL::FrameBufferObject>> FBOs;
+	public:
+		PostProcessor(PVX::OpenGL::Context& gl);
+		void AddProcess(
+			const PVX::OpenGL::Shader& FragmentShader, 
+			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
+			const std::initializer_list<PVX::OpenGL::Texture2D>& Targets,
+			float ScaleX = 1.0f, float ScaleY = 1.0f);
+
+		void AddProcess(
+			const PVX::OpenGL::Shader& FragmentShader,
+			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
+			PVX::OpenGL::FrameBufferObject& FBO);
+
+		void Resize(const PVX::iVector2D& Size);
+		inline void Resize(int Width, int Height) { Resize({ Width, Height }); };
+		void Process();
+		void MakeBloom(
+			int Width, int Height,
+			const PVX::OpenGL::Texture2D& gPosition,
+			const PVX::OpenGL::Texture2D& gAlbedo,
+			const PVX::OpenGL::Texture2D& gNormal,
+			const PVX::OpenGL::Texture2D& gMaterial, 
+			PVX::OpenGL::FrameBufferObject* Target = nullptr
+		);
+		void MakeSimple(
+			int Width, int Height,
+			const PVX::OpenGL::Texture2D& gPosition,
+			const PVX::OpenGL::Texture2D& gAlbedo,
+			const PVX::OpenGL::Texture2D& gNormal,
+			const PVX::OpenGL::Texture2D& gMaterial, 
+			PVX::OpenGL::FrameBufferObject* Target = nullptr
+		);
+		void MakeBloom(
+			int Width, int Height,
+			GBuffer& gBuffer,
+			PVX::OpenGL::FrameBufferObject* Target = nullptr
+		);
+		void MakeSimple(
+			int Width, int Height,
+			GBuffer& gBuffer,
+			PVX::OpenGL::FrameBufferObject* Target = nullptr
+		);
 	};
 
 	class Renderer {
-		PVX::OpenGL::FrameBufferObject FullFrameBuffer;
 		PVX::OpenGL::Context& gl;
-		PVX::OpenGL::Geometry FrameGeometry;
-		PVX::OpenGL::Pipeline PostProcessPipeline;
-		PVX::OpenGL::Sampler GeneralSampler;
-		PVX::OpenGL::Sampler PostSampler;
 
-		PVX::OpenGL::Texture2D Position;
-		PVX::OpenGL::Texture2D Color;
-		PVX::OpenGL::Texture2D Normal;
-		PVX::OpenGL::Texture2D PBR;
-		PVX::OpenGL::Texture2D Depth;
+		PVX::OpenGL::FrameBufferObject gBufferFBO;
+
+		GBuffer gBuffer;
+
+		PVX::OpenGL::Sampler GeneralSampler;
 
 		PVX::OpenGL::Buffer CameraBuffer;
 		PVX::OpenGL::Buffer LightBuffer;
 		std::map<std::wstring, PVX::OpenGL::Texture2D> Textures;
-
-		int NextObjectId = 1;
-		int NextInstanceId = 1;
 		std::map<int, std::unique_ptr<ObjectGL>> Objects;
 		std::map<int, std::tuple<int, int>> Instances;
-		//int LoadObject(const Object3D::Object& obj);
+
 		PVX::OpenGL::Program GetDefaultProgram(unsigned int VertexFormat, unsigned int Fragment);
-		PVX::OpenGL::Shader GetDefaultVertexShader(unsigned int VertexFormat);
-		PVX::OpenGL::Shader GetDefaultFragmentShader(unsigned int VertexFormat, unsigned int Fragment);
+		std::string GetDefaultVertexShader(unsigned int VertexFormat);
+		std::string GetDefaultFragmentShader(unsigned int VertexFormat, unsigned int Fragment);
 
 		std::map<unsigned int, PVX::OpenGL::Shader> DefaultVertexShaders;
 		std::map<unsigned int, PVX::OpenGL::Shader> DefaultFragmentShaders;
 		std::map<unsigned int, PVX::OpenGL::Program> DefaultShaderPrograms;
+
+		//std::vector<PostProcessor> PostProcesses;
+
+		//int ScreenSizeLoc = -1;
+		int NextObjectId = 1;
+		int NextInstanceId = 1;
 	public:
-		LightRig Lights;
-		Renderer(int Width, int Height, PVX::OpenGL::Context& gl);
+		~Renderer();
+		PostProcessor PostProcesses;
+		LightRig<16> Lights;
+		Renderer(int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target = nullptr);
 		void SetCameraBuffer(PVX::OpenGL::Buffer& CamBuffer);
 		void Render(std::function<void()> RenderClb);
 
 		PVX::OpenGL::Texture2D LoadTexture2D(const std::wstring& Filename);
 		PVX::OpenGL::Texture2D LoadTexture2D(const std::string& Filename);
+		PVX::OpenGL::Texture2D LoadNormalTexture2D(const std::string& Filename, bool flipY = false);
+		PVX::OpenGL::Texture2D LoadNormalTexture2D(const std::wstring& Filename, bool flipY = false);
 		int LoadObject(const std::string& Filename);
 		int LoadObject(const Object3D::Object& obj);
 
@@ -197,5 +392,14 @@ namespace PVX::OpenGL::Helpers {
 		int CreateInstance(int Id, bool Active = true);
 
 		void DrawInstances();
+		void UpdateInstances();
+
+		inline std::vector<int> GetInstenceIds() const { 
+			std::vector<int> ret;
+			ret.reserve(Instances.size());
+			for (const auto& [k, v]:Instances)ret.push_back(k);
+			return ret;
+		}
+		inline int InstanceOf(int instId) const { return std::get<0>(Instances.at(instId)); }
 	};
 }

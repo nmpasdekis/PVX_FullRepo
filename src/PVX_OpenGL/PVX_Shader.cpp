@@ -203,21 +203,21 @@ namespace PVX::OpenGL {
 	}
 
 
-	unsigned int Program::UniformBlockIndex(const char* Name) {
+	unsigned int Program::UniformBlockIndex(const char* Name) const {
 		return glGetUniformBlockIndex(Id, Name);
 	}
-	unsigned int Program::UniformLocation(const char* Name) {
+	unsigned int Program::UniformLocation(const char* Name) const {
 		return glGetUniformLocation(Id, Name);
 	}
 
-	unsigned int Program::UniformIndex(const char* Name) {
+	unsigned int Program::UniformIndex(const char* Name) const {
 		const char* nms[]{ Name };
 		int unsigned ret;
 		GL_CHECK(glGetUniformIndices(Id, 1, nms, &ret));
 		return ret;
 	}
 
-	unsigned int Program::StorageIndex(const char* Name) {
+	unsigned int Program::StorageIndex(const char* Name) const {
 		return glGetProgramResourceIndex(Id, GL_SHADER_STORAGE_BLOCK, Name);
 	}
 
@@ -226,39 +226,35 @@ namespace PVX::OpenGL {
 		glUniformBlockBinding(Id, BlockIndex, Buffer.Get());
 	}
 
-	void Program::BindUniform(int index, float vec) { glUniform1f(index, vec); }
-	void Program::BindUniform(int index, const PVX::Vector2D& vec) { glUniform2fv(index, 1, vec.Array); }
-	void Program::BindUniform(int index, const PVX::Vector3D& vec) { glUniform3fv(index, 1, vec.Array); }
-	void Program::BindUniform(int index, const PVX::Vector4D& vec) { glUniform4fv(index, 1, vec.Array); }
-	void Program::BindUniform(int index, const PVX::Matrix4x4& mat) { glUniformMatrix4fv(index, 1, false, mat.m16); }
-	void Program::BindUniform(int Index, int Value) { glUniform1i(Index, Value); }
-	void Program::BindUniform(int Index, const PVX::iVector2D& Value) { glUniform2iv(Index, 1, Value.Array); }
-	void Program::BindUniform(int Index, const PVX::iVector3D& Value) { glUniform3iv(Index, 1, Value.Array); }
-	void Program::BindUniform(int Index, const PVX::iVector4D& Value) { glUniform4iv(Index, 1, Value.Array); }
-	void Program::BindUniform(int Index, const std::vector<float>& Value) { glUniform1fv(Index, Value.size(), Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::Vector2D>& Value) { glUniform2fv(Index, Value.size(), (float*)Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::Vector3D>& Value) { glUniform3fv(Index, Value.size(), (float*)Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::Vector4D>& Value) { glUniform4fv(Index, Value.size(), (float*)Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<int>& Value) { glUniform1iv(Index, Value.size(), Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::iVector2D>& Value) { glUniform2iv(Index, Value.size(), (int*)Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::iVector3D>& Value) { glUniform3iv(Index, Value.size(), (int*)Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::iVector4D>& Value) { glUniform4iv(Index, Value.size(), (int*)Value.data()); }
-	void Program::BindUniform(int Index, const std::vector<PVX::Matrix4x4>& Value) { glUniformMatrix4fv(Index, Value.size(), false, (float*)Value.data()); }
-	void Program::BindUniform(int Index, const float* Value, int Count) { glUniform1fv(Index, Count, Value); }
-	void Program::BindUniform(int Index, const PVX::Vector2D* Value, int Count) { glUniform2fv(Index, Count, (float*)Value); }
-	void Program::BindUniform(int Index, const PVX::Vector3D* Value, int Count) { glUniform3fv(Index, Count, (float*)Value); }
-	void Program::BindUniform(int Index, const PVX::Vector4D* Value, int Count) { glUniform4fv(Index, Count, (float*)Value); }
-	void Program::BindUniform(int Index, const int* Value, int Count) { glUniform1iv(Index, Count, Value); }
-	void Program::BindUniform(int Index, const PVX::iVector2D* Value, int Count) { glUniform2iv(Index, Count, (int*)Value); }
-	void Program::BindUniform(int Index, const PVX::iVector3D* Value, int Count) { glUniform3iv(Index, Count, (int*)Value); }
-	void Program::BindUniform(int Index, const PVX::iVector4D* Value, int Count) { glUniform4iv(Index, Count, (int*)Value); }
-	void Program::BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) { glUniformMatrix4fv(Index, Count, false, (float*)Value); }
+	void Program::BindUniform(int index, float vec) const { glUniform1f(index, vec); }
+	void Program::BindUniform(int index, const PVX::Vector2D& vec) const { glUniform2fv(index, 1, vec.Array); }
+	void Program::BindUniform(int index, const PVX::Vector3D& vec) const { glUniform3fv(index, 1, vec.Array); }
+	void Program::BindUniform(int index, const PVX::Vector4D& vec) const { glUniform4fv(index, 1, vec.Array); }
+	void Program::BindUniform(int index, const PVX::Matrix4x4& mat) const { glUniformMatrix4fv(index, 1, false, mat.m16); }
+	void Program::BindUniform(int Index, int Value) const { glUniform1i(Index, Value); }
+	void Program::BindUniform(int Index, const PVX::iVector2D& Value) const { glUniform2iv(Index, 1, Value.Array); }
+	void Program::BindUniform(int Index, const PVX::iVector3D& Value) const { glUniform3iv(Index, 1, Value.Array); }
+	void Program::BindUniform(int Index, const PVX::iVector4D& Value) const { glUniform4iv(Index, 1, Value.Array); }
+	void Program::BindUniform(int Index, const std::vector<float>& Value) const { glUniform1fv(Index, Value.size(), Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::Vector2D>& Value) const { glUniform2fv(Index, Value.size(), (float*)Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::Vector3D>& Value) const { glUniform3fv(Index, Value.size(), (float*)Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::Vector4D>& Value) const { glUniform4fv(Index, Value.size(), (float*)Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<int>& Value) const { glUniform1iv(Index, Value.size(), Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::iVector2D>& Value) const { glUniform2iv(Index, Value.size(), (int*)Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::iVector3D>& Value) const { glUniform3iv(Index, Value.size(), (int*)Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::iVector4D>& Value) const { glUniform4iv(Index, Value.size(), (int*)Value.data()); }
+	void Program::BindUniform(int Index, const std::vector<PVX::Matrix4x4>& Value) const { glUniformMatrix4fv(Index, Value.size(), false, (float*)Value.data()); }
+	void Program::BindUniform(int Index, const float* Value, int Count) const { glUniform1fv(Index, Count, Value); }
+	void Program::BindUniform(int Index, const PVX::Vector2D* Value, int Count) const { glUniform2fv(Index, Count, (float*)Value); }
+	void Program::BindUniform(int Index, const PVX::Vector3D* Value, int Count) const { glUniform3fv(Index, Count, (float*)Value); }
+	void Program::BindUniform(int Index, const PVX::Vector4D* Value, int Count) const { glUniform4fv(Index, Count, (float*)Value); }
+	void Program::BindUniform(int Index, const int* Value, int Count) const { glUniform1iv(Index, Count, Value); }
+	void Program::BindUniform(int Index, const PVX::iVector2D* Value, int Count) const { glUniform2iv(Index, Count, (int*)Value); }
+	void Program::BindUniform(int Index, const PVX::iVector3D* Value, int Count) const { glUniform3iv(Index, Count, (int*)Value); }
+	void Program::BindUniform(int Index, const PVX::iVector4D* Value, int Count) const { glUniform4iv(Index, Count, (int*)Value); }
+	void Program::BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) const { glUniformMatrix4fv(Index, Count, false, (float*)Value); }
 
-	void Program::BindBuffer(int Index, const PVX::OpenGL::Buffer& buf) {
-		glBindBufferBase(buf.GetType(), Index, buf.Get());
-	}
-
-	bool Program::SetUniformBlockIndex(const char* Name, int Index) {
+	bool Program::SetUniformBlockIndex(const char* Name, int Index) const {
 		auto loc = UniformBlockIndex(Name);
 		if (loc != ~0) {
 			glUniformBlockBinding(Id, loc, Index);
@@ -266,7 +262,7 @@ namespace PVX::OpenGL {
 		}
 		return false;
 	}
-	bool Program::SetShaderStrorageIndex(const char* Name, int Index) {
+	bool Program::SetShaderStrorageIndex(const char* Name, int Index) const {
 		auto loc = glGetProgramResourceIndex(Id, GL_SHADER_STORAGE_BLOCK, Name);
 		if (loc != ~0) {
 			glShaderStorageBlockBinding(Id, loc, Index);
@@ -274,28 +270,19 @@ namespace PVX::OpenGL {
 		}
 		return false;
 	}
-	bool Program::SetTextureIndex(const char* Name, int Index) {
+	bool Program::SetTextureIndex(const char* Name, int Index) const {
 		auto loc = UniformLocation(Name);
 		if (loc != ~0) {
-			glUniform1i(loc, Index);
+			glProgramUniform1i(Id, loc, Index);
 			return true;
 		}
 		return false;
 	}
-	bool Program::SetTextureIndexAndSampler(const char* Name, int Index, const PVX::OpenGL::Sampler& sampler) {
-		auto loc = UniformLocation(Name);
-		if (loc != ~0) {
-			glUniform1i(loc, Index);
-			glBindSampler(loc, sampler.Get());
-			return true;
-		}
-		return false;
-	}
-
 
 	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool old) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
 		if (!old) {
 			int i = 0;
 			for (auto& b : Buffers) {
@@ -344,14 +331,24 @@ namespace PVX::OpenGL {
 	}
 	void Geometry::Draw() const {
 		glBindVertexArray(Id);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
 		glDrawElements(int(Type), IndexCount, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 	}
 	void Geometry::Draw(int Count) const {
 		glBindVertexArray(Id);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
 		glDrawElementsInstanced(int(Type), IndexCount, GL_UNSIGNED_INT, 0, Count);
+		glBindVertexArray(0);
+	}
+	void Geometry::Bind() {
+		glBindVertexArray(Id);
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+	}
+	void Geometry::DrawBound() {
+		glDrawElements(int(Type), IndexCount, GL_UNSIGNED_INT, 0);
+	}
+	void Geometry::Unbind() {
 		glBindVertexArray(0);
 	}
 }
