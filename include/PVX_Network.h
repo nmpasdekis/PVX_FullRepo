@@ -187,9 +187,13 @@ namespace PVX {
 			void Json(const std::vector<unsigned char> & json);
 			void Html(const std::wstring & html);
 			void Html(const std::string & html);
-			void Data(const std::vector<unsigned char> & data, const std::wstring & contentType);
 			void UtfData(const std::wstring & data, const std::wstring & contentType);
-			void Serve(const std::vector<unsigned char> & data, const std::wstring & contentType);
+
+			template<typename T>
+			void Data(const std::vector<T>& data, const std::wstring& contentType) {
+				Content.SetData(data.data(), data.size() * sizeof(T));
+				Headers[L"content-type"] = contentType;
+			}
 
 			void BeginRange(size_t Size);
 			void AddRange(const std::wstring & ContentType, size_t Offset, const std::vector<unsigned char> & Data);

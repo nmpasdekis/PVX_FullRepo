@@ -141,6 +141,16 @@ namespace PVX {
 		static ImageData LoadRaw(FILE* File);
 
 		ImageData& Bias(bool FlipR, bool FlipG, bool FlipB);
+
+		std::vector<uint8_t> LinearJpeg(int Quality = 100);
+		std::vector<uint8_t> LinearPng();
+		std::vector<uint8_t> RawJpeg(int Quality = 100);
+		std::vector<uint8_t> RawPng();
+		std::vector<uint8_t> Hdr();
+		std::vector<uint8_t> Tga();
+
+		std::vector<uint8_t> To8bit();
+		std::vector<uint8_t> To8bitRaw();
 	};
 
 	struct ImageF {

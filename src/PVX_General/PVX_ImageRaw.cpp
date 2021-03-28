@@ -6,6 +6,7 @@
 namespace STB_Raw {
 #define STBI_NO_LINEAR
 #include <stb/stb_image.h>
+#include <stb/stb_image_write.h>
 }
 
 #include <PVX_String.h>
@@ -60,5 +61,29 @@ namespace PVX {
 			return { Width, Height, Channels, std::move(dataOut) };
 		}
 		return {};
+	}
+	std::vector<uint8_t> ImageData::RawJpeg(int Quality) {
+		std::vector<uint8_t> ret;
+		std::vector<uint8_t> inp = To8bitRaw();
+		STB_Raw::stbi_flip_vertically_on_write(true);
+		STB_Raw::stbi_write_jpg_to_func([](void* context, void* data, int size) {
+			std::vector<uint8_t>& ret = *(std::vector<uint8_t>*)context;
+			auto sz = ret.size();
+			ret.resize(sz + size);
+			memcpy(&ret[sz], data, size);
+		}, &ret, Width, Height, Channels, inp.data(), Quality);
+		return ret;
+	}
+	std::vector<uint8_t> ImageData::RawPng() {
+		std::vector<uint8_t> ret;
+		std::vector<uint8_t> inp = To8bitRaw();
+		STB_Raw::stbi_flip_vertically_on_write(true);
+		STB_Raw::stbi_write_png_to_func([](void* context, void* data, int size) {
+			std::vector<uint8_t>& ret = *(std::vector<uint8_t>*)context;
+			auto sz = ret.size();
+			ret.resize(sz + size);
+			memcpy(&ret[sz], data, size);
+		}, &ret, Width, Height, Channels, inp.data(), Width * Channels);
+		return ret;
 	}
 }

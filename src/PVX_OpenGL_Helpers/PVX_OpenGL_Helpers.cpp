@@ -3,6 +3,7 @@
 #include <functional>
 #include <PVX.inl>
 #include <PVX_Image.h>
+#include <PVX_File.h>
 
 namespace PVX::OpenGL::Helpers {
 	using namespace PVX;
@@ -111,6 +112,29 @@ namespace PVX::OpenGL::Helpers {
 		}
 	}
 
+	void Transform::Transform_All(const TransformConstant& Const) {
+		Matrix = PVX::mTran(Position) * Const.PostTranslate *
+			PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
+			PVX::mScale(Scale) * Const.PostScale;
+	}
+
+	void Transform::Transform_Identity(const TransformConstant& Const) {
+		Matrix = PVX::mTran(Position) *
+			PVX::Rotate(Const.RotationOrder, Rotation) *
+			PVX::mScale(Scale);
+	}
+
+	void Transform::DoNothing(const TransformConstant& Const) {}
+
+	PVX::Matrix4x4 Transform::GetMatrix_WithParent(const Transform* tr, int Parent) const {
+		return tr[Parent].Matrix * Matrix;
+	}
+
+	PVX::Matrix4x4 Transform::GetMatrix_WithoutParent(const Transform* tr, int Parent) const {
+		return Matrix;
+	}
+
+
 	void Transform::TransformAll(TransformConstant& Const, const TransformConstant* All) const {
 		Const.Result = All[Const.ParentIndex].Result *
 			PVX::mTran(Position) * Const.PostTranslate *
@@ -142,52 +166,161 @@ namespace PVX::OpenGL::Helpers {
 		Const.Result = Matrix;
 	}
 
-	void ObjectGL::UpdateInstances() {
-		DrawCount = 0;
-		if (!ActiveInstances) return;
+
+	void ObjectGL::UpdateInstances_1() {
+		//for (auto& inst: Instances) {
+#pragma omp parallel for 
+		for(auto i=0;i<Instances.size();i++){
+			auto& inst = Instances[i];
+			if (!inst->Active) continue;
+			int c = 0;
+			for (auto& tr : inst->Transforms)
+				tr.GetTransform(TransformConstants[c++]);
+		}
+	}
+	void ObjectGL::UpdateInstances_2() {
+		//for (auto& inst: Instances) {
+#pragma omp parallel for 
+		for (auto i = 0; i<Instances.size(); i++) {
+			auto& inst = Instances[i];
+			if (!inst->Active) continue;
+			int c = 0;
+			for (auto& tr : inst->Transforms) {
+				tr.Matrix = tr.GetMatrix(inst->Transforms.data(), TransformConstants[c++].ParentIndex);
+			}
+		}
+	}
+	void ObjectGL::UpdateInstances_3() {
 		for (auto& p: Parts) {
 			p.TransformBufferPtr = p.TransformBuffer.Map<PVX::Matrix4x4>();
-			if (p.MorphCount) p.MorphPtr = p.MorphControlBuffer.Map<float>();
 		}
 
-		for (auto& instData: Instances) {
-			if (!instData->Active) continue;
-
-			auto& trans = instData->Transforms;
-			int curPart = 0;
-			for (auto& ct: TransformConstants) {
-				auto& tran = trans[curPart++];
-
-				tran.GetTransform(ct, TransformConstants.data());
-			}
-			for (auto& p : Parts) {
-				if (!p.PostTransform.size()) {
-					p.TransformBufferPtr[DrawCount] = TransformConstants[p.UseMatrices[0]].Result;
-				} else {
-					size_t index = p.UseMatrices.size() * DrawCount;
-					for (auto i = 0; i < p.UseMatrices.size(); i++) {
-						p.TransformBufferPtr[index++] = TransformConstants[p.UseMatrices[i]].Result *  p.PostTransform[i];
+#pragma omp parallel for 
+		for (auto ii = 0; ii<Parts.size(); ii++) {
+			auto& p = Parts[ii];
+			size_t index = 0;
+			if (!p.PostTransform.size()) {
+				auto m = p.UseMatrices[0];
+				for (auto& inst: Instances) {
+					if (!inst->Active) continue;
+					p.TransformBufferPtr[index++] = inst->Transforms[m].Matrix;
+				}
+			} else {
+				for (auto& inst: Instances) {
+					if (!inst->Active) continue;
+					int i = 0;
+					for (auto& m : p.UseMatrices) {
+						p.TransformBufferPtr[index++] = inst->Transforms[m].Matrix * p.PostTransform[i++];
 					}
 				}
 			}
-			if (instData->MorphControls.size()) {
-				float* Morphs = instData->MorphControls.data();
-				for (auto& p : Parts) {
-					memcpy(p.MorphPtr + p.MorphCount * DrawCount, Morphs, p.MorphCount * sizeof(float));
-					Morphs += p.MorphCount;
-				}
-			}
-			DrawCount++;
 		}
-		for (auto& p : Parts) {
+		for (auto& p: Parts) {
 			p.TransformBuffer.Unmap();
-			if (p.MorphCount) p.MorphControlBuffer.Unmap();
 		}
 	}
 
+	void ObjectGL::UpdateInstances() {
+		if (!ActiveInstances) return;
+		for (auto& inst: Instances) {
+			if (!inst->Active) continue;
+			int c = 0;
+			for (auto& tr : inst->Transforms)
+				tr.GetTransform(TransformConstants[c++]);
+		}
+		for (auto& inst: Instances) {
+			if (!inst->Active) continue;
+			int c = 0;
+			for (auto& tr : inst->Transforms) {
+				tr.Matrix = tr.GetMatrix(inst->Transforms.data(), TransformConstants[c++].ParentIndex);
+			}
+		}
+
+		for (auto& p: Parts) {
+			auto tPtr = p.TransformBuffer.Map<PVX::Matrix4x4>();
+			size_t index = 0;
+			if (!p.PostTransform.size()) {
+				auto m = p.UseMatrices[0];
+				for (auto& inst: Instances) {
+					if (!inst->Active) continue;
+					tPtr[index++] = inst->Transforms[m].Matrix;
+				}
+			}else{
+				for (auto& inst: Instances) {
+					if (!inst->Active) continue;
+					int i = 0;
+					for (auto& m : p.UseMatrices) {
+						tPtr[index++] = inst->Transforms[m].Matrix * p.PostTransform[i++];
+					}
+				}
+			}
+			p.TransformBuffer.Unmap();
+		}
+		if (MorphCount) {
+			for (auto& p: Parts) {
+				if (!p.MorphCount) continue;
+
+				auto mPtr = p.MorphControlBuffer.Map<float>();
+
+
+
+				p.MorphControlBuffer.Unmap();
+			}
+		}
+	}
+
+	//void ObjectGL::UpdateInstances() {
+	//	DrawCount = 0;
+	//	if (!ActiveInstances) return;
+	//	for (auto& p: Parts) {
+	//		p.TransformBufferPtr = p.TransformBuffer.Map<PVX::Matrix4x4>();
+	//		if (p.MorphCount) p.MorphPtr = p.MorphControlBuffer.Map<float>();
+	//	}
+
+	//	for (auto& instData: Instances) {
+	//		if (!instData->Active) continue;
+
+	//		auto& trans = instData->Transforms;
+	//		int curPart = 0;
+	//		for (auto& ct: TransformConstants) {
+	//			auto& tran = trans[curPart++];
+
+	//			tran.GetTransform(ct, TransformConstants.data());
+	//		}
+	//		for (auto& p : Parts) {
+	//			if (!p.PostTransform.size()) {
+	//				p.TransformBufferPtr[DrawCount] = TransformConstants[p.UseMatrices[0]].Result;
+	//			} else {
+	//				size_t index = p.UseMatrices.size() * DrawCount;
+	//				for (auto i = 0; i < p.UseMatrices.size(); i++) {
+	//					p.TransformBufferPtr[index++] = TransformConstants[p.UseMatrices[i]].Result *  p.PostTransform[i];
+	//				}
+	//			}
+	//		}
+	//		if (instData->MorphControls.size()) {
+	//			float* Morphs = instData->MorphControls.data();
+	//			for (auto& p : Parts) {
+	//				memcpy(p.MorphPtr + p.MorphCount * DrawCount, Morphs, p.MorphCount * sizeof(float));
+	//				Morphs += p.MorphCount;
+	//			}
+	//		}
+	//		DrawCount++;
+	//	}
+	//	for (auto& p : Parts) {
+	//		p.TransformBuffer.Unmap();
+	//		if (p.MorphCount) p.MorphControlBuffer.Unmap();
+	//	}
+	//}
+
 	void Renderer::UpdateInstances() {
 		for (auto& [n, o] : Objects) {
-			o->UpdateInstances();
+			o->UpdateInstances_1();
+		}
+		for (auto& [n, o] : Objects) {
+			o->UpdateInstances_2();
+		}
+		for (auto& [n, o] : Objects) {
+			o->UpdateInstances_3();
 		}
 	}
 
@@ -199,7 +332,7 @@ namespace PVX::OpenGL::Helpers {
 
 		for (auto& [oid, Object2]: Objects) {
 			auto& Object = *Object2.get();
-			if (!Object.DrawCount) continue;
+			if (!Object.ActiveInstances) continue;
 			for (auto& p: Object.Parts) {
 				BindBuffer(3, p.TransformBuffer);
 				BindBuffer(4, p.MorphControlBuffer);
@@ -219,14 +352,14 @@ namespace PVX::OpenGL::Helpers {
 					pp.ShaderProgram.BindUniform(pp.BoneCountIndex, int(p.PostTransform.size()));
 					pp.ShaderProgram.BindUniform(pp.MorphCountIndex, int(p.MorphCount));					
 					
-					pp.Mesh.Draw(int(Object.DrawCount));
+					pp.Mesh.Draw(int(Object.ActiveInstances));
 				}
 			}
 		}
 		glEnable(GL_BLEND);
 		for (auto& [oid, Object2]: Objects) {
 			auto& Object = *Object2.get();
-			if (!Object.DrawCount) continue;
+			if (!Object.ActiveInstances) continue;
 			for (auto& p: Object.Parts) {
 				BindBuffer(3, p.TransformBuffer);
 				BindBuffer(4, p.MorphControlBuffer);
@@ -247,7 +380,7 @@ namespace PVX::OpenGL::Helpers {
 					pp.ShaderProgram.BindUniform(pp.BoneCountIndex, int(p.PostTransform.size()));
 					pp.ShaderProgram.BindUniform(pp.MorphCountIndex, int(p.MorphCount));
 
-					pp.Mesh.Draw(int(Object.DrawCount));
+					pp.Mesh.Draw(int(Object.ActiveInstances));
 				}
 			}
 		}
@@ -258,12 +391,18 @@ namespace PVX::OpenGL::Helpers {
 		if (Object.AnimationMaxFrame) {
 			size_t f = (size_t(time * Object.FrameRate)) % Object.AnimationMaxFrame;
 			size_t i = 0;
-			for (auto& t : Transforms) {
+			for (i = 1; i<Transforms.size(); i++) {
+				auto& t = Transforms[i];
 				t.Position = Object.Animation[i][f].Position;
 				t.Rotation = Object.Animation[i][f].Rotation;
 				t.Scale = Object.Animation[i][f].Scale;
-				i++;
 			}
+			//for (auto& t : Transforms) {
+			//	t.Position = Object.Animation[i][f].Position;
+			//	t.Rotation = Object.Animation[i][f].Rotation;
+			//	t.Scale = Object.Animation[i][f].Scale;
+			//	i++;
+			//}
 		}
 	}
 	void InstanceData::SetActive(bool isActive) {
@@ -288,121 +427,98 @@ namespace PVX::OpenGL::Helpers {
 		ShaderProgram.SetTextureIndex("Bump_Tex", 2);
 		//ShaderProgram.Unbind();
 	}
-	TextPrinter::TextPrinter(const std::string& Texture, int xTiles, int yTiles, const PVX::iVector2D& ScreenSize) : Text(true, PVX::OpenGL::BufferUsege::STREAM_DRAW),
-		xTiles{ xTiles }, yTiles{ yTiles }, ScreenSize { ScreenSize },
-		Shaders{ {
-			{ PVX::OpenGL::Shader::ShaderType::VertexShader, R"vShader(#version 440
 
-layout(std140, binding = 0) uniform Text{
-	mat4 Transform;
-	vec4 textColor;
-	int xTiles, yTiles;
-	vec2 TileSize;
-	ivec4 Chars[64];
-};
-
-in vec4 pos;
-in vec2 UV;
-in int gl_InstanceID;
-
-out vec2 uv;
-
-void main(){
-	int printChar = Chars[gl_InstanceID/4][gl_InstanceID%4];
-
-	int xTile = printChar % xTiles;
-	int yTile = printChar / xTiles;
-	uv = UV + vec2(xTile * (1.0/xTiles), -yTile * (1.0/yTiles));
-	gl_Position = Transform * (pos + vec4(gl_InstanceID * TileSize.x, 0, 0, 0));
-})vShader"},
-			{ PVX::OpenGL::Shader::ShaderType::FragmentShader, R"vShader(#version 440
-layout(binding = 0) uniform sampler2D Atlas;
-
-layout(std140, binding = 0) uniform Text{
-	mat4 Transform;
-	vec4 textColor;
-	int xTiles, yTiles;
-	vec2 TileSize;
-	ivec4 Chars[64];
-};
-
-in vec2 uv;
-out vec4 Color;
-
-void main(){
-	Color = vec4(textColor.xyz, textColor.w * texture(Atlas, uv).r);
-	//Color = vec4(1,0,0,1);
-})vShader"},
-		} }
-	{
-		GL_CHECK(;);
-		Text.Update(2 * 16 + 4 * 4 + 4 * 256);
-		GL_CHECK(;);
-		auto data = PVX::ImageData::LoadRaw(Texture.c_str());
-		GL_CHECK(;);
-		Atlas = PVX::OpenGL::Texture2D::MakeTexture32F(data.Width, data.Height, data.Channels, data.Data.data());
-		GL_CHECK(;);
-
-		TileSize = { float(Atlas.GetWidth() / xTiles), float(Atlas.GetHeight()/ yTiles) };
-		
-		geo = [&] {
-			float tw = 1.0f / xTiles;
-			float th = 1.0f / yTiles;
-			PVX::OpenGL::ObjectBuilder ob;
-			
-			ob.Begin(GL_QUADS);
-
-			ob.TexCoord(0, 1.0f - th);
-			ob.Vertex(0, 0, 0);
-
-			ob.TexCoord(tw, 1.0f - th);
-			ob.Vertex(TileSize.Width, 0, 0);
-
-			ob.TexCoord(tw, 1.0f);
-			ob.Vertex(TileSize.Width, TileSize.Height, 0);
-
-			ob.TexCoord(0, 1.0f);
-			ob.Vertex(0, TileSize.Height, 0);
-
-			ob.End();
-
-			return ToGeomerty(ob.Build(), false);
-		}();
-		GL_CHECK(;);
-	}
-	void TextPrinter::Render(const std::string& Text, const PVX::Vector2D& pos, const PVX::Vector4D& Color) {
-		struct {
-			PVX::Matrix4x4 Transform;
-			PVX::Vector4D color;
-			int xTiles, yTile;
-			PVX::Vector2D TileSize;
-			int Chars[256];
-		} textData{
-			{ 
-				2.0f/ ScreenSize.Width, 0, 0, 0, 
-				0, 2.0f / ScreenSize.Height, 0, 0,
-				0, 0, 0, 0,
-				2.0f * pos.x / ScreenSize.Width - 1.0f, 2.0f * pos.y / ScreenSize.Height - 1.0f, 0, 1.0f
-			},
-			Color,
-			xTiles, yTiles,
-			TileSize
-		};
-		int i = 0;
-		for (auto& t : Text) {
-			textData.Chars[i] = t;
-			//textData.Chars[i] = 1;
-			i++;
+	TextPrinter::TextPrinter(ResourceManager& mgr, const std::string& Texture, int xTiles, int yTiles, const PVX::iVector2D& ScreenSize) :
+		rManager{ mgr },
+		ScreenSize{ ScreenSize },
+		Characters{ },
+		Texts(false, BufferUsege::STREAM_DRAW),
+		Shaders{
+			mgr.Programs.Get("TextPrinter", [] {
+				return PVX::OpenGL::Program {
+					{ PVX::OpenGL::Shader::ShaderType::VertexShader, PVX::IO::ReadText("Shaders\\TextVertexShader.glsl") },
+					{ PVX::OpenGL::Shader::ShaderType::FragmentShader, PVX::IO::ReadText("Shaders\\TextFragShader.glsl") }
+				};
+			})
+		},
+		Atlas{ mgr.Textures2D.Get(Texture, [&] {
+			auto data = PVX::ImageData::LoadRaw(Texture.c_str());
+			return PVX::OpenGL::Texture2D::MakeTexture32F(data.Width, data.Height, data.Channels, data.Data.data());
+		}) },
+		xTiles{ xTiles }, yTiles{ yTiles },
+		TileSize{ 1.0f / xTiles, 1.0f / yTiles },
+		geo{
+			mgr.Geometry.Get("TextPrinter", [&]() -> PVX::OpenGL::Geometry {
+				return {
+					PrimitiveType::TRIANGLES,
+					{ 0, 1, 2, 0, 2, 3 },
+					{
+						{
+							[&] {
+								float h = (Atlas.GetHeight() * xTiles) * 1.0f / (Atlas.GetWidth() * yTiles);
+								CharInstance verts[4]{
+									{ { 0.0f, 0.0f }, { 0.0f, 1.0f - TileSize.Height } },
+									{ { 1.0f, 0.0f }, { TileSize.Width, 1.0f - TileSize.Height } },
+									{ { 1.0f, h }, { TileSize.Width, 1.0f } },
+									{ { 0.0f, h }, { 0.0f, 1.0f } },
+								};
+								return VertexBuffer(verts, sizeof(CharInstance)*4);
+							}(),
+							{
+								{ AttribType::FLOAT, 2, 0 },
+								{ AttribType::FLOAT, 2, 0 },
+							}
+						},
+						{
+							Characters,
+							{
+								{ AttribType::FLOAT, 2, 1 },
+							}
+						}
+					}
+				};
+			})
 		}
-		this->Text.Update(sizeof(textData), &textData);
+	{
+	}
+
+	void TextPrinter::AddText(const std::string_view& Text, const PVX::Vector2D& pos, float scale, const PVX::Vector4D& Color) {
+		TextBufferData.push_back({ Color, {
+				scale * 2.0f/ ScreenSize.Width, 0, 0, 0,
+				0, scale * 2.0f / ScreenSize.Height, 0, 0,
+				0, 0, 0, 0,
+				(2.0f * pos.x / ScreenSize.Width - 1.0f), (2.0f * pos.y / ScreenSize.Height - 1.0f), 0, 1.0f
+		} });
+		for (auto& t : Text) {
+			Stream.push_back({
+				(t % xTiles)* TileSize.Width,
+				- (t / xTiles) * TileSize.Height
+			});
+		}
+		uint32_t off = 0;
+		if (cmds.size()) off = cmds.back().baseInstance + cmds.back().instanceCount;
+
+		cmds.push_back({ 6, uint32_t(Text.size()), 0, 0, off });
+	}
+
+	void TextPrinter::Render() {
 		glEnable(GL_BLEND);
 		glDisable(GL_DEPTH_TEST);
+		Texts.Update(TextBufferData.size() * sizeof(DrawData), TextBufferData.data());
+		Characters.Update(Stream.data(), Stream.size() * sizeof(PVX::Vector2D));
 		Shaders.Bind();
-		BindBuffer(0, this->Text);
+		BindBuffer(0, Texts);
 		Atlas.BindToUnit(0);
-		geo.Draw(Text.size());
-		glDisable(GL_BLEND); 
+		geo.Bind();
+
+		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, cmds.data(), cmds.size(), 0);
 		geo.Unbind();
-		Shaders.Unbind();
+
+		cmds.clear();
+		TextBufferData.clear();
+		Stream.clear();
+
+		glDisable(GL_BLEND);
 	}
+
 }

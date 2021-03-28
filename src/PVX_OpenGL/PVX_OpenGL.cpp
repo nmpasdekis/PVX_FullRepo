@@ -877,5 +877,4 @@ namespace PVX::OpenGL {
 		glSamplerParameteri(Id, (int)TextureProperty::TEXTURE_WRAP_T, (int)Wrap);
 		glSamplerParameteri(Id, (int)TextureProperty::TEXTURE_WRAP_R, (int)Wrap);
 	}
-
 }

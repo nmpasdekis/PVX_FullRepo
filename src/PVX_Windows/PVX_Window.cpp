@@ -27,21 +27,27 @@ namespace PVX::Windows {
 		struct WindowPrivate {
 			HWND hWnd = 0;
 			unsigned int Flags = 0;
-			std::map<unsigned int, std::function<LRESULT(HWND, WPARAM, LPARAM)>> Events;
-			std::map<WPARAM, std::function<void(LPARAM)>> Command;
+			std::map<unsigned int, std::vector<std::function<LRESULT(HWND, WPARAM, LPARAM)>>> Events;
+			std::map<WPARAM, std::vector<std::function<void(LPARAM)>>> Command;
 		};
 		INT_PTR PVX_DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			WindowPrivate& ov = *(WindowPrivate*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			if (&ov) {
 				if (message==WM_COMMAND && !ov.Command.empty()) {
 					if (auto ev = ov.Command.find(wParam); ev != ov.Command.end()) {
-						ev->second(lParam);
+						for(auto& evl : ev->second)
+							evl(lParam);
 						if (!(ov.Flags && 1)) return 0;
 					}
 				}
-				if (!ov.Events.empty())
-					if (auto ev = ov.Events.find(message); ev != ov.Events.end())
-						return ev->second(hWnd, wParam, lParam);
+				if (!ov.Events.empty()) {
+					if (auto ev = ov.Events.find(message); ev != ov.Events.end()) {
+						for (auto& evl : ev->second)
+							if (auto res = evl(hWnd, wParam, lParam))
+								return res;
+						return 0;
+					}
+				}
 			}
 			switch (message) {
 				case WM_DESTROY:
@@ -54,15 +60,21 @@ namespace PVX::Windows {
 			WindowPrivate& ov = *(WindowPrivate*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 
 			if (&ov) {
-				if ((message==WM_COMMAND || message == WM_NOTIFY) && !ov.Command.empty()) {
+				if (message==WM_COMMAND && !ov.Command.empty()) {
 					if (auto ev = ov.Command.find(wParam); ev != ov.Command.end()) {
-						ev->second(lParam);
+						for (auto& evl : ev->second)
+							evl(lParam);
 						if (!(ov.Flags && 1)) return 0;
 					}
 				}
-				if (!ov.Events.empty())
-					if (auto ev = ov.Events.find(message); ev != ov.Events.end())
-						return ev->second(hWnd, wParam, lParam);
+				if (!ov.Events.empty()) {
+					if (auto ev = ov.Events.find(message); ev != ov.Events.end()) {
+						for (auto& evl : ev->second)
+							if (auto res = evl(hWnd, wParam, lParam))
+								return res;
+						return 0;
+					}
+				}
 			}
 
 			switch (message) {
@@ -242,7 +254,7 @@ namespace PVX::Windows {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		return WindowCount;
+		return WM_QUIT != msg.message;
 	}
 
 	void Eventer::EventLoop() {
@@ -273,7 +285,7 @@ namespace PVX::Windows {
 		return GetDlgItem(((WindowPrivate*)WindowData)->hWnd, DialogResource);
 	}
 	void Eventer::Override(unsigned int Message, std::function<LRESULT(HWND, WPARAM, LPARAM)> Event) {
-		(*(WindowPrivate*)WindowData).Events[Message] = Event;
+		(*(WindowPrivate*)WindowData).Events[Message].push_back(Event);
 		(*(WindowPrivate*)WindowData).Flags |= (Message == WM_COMMAND);
 	}
 
@@ -379,16 +391,16 @@ namespace PVX::Windows {
 
 	void Eventer::OnButton(unsigned int ControlId, std::function<void()> lmd) {
 		WindowPrivate* ov = (WindowPrivate*)WindowData;
-		ov->Command[ControlId | (BN_CLICKED << 16)] = [lmd](LPARAM l) {
+		ov->Command[ControlId | (BN_CLICKED << 16)].push_back([lmd](LPARAM l) {
 			lmd();
-		};
+		});
 	}
 
 	void Eventer::OnNotification(unsigned int ControlId, unsigned int Notification, std::function<void(HWND control)> lmd) {
 		WindowPrivate* ov = (WindowPrivate*)WindowData;
-		ov->Command[ControlId | (Notification << 16)] = [lmd](LPARAM l) {
+		ov->Command[ControlId | (Notification << 16)].push_back([lmd](LPARAM l) {
 			lmd((HWND)l);
-		};
+		});
 	}
 
 	void Eventer::OnVirtualKeyDown(std::function<void(UCHAR VirtualKey)> lmd) {

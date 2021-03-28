@@ -6,24 +6,18 @@
 
 namespace PVX::OpenGL::Helpers {
 
-
-	const PVX::OpenGL::Shader& RefPostProcess_VertexShader();
-	void DeRefPostProcess_VertexShader();
-	const PVX::OpenGL::Geometry& RefPostProcess_Geometry();
-	void DeRefPostProcess_Geometry();
-	const PVX::OpenGL::Sampler& RefPostProcess_Sampler();
-	void DeRefPostProcess_Sampler();
-	void DeRef_ALL();
-
-	Renderer::Renderer(int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target) : gl{ gl },
+	Renderer::Renderer(ResourceManager& mgr,int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target) : gl{ gl },
 		gBufferFBO(gl, Width, Height),
 		GeneralSampler{ PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::REPEAT },
-		PostProcesses{ gl }
+		PostProcesses{ mgr, gl },
+		rManager{ mgr }
 	{
+		glEnable(GL_MULTISAMPLE);
 		gBuffer.Position = gBufferFBO.AddColorAttachmentRGB32F();
 		gBuffer.Albedo = gBufferFBO.AddColorAttachmentRGBA8UB();
 		gBuffer.Normal = gBufferFBO.AddColorAttachmentRGB16F();
-		gBuffer.Material = gBufferFBO.AddColorAttachment(PVX::OpenGL::InternalFormat::RG16F, PVX::OpenGL::TextureFormat::RG, PVX::OpenGL::TextureType::HALF_FLOAT);
+		gBuffer.Material = gBufferFBO.AddColorAttachmentRGB16F();
+		//gBuffer.Material = gBufferFBO.AddColorAttachment(PVX::OpenGL::InternalFormat::RG16F, PVX::OpenGL::TextureFormat::RG, PVX::OpenGL::TextureType::HALF_FLOAT);
 		gBuffer.Depth = gBufferFBO.AddDepthAttachment();
 		gBufferFBO.Build();
 		gBufferFBO.Name("GBuffer");
@@ -37,16 +31,12 @@ namespace PVX::OpenGL::Helpers {
 		LightBuffer.Update(sizeof(Lights), &Lights);
 
 		//PostProcesses.MakeSimple(Width, Height, gPosition, gAlbedo, gNormal, gMaterial, Target);
-		//PostProcesses.MakeBloom(Width, Height, gBuffer, Target);
-		PostProcesses.MakeSimple(Width, Height, gBuffer, Target);
+		PostProcesses.MakeBloom(Width, Height, gBuffer, Target);
+		//PostProcesses.MakeSimple(Width, Height, gBuffer, Target);
 	}
 
 	void Renderer::SetCameraBuffer(PVX::OpenGL::Buffer& CamBuffer) {
 		CameraBuffer = CamBuffer;
-	}
-
-	Renderer::~Renderer() {
-		//DeRef_ALL();
 	}
 
 	void Renderer::Render(std::function<void()> RenderClb) {
@@ -54,20 +44,13 @@ namespace PVX::OpenGL::Helpers {
 
 		gBufferFBO.Bind();
 		RenderClb();
-		//GBuffer.Unbind();
-
-		//gl.Viewport();
 
 		LightBuffer.Update(sizeof(Lights), &Lights);
-
-		//PVX::OpenGL::FrameBufferObject::Unbind();
 
 		BindBuffer(0, CameraBuffer);
 		BindBuffer(1, LightBuffer);
 
 		PostProcesses.Process();
-
-		//for (auto& p : PostProcesses) p.Process();
 	}
 
 	PVX::OpenGL::Texture2D Renderer::LoadTexture2D(const std::wstring& Filename) {
@@ -144,22 +127,4 @@ namespace PVX::OpenGL::Helpers {
 		}
 		return Id;
 	}
-
-	//ProgramPlus::ProgramPlus(const PVX::OpenGL::Program& p, const PVX::OpenGL::Sampler& DefSampler) : Prog{ p } {
-	//	glUseProgram(Prog.Get());
-	//	Prog.SetUniformBlockIndex("Camera", 0);
-	//	Prog.SetUniformBlockIndex("Material", 2);
-	//	Prog.SetShaderStrorageIndex("Transform", 3);
-	//	Prog.SetShaderStrorageIndex("MorphControl", 4);
-	//	Prog.SetShaderStrorageIndex("MorphData", 5);
-	//	MorphCountIndex = Prog.UniformLocation("MorphCount");
-	//	BoneCountIndex = Prog.UniformLocation("BoneCount");
-
-	//	Prog.SetTextureIndexAndSampler("Color_Tex", 0, DefSampler);
-	//	Prog.SetTextureIndexAndSampler("PBR_Tex", 1, DefSampler);
-	//	Prog.SetTextureIndexAndSampler("Bump_Tex", 2, DefSampler);
-	//	glUseProgram(0);
-	//}
-	//void ProgramPlus::SetBoneCount(int n) {  if(BoneCountIndex!=-1) glUniform1i(BoneCountIndex, n); }
-	//void ProgramPlus::SetMorphCount(int n) { if (MorphCountIndex!=-1) glUniform1i(MorphCountIndex, n); }
 }

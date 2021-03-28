@@ -133,7 +133,7 @@ namespace PVX::OpenGL {
 		}
 	}
 	void Pipeline::Unbind() {
-		for (auto i = int(Tex.size()) - 1; i >= 0 ; i--) {
+		for (auto i = int(Tex.size()) - 1; i >= 0; i--) {
 			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, 0);
 		};
@@ -279,6 +279,31 @@ namespace PVX::OpenGL {
 		return false;
 	}
 
+	Geometry::Geometry(PrimitiveType Type, const std::vector<int>& Index, const std::initializer_list<Geometry_init2>& Vertex) :
+		Indices{ Index } 	{
+		glGenVertexArrays(1, &Id);
+		glBindVertexArray(Id);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
+		int i = 0;
+		for (auto& v : Vertex) {
+			VertexBuffers.push_back(v.Buffer);
+			glBindBuffer(GL_ARRAY_BUFFER, v.Buffer.Get());
+			int Stride = PVX::Reduce(v.Attributes, 0, [](int acc, const std::tuple<AttribType, int, int>& aa) { return acc + std::get<1>(aa) * AttribSize(std::get<0>(aa)); });
+			int Offset = 0;
+			for (auto [tp, cnt, inst] : v.Attributes) {
+				glEnableVertexAttribArray(i);
+				if (IsInt(tp))
+					glVertexAttribIPointer(i, cnt, GLenum(tp), Stride, (void*)Offset);
+				else
+					glVertexAttribPointer(i, cnt, GLenum(tp), 0, Stride, (void*)Offset);
+				glVertexAttribDivisor(i++, inst);
+				Offset += AttribSize(tp) * cnt;
+			}
+		}
+		//glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+	}
+
 	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool old) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
@@ -290,7 +315,7 @@ namespace PVX::OpenGL {
 				glBindBuffer(GL_ARRAY_BUFFER, b.Buffer.Get());
 				for (auto& a: b.Attributes) {
 					glEnableVertexAttribArray(i);
-					if(a.IsInt)
+					if (a.IsInt)
 						glVertexAttribIPointer(i++, a.Size, GLenum(a.Type), b.Stride, (void*)a.Offset);
 					else
 						glVertexAttribPointer(i++, a.Size, GLenum(a.Type), a.Normalized, b.Stride, (void*)a.Offset);
@@ -351,4 +376,16 @@ namespace PVX::OpenGL {
 	void Geometry::Unbind() {
 		glBindVertexArray(0);
 	}
+
+
+	void ComputeProgram::Execute(const std::initializer_list<Buffer>& Buffers, uint32_t CountX, uint32_t CountY, uint32_t CountZ) {
+		p.Bind();
+		int i = 0;
+		for (auto& b: Buffers)
+			BindBuffer(i++, b);
+		glDispatchCompute(CountX, CountY, CountZ);
+		p.Unbind();
+	}
+
+
 }

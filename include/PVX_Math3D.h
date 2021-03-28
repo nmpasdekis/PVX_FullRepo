@@ -1,5 +1,6 @@
 #pragma once
 #include <xmmintrin.h>
+#include <intrin.h>
 #include <cmath>
 #include <utility>
 #include <functional>
@@ -44,6 +45,13 @@ namespace PVX {
 	}
 
 	union ucVector2D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = false,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			unsigned char x, y;
 		};
@@ -57,6 +65,13 @@ namespace PVX {
 		unsigned short Word;
 	};
 	union ucVector3D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			unsigned char x, y, z;
 		};
@@ -69,6 +84,13 @@ namespace PVX {
 		};
 	};
 	union ucVector4D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = true,
+			IsFloat = false
+		};
 		struct {
 			unsigned char x, y, z, w;
 		};
@@ -79,6 +101,13 @@ namespace PVX {
 		unsigned int dWord;
 	};
 	union cVector2D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = false,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			char x, y;
 		};
@@ -89,6 +118,13 @@ namespace PVX {
 		unsigned short Word;
 	};
 	union cVector3D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			char x, y, z;
 		};
@@ -98,6 +134,13 @@ namespace PVX {
 		};
 	};
 	union cVector4D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = true,
+			IsFloat = false
+		};
 		struct {
 			char x, y, z, w;
 		};
@@ -112,7 +155,8 @@ namespace PVX {
 			HasX = true,
 			HasY = true,
 			HasZ = false,
-			HasW = false
+			HasW = false,
+			IsFloat = true
 		};
 		//Vector2D() :x{ 0 }, y{ 0 }{}
 		Vector2D() = default;
@@ -140,7 +184,8 @@ namespace PVX {
 			HasX = true,
 			HasY = true,
 			HasZ = true,
-			HasW = false
+			HasW = false,
+			IsFloat = true
 		};
 		Vector3D() = default;
 		//Vector3D() : x{ 0 }, y{ 0 }, z{ 0 } {}
@@ -183,12 +228,16 @@ namespace PVX {
 			HasX = true,
 			HasY = true,
 			HasZ = true,
-			HasW = true
+			HasW = true,
+			IsFloat = true
 		};
 		Vector4D() = default;
 		//Vector4D() : x{ 0 }, y{ 0 }, z{ 0 }, w{ 0 } {}
-		inline Vector4D(float x, float y, float z, float w) : x{ x }, y{ y }, z{ z }, w{ w } {}
-		inline Vector4D(const Vector3D& vec, float W = 1.0f): x{ vec.x }, y{ vec.y }, z{ vec.z }, w{ W } {}
+		//inline Vector4D(float x, float y, float z, float w) : x{ x }, y{ y }, z{ z }, w{ w } {}
+		//inline Vector4D(const Vector3D& vec, float W = 1.0f): x{ vec.x }, y{ vec.y }, z{ vec.z }, w{ W } {}
+		inline Vector4D(float X, float Y, float Z, float W) : xmm{ _mm_set_ps(W, Z, Y, X) } {}
+		inline Vector4D(const Vector3D& vec, float W = 1.0f) : xmm{ _mm_set_ps(W, vec.z, vec.y, vec.x) } {}
+		inline Vector4D(float v) : xmm{ _mm_set1_ps(v) } {}
 		struct {
 			float x, y, z, w;
 		};
@@ -203,6 +252,7 @@ namespace PVX {
 		struct {
 			float Width, Height, Depth, Imagination;
 		};
+		__m128 xmm;
 		inline Vector4D operator-() const { return Vector4D{ -x, -y, -z, -w }; }
 		inline Vector4D operator*(const Vector4D& v) const { return Vector4D{ v.x*x, v.y*y, v.z * z, v.w * w }; }
 		inline float Length() const { return sqrtf(x*x+y*y+z*z+w*w); }
@@ -210,11 +260,66 @@ namespace PVX {
 		inline float Dot(const Vector4D& v) const { return x*v.x + y*v.y+z*v.z+w*v.w; }
 		inline Vector4D& Normalize() { float i = 1.0f / Length(); x *= i; y *= i; z *= i; w *= i; return *this; }
 		inline const Vector4D& Normalized() const { float i = 1.0f / Length(); return{ x * i, y * i, z * i, w * i }; }
+		inline operator __m128() const {
+			return _mm_load_ps(Array);
+		}
+		inline Vector4D(const __m128 v) {
+			_mm_store_ps(Array, v);
+		}
 	};
+
+	inline Vector4D operator+(const Vector4D& v1, const Vector4D& v2) {
+		return _mm_add_ps(v1, v2);
+	}
+	inline Vector4D operator*(const Vector4D& c, float f) {
+		Vector4D out;
+		__m128 tf = _mm_load_ps1(&f);
+		__m128 tc = _mm_loadu_ps(&c.r);
+		__m128 to = _mm_mul_ps(tf, tc);
+		_mm_storeu_ps(&out.r, to);
+		return out;
+	}
+	inline Vector4D& operator*=(Vector4D& v1, float f) {
+		v1.x *= f;
+		v1.y *= f;
+		v1.z *= f;
+		v1.w *= f;
+		return v1;
+	}
+	inline Vector4D& operator/=(Vector4D& v1, float d) {
+		float f = 1.0f / d;
+		v1.x *= f;
+		v1.y *= f;
+		v1.z *= f;
+		v1.w *= f;
+		return v1;
+	}
+	inline Vector4D& operator-=(Vector4D& v1, const Vector4D& v2) {
+		v1.x -= v2.x;
+		v1.y -= v2.y;
+		v1.z -= v2.z;
+		v1.w -= v2.w;
+		return v1;
+	}
+
+	inline bool operator==(const Vector4D& v1, const Vector4D& v2) {
+		return((v1.x == v2.x) && (v1.y == v2.y) && (v1.z == v2.z) && (v1.w == v2.w));
+	}
+
+	inline bool operator!=(const Vector4D& v1, const Vector4D& v2) {
+		return((v1.x != v2.x) || (v1.y != v2.y) || (v1.z != v2.z) || (v1.w != v2.w));
+	}
 
 	//////////////////////////////////////////////////////////////////////////////
 
 	union iVector2D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = false,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			int x, y;
 		};
@@ -228,6 +333,13 @@ namespace PVX {
 		inline iVector2D operator-() const { return iVector2D{ -x, -y }; }
 	};
 	union iVector3D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			int x, y, z;
 		};
@@ -245,6 +357,13 @@ namespace PVX {
 	};
 	__declspec(align(16))
 	union iVector4D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = true,
+			IsFloat = false
+		};
 		struct {
 			int x, y, z, w;
 		};
@@ -263,6 +382,13 @@ namespace PVX {
 	};
 
 	union uVector2D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = false,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			unsigned int x, y;
 		};
@@ -275,6 +401,13 @@ namespace PVX {
 		};
 	};
 	union uVector3D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = false,
+			IsFloat = false
+		};
 		struct {
 			unsigned int x, y, z;
 		};
@@ -291,6 +424,13 @@ namespace PVX {
 	};
 	__declspec(align(16))
 	union uVector4D {
+		enum Traits {
+			HasX = true,
+			HasY = true,
+			HasZ = true,
+			HasW = true,
+			IsFloat = false
+		};
 		struct {
 			unsigned int x, y, z, w;
 		};
@@ -937,8 +1077,10 @@ namespace PVX {
 		ZYX,
 	};
 
+	typedef Matrix4x4& (*_RotationFunc2)(Matrix4x4&, Vector3D&);
+
 	inline Matrix4x4& Rotate(RotationOrder Order, Matrix4x4& ypr, Vector3D& r) {
-		const std::function<Matrix4x4&(Matrix4x4&, Vector3D&)> _RotationOrder[] {
+		constexpr _RotationFunc2 _RotationOrder[] {
 			PVX::RotateXYZ,
 			PVX::RotateXZY,
 			PVX::RotateYXZ,
@@ -1040,8 +1182,10 @@ namespace PVX {
 		};
 	}
 
+	typedef Matrix4x4(*_RotationFunc)(const Vector3D&);
+
 	inline Matrix4x4 Rotate(RotationOrder Order, const Vector3D& r) {
-		const std::function<Matrix4x4(const Vector3D&)> _RotationOrder[]{
+		constexpr _RotationFunc _RotationOrder[]{
 			PVX::Rotate_XYZ,
 			PVX::Rotate_XZY,
 			PVX::Rotate_YXZ,
@@ -1514,14 +1658,6 @@ namespace PVX {
 		return v1;
 	}
 
-	inline Vector4D& operator-=(Vector4D& v1, const Vector4D& v2) {
-		v1.x -= v2.x;
-		v1.y -= v2.y;
-		v1.z -= v2.z;
-		v1.w -= v2.w;
-		return v1;
-	}
-
 	inline Vector3D& operator*=(Vector3D& v1, const Vector3D& v2) {
 		v1.x *= v2.x;
 		v1.y *= v2.y;
@@ -1536,33 +1672,12 @@ namespace PVX {
 		return v1;
 	}
 
-	inline Vector4D& operator*=(Vector4D& v1, float f) {
-		v1.x *= f;
-		v1.y *= f;
-		v1.z *= f;
-		v1.w *= f;
-		return v1;
-	}
-
 	inline Vector3D& operator/=(Vector3D& v1, float d) {
 		float f = 1.0f / d;
 		v1.x *= f;
 		v1.y *= f;
 		v1.z *= f;
 		return v1;
-	}
-
-	inline Vector4D& operator/=(Vector4D& v1, float d) {
-		float f = 1.0f / d;
-		v1.x *= f;
-		v1.y *= f;
-		v1.z *= f;
-		v1.w *= f;
-		return v1;
-	}
-
-	inline Vector4D operator+(const Vector4D& v1, const Vector4D& v2) {
-		return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w };
 	}
 
 	inline Vector3D operator+(const Vector3D& v1, const Vector3D& v2) {
@@ -1715,14 +1830,7 @@ namespace PVX {
 		return out;
 	}
 
-	inline Vector4D operator*(const Vector4D& c, float f) {
-		Vector4D out;
-		__m128 tf = _mm_load_ps1(&f);
-		__m128 tc = _mm_loadu_ps(&c.r);
-		__m128 to = _mm_mul_ps(tf, tc);
-		_mm_storeu_ps(&out.r, to);
-		return out;
-	}
+
 
 	inline Vector3D operator*(const Vector3D& v, const Matrix3x3& m) {
 		Vector3D out;
@@ -1740,13 +1848,7 @@ namespace PVX {
 		return out;
 	}
 
-	inline bool operator==(const Vector4D& v1, const Vector4D& v2) {
-		return((v1.x == v2.x) && (v1.y == v2.y) && (v1.z == v2.z) && (v1.w == v2.w));
-	}
 
-	inline bool operator!=(const Vector4D& v1, const Vector4D& v2) {
-		return((v1.x != v2.x) || (v1.y != v2.y) || (v1.z != v2.z) || (v1.w != v2.w));
-	}
 
 	inline bool operator==(const Vector3D& v1, const Vector3D& v2) {
 		return((v1.x == v2.x) && (v1.y == v2.y) && (v1.z == v2.z));
@@ -1771,26 +1873,73 @@ namespace PVX {
 		return(w1.I[i] == w2.I[i] && w1.W[i] == w2.W[i]);
 	}
 
-	inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) {
-		return Matrix4x4{
-			m2.m00*m1.m00 + m2.m01*m1.m10 + m2.m02*m1.m20 + m2.m03 * m1.m30,
-			m2.m00*m1.m01 + m2.m01*m1.m11 + m2.m02*m1.m21 + m2.m03 * m1.m31,
-			m2.m00*m1.m02 + m2.m01*m1.m12 + m2.m02*m1.m22 + m2.m03 * m1.m32,
-			m2.m00*m1.m03 + m2.m01*m1.m13 + m2.m02*m1.m23 + m2.m03 * m1.m33,
-			m2.m10*m1.m00 + m2.m11*m1.m10 + m2.m12*m1.m20 + m2.m13 * m1.m30,
-			m2.m10*m1.m01 + m2.m11*m1.m11 + m2.m12*m1.m21 + m2.m13 * m1.m31,
-			m2.m10*m1.m02 + m2.m11*m1.m12 + m2.m12*m1.m22 + m2.m13 * m1.m32,
-			m2.m10*m1.m03 + m2.m11*m1.m13 + m2.m12*m1.m23 + m2.m13 * m1.m33,
-			m2.m20*m1.m00 + m2.m21*m1.m10 + m2.m22*m1.m20 + m2.m23 * m1.m30,
-			m2.m20*m1.m01 + m2.m21*m1.m11 + m2.m22*m1.m21 + m2.m23 * m1.m31,
-			m2.m20*m1.m02 + m2.m21*m1.m12 + m2.m22*m1.m22 + m2.m23 * m1.m32,
-			m2.m20*m1.m03 + m2.m21*m1.m13 + m2.m22*m1.m23 + m2.m23 * m1.m33,
-			m2.m30*m1.m00 + m2.m31*m1.m10 + m2.m32*m1.m20 + m2.m33 * m1.m30,
-			m2.m30*m1.m01 + m2.m31*m1.m11 + m2.m32*m1.m21 + m2.m33 * m1.m31,
-			m2.m30*m1.m02 + m2.m31*m1.m12 + m2.m32*m1.m22 + m2.m33 * m1.m32,
-			m2.m30*m1.m03 + m2.m31*m1.m13 + m2.m32*m1.m23 + m2.m33 * m1.m33
-		};
+	//inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) {		
+	//	PVX::Matrix4x4 ret;
+
+	//	const __m128 m10 = _mm_load_ps(m1.Vec0.Array);
+	//	const __m128 m11 = _mm_load_ps(m1.Vec1.Array);
+	//	const __m128 m12 = _mm_load_ps(m1.Vec2.Array);
+	//	const __m128 m13 = _mm_load_ps(m1.Vec3.Array);
+
+	//	for (int i = 0; i<4; i++) {
+	//		__m128 a = _mm_mul_ps(_mm_set1_ps(m2.m4[i].x), m10);
+	//		__m128 b = _mm_mul_ps(_mm_set1_ps(m2.m4[i].y), m11);
+	//		__m128 c = _mm_mul_ps(_mm_set1_ps(m2.m4[i].z), m12);
+	//		__m128 d = _mm_mul_ps(_mm_set1_ps(m2.m4[i].w), m13);
+	//		_mm_store_ps(ret.m4[i].Array, _mm_add_ps(_mm_add_ps(a, b), _mm_add_ps(c, d)));
+	//	}
+
+	//	return ret;
+	//}
+
+	inline __m256 twolincomb_AVX_8(__m256 A01, const PVX::Matrix4x4& B) {
+		__m256 result;
+		result = _mm256_mul_ps(_mm256_shuffle_ps(A01, A01, 0x00), _mm256_broadcast_ps((__m128*)B.Vec0.Array));
+		result = _mm256_add_ps(result, _mm256_mul_ps(_mm256_shuffle_ps(A01, A01, 0x55), _mm256_broadcast_ps((__m128*)B.Vec1.Array)));
+		result = _mm256_add_ps(result, _mm256_mul_ps(_mm256_shuffle_ps(A01, A01, 0xaa), _mm256_broadcast_ps((__m128*)B.Vec2.Array)));
+		result = _mm256_add_ps(result, _mm256_mul_ps(_mm256_shuffle_ps(A01, A01, 0xff), _mm256_broadcast_ps((__m128*)B.Vec3.Array)));
+		return result;
 	}
+
+	// this should be noticeably faster with actual 256-bit wide vector units (Intel);
+	// not sure about double-pumped 128-bit (AMD), would need to check.
+	inline void matmult_AVX_8(PVX::Matrix4x4& out, const PVX::Matrix4x4& A, const PVX::Matrix4x4& B) {
+		_mm256_zeroupper();
+		__m256 A01 = _mm256_loadu_ps(&A.m[0][0]);
+		__m256 A23 = _mm256_loadu_ps(&A.m[2][0]);
+
+		__m256 out01x = twolincomb_AVX_8(A01, B);
+		__m256 out23x = twolincomb_AVX_8(A23, B);
+
+		_mm256_storeu_ps(&out.m[0][0], out01x);
+		_mm256_storeu_ps(&out.m[2][0], out23x);
+	}
+	inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) {
+		PVX::Matrix4x4 ret;
+		matmult_AVX_8(ret, m2, m1);
+		return ret;
+	}
+
+	//inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) {
+	//	return Matrix4x4{
+	//		m2.m00*m1.m00 + m2.m01*m1.m10 + m2.m02*m1.m20 + m2.m03 * m1.m30,
+	//		m2.m00*m1.m01 + m2.m01*m1.m11 + m2.m02*m1.m21 + m2.m03 * m1.m31,
+	//		m2.m00*m1.m02 + m2.m01*m1.m12 + m2.m02*m1.m22 + m2.m03 * m1.m32,
+	//		m2.m00*m1.m03 + m2.m01*m1.m13 + m2.m02*m1.m23 + m2.m03 * m1.m33,
+	//		m2.m10*m1.m00 + m2.m11*m1.m10 + m2.m12*m1.m20 + m2.m13 * m1.m30,
+	//		m2.m10*m1.m01 + m2.m11*m1.m11 + m2.m12*m1.m21 + m2.m13 * m1.m31,
+	//		m2.m10*m1.m02 + m2.m11*m1.m12 + m2.m12*m1.m22 + m2.m13 * m1.m32,
+	//		m2.m10*m1.m03 + m2.m11*m1.m13 + m2.m12*m1.m23 + m2.m13 * m1.m33,
+	//		m2.m20*m1.m00 + m2.m21*m1.m10 + m2.m22*m1.m20 + m2.m23 * m1.m30,
+	//		m2.m20*m1.m01 + m2.m21*m1.m11 + m2.m22*m1.m21 + m2.m23 * m1.m31,
+	//		m2.m20*m1.m02 + m2.m21*m1.m12 + m2.m22*m1.m22 + m2.m23 * m1.m32,
+	//		m2.m20*m1.m03 + m2.m21*m1.m13 + m2.m22*m1.m23 + m2.m23 * m1.m33,
+	//		m2.m30*m1.m00 + m2.m31*m1.m10 + m2.m32*m1.m20 + m2.m33 * m1.m30,
+	//		m2.m30*m1.m01 + m2.m31*m1.m11 + m2.m32*m1.m21 + m2.m33 * m1.m31,
+	//		m2.m30*m1.m02 + m2.m31*m1.m12 + m2.m32*m1.m22 + m2.m33 * m1.m32,
+	//		m2.m30*m1.m03 + m2.m31*m1.m13 + m2.m32*m1.m23 + m2.m33 * m1.m33
+	//	};
+	//}
 
 	inline void MatrixMutily(Matrix4x4& out, const Matrix4x4& m1, const Matrix4x4& m2) {
 		out.m00 = m2.m00*m1.m00 + m2.m01*m1.m10 + m2.m02*m1.m20 + m2.m03 * m1.m30;

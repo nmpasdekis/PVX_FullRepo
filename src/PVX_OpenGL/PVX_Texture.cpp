@@ -3,17 +3,13 @@
 #include <array>
 
 namespace PVX::OpenGL {
-	Texture2D::Texture2D() : ptr{ new TextureData(), [](TextureData* p) {
-		if (p->Id) 
-			glDeleteTextures(1, &p->Id);
-		delete p;
-	} } {}
+	Texture2D::~Texture2D() {
+		if (ptr.use_count() == 1 && ptr->Id)
+			glDeleteTextures(1, &ptr->Id);
+	}
+	Texture2D::Texture2D() : ptr{ new TextureData() } {}
 
-	Texture2D::Texture2D(const TextureData& dt) : ptr{ new TextureData(dt), [](TextureData* p) {
-		if (p->Id)
-			glDeleteTextures(1, &p->Id);
-		delete p;
-	} } {}
+	//Texture2D::Texture2D(const TextureData& dt) : ptr{ new TextureData(dt) } {}
 
 	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel): Texture2D() {
 		if (!ptr->Id)glGenTextures(1, &ptr->Id);
@@ -27,6 +23,16 @@ namespace PVX::OpenGL {
 	}
 	Texture2D::Texture2D(int Width, int Height, PVX::OpenGL::InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data): Texture2D() {
 		Update(Width, Height, (int)internalFormat, (int)Format, (int)Type, Data);
+	}
+	Texture2D::Texture2D(int Width, int Height, int Samples, InternalFormat internalFormat) : Texture2D() {
+		ptr->InternalFormat = internalFormat;
+		ptr->Size = { Width, Height };
+		ptr->Samples = Samples;
+		glGenTextures(1, &ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ptr->Id);
+		glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ptr->InternalFormat), Width, Height, false);
+		//glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ptr->InternalFormat), Width, Height, true);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 	}
 	void Texture2D::UpdateAndBind(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
 		if (!ptr->Id)glGenTextures(1, &ptr->Id);
@@ -321,66 +327,90 @@ namespace PVX::OpenGL {
 
 
 	Texture2D Texture2D::MakeMultisampleTextureRGB8UB(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGB8 };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::RGB8;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleTextureRGBA8UB(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGBA8 };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::RGBA8;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleTextureRGB16F(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGB16F };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::RGB16F;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleTextureRGBA16F(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGBA16F };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::RGBA16F;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleTextureRGB32F(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGB32F };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::RGB32F;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleTextureRGBA32F(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat::RGBA32F };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::RGBA32F;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleDepthBuffer32F(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat(GL_DEPTH_COMPONENT32F) };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::DEPTH_COMPONENT32F;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}
 	Texture2D Texture2D::MakeMultisampleDepthStencilBuffer24_8(int Width, int Height, int Samples) {
-		TextureData ret{ 0, Samples, { Width, Height },	PVX::OpenGL::InternalFormat(GL_DEPTH24_STENCIL8) };
-		glGenTextures(1, &ret.Id);
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.Id);
-		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.InternalFormat), Width, Height, true);
+		Texture2D ret;
+		ret.ptr->InternalFormat = PVX::OpenGL::InternalFormat::DEPTH24_STENCIL8;
+		ret.ptr->Samples = Samples;
+		ret.ptr->Size = { Width, Height };
+		glGenTextures(1, &ret.ptr->Id);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, ret.ptr->Id);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
 	}

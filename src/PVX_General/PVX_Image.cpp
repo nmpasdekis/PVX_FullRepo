@@ -4,6 +4,7 @@
 
 namespace STB_Linear {
 #include <stb/stb_image.h>
+#include <stb/stb_image_write.h>
 }
 
 //#undef STBI_INCLUDE_STB_IMAGE_H
@@ -16,6 +17,7 @@ namespace STB_Linear {
 #include <Eigen/dense>
 
 #include <mutex>
+
 
 #define __FLIP_V__ 0
 
@@ -197,7 +199,7 @@ namespace PVX {
 	}
 
 	Image3F::Image3F(int Width, int Height) :Pixels{ size_t(Width) * Height }, Width{ Width }, Height{ Height } {}
-	Image4F::Image4F(int Width, int Height) : Pixels{ size_t(Width) * Height }, Width{ Width }, Height{ Height } {}
+	Image4F::Image4F(int Width, int Height) : Pixels(size_t(Width) * Height), Width{ Width }, Height{ Height } {}
 
 	Image3F::Image3F(const ImageF & img) : Image3F(img.Width, img.Height) {
 		for (auto i = 0; i < Pixels.size(); i++) {
@@ -608,7 +610,7 @@ namespace PVX {
 				constexpr float div = float(0x0000ffff);
 				auto dataIn = STB_Linear::stbi_load_from_file_16(File, &Width, &Height, &Channels, Channels);
 				for (auto i = 0; i<dataOut.size(); i++) 
-					dataOut[i] = float(dataIn[i]) / div;
+					dataOut[i] = pow(float(dataIn[i]) / div, 2.2f);
 				STB_Linear::stbi_image_free(dataIn);
 			}
 			return { Width, Height, Channels, std::move(dataOut) };
@@ -642,5 +644,66 @@ namespace PVX {
 			}
 		}
 		return *this;
+	}
+	std::vector<uint8_t> ImageData::LinearJpeg(int Quality) {
+		std::vector<uint8_t> ret;
+		auto inp = To8bit();
+		STB_Linear::stbi_flip_vertically_on_write(true);
+		STB_Linear::stbi_write_jpg_to_func([](void* context, void* data, int size) {
+			std::vector<uint8_t>& ret = *(std::vector<uint8_t>*)context;
+			auto sz = ret.size();
+			ret.resize(sz + size);
+			memcpy(&ret[sz], data, size);
+		}, &ret, Width, Height, Channels, inp.data(), Quality);
+		return ret;
+	}
+	std::vector<uint8_t> ImageData::LinearPng() {
+		std::vector<uint8_t> ret;
+		auto inp = To8bit();
+		STB_Linear::stbi_flip_vertically_on_write(true);
+		STB_Linear::stbi_write_png_to_func([](void* context, void* data, int size) {
+			std::vector<uint8_t>& ret = *(std::vector<uint8_t>*)context;
+			auto sz = ret.size();
+			ret.resize(sz + size);
+			memcpy(&ret[sz], data, size);
+		}, &ret, Width, Height, Channels, inp.data(), Width * Channels);
+		return ret;
+	}
+	std::vector<uint8_t> ImageData::Hdr() {
+		std::vector<uint8_t> ret;
+		STB_Linear::stbi_flip_vertically_on_write(true);
+		STB_Linear::stbi_write_hdr_to_func([](void* context, void* data, int size) {
+			std::vector<uint8_t>& ret = *(std::vector<uint8_t>*)context;
+			auto sz = ret.size();
+			ret.resize(sz + size);
+			memcpy(&ret[sz], data, size);
+		}, &ret, Width, Height, Channels, Data.data());
+		return ret;
+	}
+	std::vector<uint8_t> ImageData::Tga() {
+		std::vector<uint8_t> ret;
+		auto inp = To8bit();
+		STB_Linear::stbi_flip_vertically_on_write(true);
+		STB_Linear::stbi_write_tga_to_func([](void* context, void* data, int size) {
+			std::vector<uint8_t>& ret = *(std::vector<uint8_t>*)context;
+			auto sz = ret.size();
+			ret.resize(sz + size);
+			memcpy(&ret[sz], data, size);
+		}, &ret, Width, Height, Channels, inp.data());
+		return ret;
+	}
+	std::vector<uint8_t> ImageData::To8bit() {
+		std::vector<uint8_t> ret(Width* Height* Channels);
+		for (int i = 0; i<ret.size(); i++) {
+			ret[i] = std::min(std::max(255 * pow(Data[i], 1.0f/2.2f), 0.0f), 255.0f);
+		}
+		return std::move(ret);
+	}
+	std::vector<uint8_t> ImageData::To8bitRaw() {
+		std::vector<uint8_t> ret(Width* Height* Channels);
+		for (int i = 0; i<ret.size(); i++) {
+			ret[i] = std::min(std::max(255 * Data[i], 0.0f), 255.0f);
+		}
+		return std::move(ret);
 	}
 }

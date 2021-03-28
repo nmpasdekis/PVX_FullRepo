@@ -68,6 +68,7 @@ namespace PVX::Windows {
 		for (auto &[hWnd, Point] : Anchors) {
 			WINDOWPLACEMENT wp2 = {};
 			GetWindowPlacement(hWnd, &wp2);
+			wp2.flags = WPF_ASYNCWINDOWPLACEMENT;
 			PrivateData & pd = *(PrivateData*)Point;
 			if (!(pd.Point & Top))
 				wp2.rcNormalPosition.top = (wp.rcNormalPosition.bottom - wp.rcNormalPosition.top) - (MainRect.bottom - pd.rc.top);

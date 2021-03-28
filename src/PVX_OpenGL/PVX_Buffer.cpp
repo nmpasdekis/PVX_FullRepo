@@ -30,6 +30,28 @@ namespace PVX::OpenGL {
 		glBufferStorage(GL_ARRAY_BUFFER, SizeInBytes, Data, 0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
+	StreamingVertexShader::StreamingVertexShader() {
+		Size = 4;
+		glGenBuffers(1, &Id);
+		int dt = 0;
+		glBindBuffer(GL_ARRAY_BUFFER, Id);
+		glBufferData(GL_ARRAY_BUFFER, Size, &dt, GLenum(BufferUsege::STREAM_DRAW));
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+	void StreamingVertexShader::Update(const void* Data, size_t sz) {
+		if (sz<=Size) {
+			glNamedBufferSubData(Id, 0, sz, Data);
+		} else {
+			glNamedBufferData(Id, sz, Data, GLenum(BufferUsege::STREAM_DRAW));
+			Size = sz;
+		}
+	}
+	StreamingVertexShader::operator VertexBuffer() {
+		VertexBuffer ret;
+		ret.Id = Id;
+		ret.Ref = Ref;
+		return ret;
+	}
 
 	Buffer::Buffer() : ptr{ new Buffer_Data(), [](Buffer_Data* dt) { if (dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
 	Buffer::Buffer(const Buffer_Data& dt) : ptr{ new Buffer_Data(dt), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
@@ -71,11 +93,30 @@ namespace PVX::OpenGL {
 			0,
 			Size,
 			BufferType::SHADER_STORAGE_BUFFER,
+			BufferUsege::STATIC_DRAW,
+			BufferFlags::NONE
 		};
 		glGenBuffers(1, &ret.Id);
 		glBindBuffer(GLenum(BufferType::SHADER_STORAGE_BUFFER), ret.Id);
 		glBufferStorage(GLenum(BufferType::SHADER_STORAGE_BUFFER), Size, Data, 0);
 		glBindBuffer(GLenum(BufferType::SHADER_STORAGE_BUFFER), 0);
 		return { ret };
+	}
+	Buffer Buffer::MakeBuffer(BufferType Type, BufferFlags Flags, size_t SizeInBytes, const void * Data) {
+		Buffer_Data ret{
+			0,
+			SizeInBytes,
+			Type,
+			BufferUsege::Unspecified,
+			Flags
+		};
+		glGenBuffers(1, &ret.Id);
+		glBindBuffer(GLenum(Type), ret.Id);
+		GL_CHECK(glNamedBufferStorage(ret.Id,  SizeInBytes, Data, GLbitfield(Flags)));
+		glBindBuffer(GLenum(Type), 0);
+		return { ret };
+	}
+	void Buffer::Read(void* Data) {
+		glGetNamedBufferSubData(ptr->Id, 0, ptr->Size, Data);
 	}
 }

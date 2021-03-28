@@ -76,17 +76,23 @@ R"GLSL(
 void main() {
 	vec4 Attenuation = vec4(Atten3, Atten2, Atten1, 1.0);
 
-	vec3 n0 = texture(NormalTex, UV).xyz;
-	vec3 albedo = texture(ColorTex, UV).xyz;
+	ivec2 txc = ivec2(gl_FragCoord.xy);
+	vec3 n0 = texelFetch(NormalTex, txc, 0).xyz;
+	vec3 albedo = texelFetch(ColorTex, txc, 0).xyz;
+	vec4 Material = texelFetch(MaterialTex, txc, 0);
 
-	vec4 Material = texture(MaterialTex, UV);
+	//vec3 n0 = texture(NormalTex, UV).xyz;
+	//vec3 albedo = texture(ColorTex, UV).xyz;
+	//vec4 Material = texture(MaterialTex, UV);
+
 	const float metallic = Material.x;
 	const float roughness = Material.y;
 	const float ao = 1.0;
 
 	if (dot(n0, n0)!=0) {
 		vec3 N = normalize(n0);
-		vec3 WorldPos = texture(PositionTex, UV).xyz;
+		//vec3 WorldPos = texture(PositionTex, UV).xyz;
+		vec3 WorldPos = texelFetch(PositionTex, txc, 0).xyz;
 
 		vec3 V = normalize(CameraPosition.xyz - WorldPos);
 
@@ -174,9 +180,14 @@ R"GLSL(
 void main() {
 	vec4 Attenuation = vec4(Atten3, Atten2, Atten1, 1.0);
 
-	vec3 n0 = texture(NormalTex, UV).xyz;
-	vec3 albedo = texture(ColorTex, UV).xyz;
-	vec4 Material = texture(MaterialTex, UV);
+	ivec2 txc = ivec2(gl_FragCoord.xy);
+	vec3 n0 = texelFetch(NormalTex, txc, 0).xyz;
+	vec3 albedo = texelFetch(ColorTex, txc, 0).xyz;
+	vec4 Material = texelFetch(MaterialTex, txc, 0);
+
+	//vec3 n0 = texture(NormalTex, UV).xyz;
+	//vec3 albedo = texture(ColorTex, UV).xyz;
+	//vec4 Material = texture(MaterialTex, UV);
 
 	const float metallic = Material.x;
 	const float roughness = Material.y;
@@ -184,7 +195,8 @@ void main() {
 
 	if (dot(n0, n0)!=0) {
 		vec3 N = normalize(n0);
-		vec3 WorldPos = texture(PositionTex, UV).xyz;
+		//vec3 WorldPos = texture(PositionTex, UV).xyz;
+		vec3 WorldPos = texelFetch(PositionTex, txc, 0).xyz;
 
 		vec3 V = normalize(CameraPosition.xyz - WorldPos);
 
@@ -228,7 +240,7 @@ void main() {
 	}
 
 	//float bloom = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
-	float bloom = dot(albedo, vec3(0.3, 0.59, 0.11));
+	float bloom = dot(albedo, vec3(0.3, 0.59, 0.11)*0.3);
 	
 	if (bloom>1.0) {
 		Bloom = vec4(albedo, 1.0);
@@ -258,28 +270,28 @@ const char* GAUSSIANBLUR_H_GLSL = R"GLSL(#version 440
 
 layout(binding = 0) uniform sampler2D Src;
 
-in vec2 UV;
-
 out vec4 outColor;
+
+ivec2 scrSize;
+
+vec3 Fetch(vec2 Offset){
+	return texelFetch(Src, ivec2(clamp(gl_FragCoord.xy+Offset, vec2(0), scrSize)),0).xyz;
+}
+
 // 	0.20236		0.179044	0.124009	0.067234	0.028532
 void main() {
-	float pixelSize = 1.0 / textureSize(Src, 0).x;
+	scrSize = textureSize(Src, 0).xy;
 	
 	vec3 sum =
-		texture(Src, UV + vec2(pixelSize * 0, 0)).xyz * 0.20236 +
-
-		texture(Src, UV + vec2(pixelSize * 1, 0)).xyz * 0.179044 +
-		texture(Src, UV - vec2(pixelSize * 1, 0)).xyz * 0.179044 +
-
-		texture(Src, UV + vec2(pixelSize * 2, 0)).xyz * 0.124009 +
-		texture(Src, UV - vec2(pixelSize * 2, 0)).xyz * 0.124009 +
-
-		texture(Src, UV + vec2(pixelSize * 3, 0)).xyz * 0.067234 +
-		texture(Src, UV - vec2(pixelSize * 3, 0)).xyz * 0.067234 +
-
-		texture(Src, UV + vec2(pixelSize * 4, 0)).xyz * 0.028532 +
-		texture(Src, UV - vec2(pixelSize * 4, 0)).xyz * 0.028532;
-
+		Fetch(vec2(-4, 0)) * 0.028532 +
+		Fetch(vec2(-3, 0)) * 0.067234 +
+		Fetch(vec2(-2, 0)) * 0.124009 +
+		Fetch(vec2(-1, 0)) * 0.179044 +
+		Fetch(vec2( 0, 0)) * 0.20236 +
+		Fetch(vec2( 1, 0)) * 0.179044 +
+		Fetch(vec2( 2, 0)) * 0.124009 +
+		Fetch(vec2( 3, 0)) * 0.067234 +
+		Fetch(vec2( 4, 0)) * 0.028532;
 
 	outColor = vec4(sum, 1.0);
 })GLSL";
@@ -288,28 +300,28 @@ const char* GAUSSIANBLUR_V_GLSL = R"GLSL(#version 440
 
 layout(binding = 0) uniform sampler2D Src;
 
-in vec2 UV;
-
 out vec4 outColor;
+
+ivec2 scrSize;
+
+vec3 Fetch(vec2 Offset){
+	return texelFetch(Src, ivec2(clamp(gl_FragCoord.xy+Offset, vec2(0), scrSize)),0).xyz;
+}
+
 // 	0.20236		0.179044	0.124009	0.067234	0.028532
 void main() {
-	float pixelSize = 1.0 / textureSize(Src, 0).y;
+	scrSize = textureSize(Src, 0).xy;
 	
 	vec3 sum =
-		texture(Src, UV + vec2(0, pixelSize * 0)).xyz * 0.20236 +
-
-		texture(Src, UV + vec2(0, pixelSize * 1)).xyz * 0.179044 +
-		texture(Src, UV - vec2(0, pixelSize * 1)).xyz * 0.179044 +
-
-		texture(Src, UV + vec2(0, pixelSize * 2)).xyz * 0.124009 +
-		texture(Src, UV - vec2(0, pixelSize * 2)).xyz * 0.124009 +
-
-		texture(Src, UV + vec2(0, pixelSize * 3)).xyz * 0.067234 +
-		texture(Src, UV - vec2(0, pixelSize * 3)).xyz * 0.067234 +
-
-		texture(Src, UV + vec2(0, pixelSize * 4)).xyz * 0.028532 +
-		texture(Src, UV - vec2(0, pixelSize * 4)).xyz * 0.028532;
-
+		Fetch(vec2(0,-4)) * 0.028532 +
+		Fetch(vec2(0,-3)) * 0.067234 +
+		Fetch(vec2(0,-2)) * 0.124009 +
+		Fetch(vec2(0,-1)) * 0.179044 +
+		Fetch(vec2(0, 0)) * 0.20236 +
+		Fetch(vec2(0, 1)) * 0.179044 +
+		Fetch(vec2(0, 2)) * 0.124009 +
+		Fetch(vec2(0, 3)) * 0.067234 +
+		Fetch(vec2(0, 4)) * 0.028532;
 
 	outColor = vec4(sum, 1.0);
 })GLSL";

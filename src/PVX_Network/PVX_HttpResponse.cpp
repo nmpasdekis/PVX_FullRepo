@@ -26,10 +26,6 @@ namespace PVX::Network {
 		Content.WriteUTF(data);
 		Headers[L"content-type"] = contentType;
 	}
-	void HttpResponse::Serve(const std::vector<unsigned char> & data, const std::wstring & contentType) {
-		Content.SetData(data);
-		Headers[L"content-type"] = contentType;
-	}
 
 	void HttpResponse::BeginRange(size_t Size) {
 		RangeSize = Size;
@@ -171,11 +167,6 @@ namespace PVX::Network {
 	void HttpResponse::Html(const std::string & html) {
 		Content.WriteText(html);
 		Headers[L"content-type"] = L"text/html";
-	}
-
-	void HttpResponse::Data(const std::vector<unsigned char>& data, const std::wstring & contentType) {
-		Content.SetData(data.data(), data.size());
-		Headers[L"content-type"] = contentType;
 	}
 
 	static std::map<const int, std::string> StatusCodes{

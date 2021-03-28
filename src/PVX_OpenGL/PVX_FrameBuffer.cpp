@@ -5,6 +5,9 @@ namespace PVX::OpenGL {
 	const Texture2D& FrameBufferObject::AddColorAttachment(InternalFormat ifmt, TextureFormat Format, TextureType Type) {
 		return ColorBuffers.emplace_back(Size.Width, Size.Height, (int)ifmt, (int)Format, (int)Type, (void*)0);
 	}
+	const Texture2D& FrameBufferObject::AddColorAttachment(InternalFormat ifmt, int Samples) {
+		return ColorBuffers.emplace_back(Size.Width, Size.Height, Samples, ifmt);
+	}
 	const Texture2D& FrameBufferObject::AddDepthAttachment() {
 		return DepthStencilBuffer = Texture2D::MakeDepthBuffer32F(Size.Width, Size.Height);
 	}
@@ -35,6 +38,12 @@ namespace PVX::OpenGL {
 		}
 	}
 
+	const Texture2D& FrameBufferObject::AddDepthAttachment(int Samples) {
+		DepthStencilBuffer = { Size.Width, Size.Height, Samples, InternalFormat::DEPTH_COMPONENT32F };
+		DepthStencilBuffer.ptr->Format = TextureFormat::DEPTH_COMPONENT;
+		return DepthStencilBuffer;
+	}
+
 	int FrameBufferObject::Build() {
 		if (!Id)glGenFramebuffers(1, &Id);
 		glBindFramebuffer(GL_FRAMEBUFFER, Id);
@@ -46,17 +55,17 @@ namespace PVX::OpenGL {
 
 		std::vector<GLenum> att;
 		for (int i = 0; i<ColorBuffers.size(); i++) {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, ColorBuffers[i].Get(), 0);
+			GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, ColorBuffers[i].GetTargetType(), ColorBuffers[i].Get(), 0));
 			att.push_back(GL_COLOR_ATTACHMENT0 + i);
 		}
 		glNamedFramebufferDrawBuffers(Id, int(att.size()), att.data());
 
 		if (DepthStencilBuffer.ptr->Format == TextureFormat::DEPTH_COMPONENT) {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, DepthStencilBuffer.Get(), 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilBuffer.GetTargetType(), DepthStencilBuffer.Get(), 0);
 		} else if (DepthStencilBuffer.ptr->Format == TextureFormat::DEPTH_STENCIL) {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, DepthStencilBuffer.Get(), 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, DepthStencilBuffer.GetTargetType(), DepthStencilBuffer.Get(), 0);
 		} else {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, DepthStencilBuffer.Get(), 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, DepthStencilBuffer.GetTargetType(), DepthStencilBuffer.Get(), 0);
 		}
 		GLenum ret = (GLenum)glCheckFramebufferStatus(GL_FRAMEBUFFER);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);

@@ -4,81 +4,47 @@
 #include "PostShaders.inl"
 
 namespace PVX::OpenGL::Helpers {
-	PVX::OpenGL::Shader* PostProcess_VertexShader;
-	PVX::OpenGL::Geometry* PostProcess_Geometry;
-	PVX::OpenGL::Sampler* PostProcess_Sampler;
-	int PostProcess_VertexShaderRef = 0;
-	int PostProcess_GeometryRef = 0;
-	int PostProcess_SamplerRef = 0;
-	const PVX::OpenGL::Shader& RefPostProcess_VertexShader() {
-		if (!PostProcess_VertexShaderRef) {
-			PostProcess_VertexShader = new PVX::OpenGL::Shader(PVX::OpenGL::Shader::ShaderType::VertexShader, R"POST_VERTEX(#version 440
+	PVX::OpenGL::Shader RefPostProcess_VertexShader() {
+		return {
+			PVX::OpenGL::Shader::ShaderType::VertexShader, 
+			R"POST_VERTEX(#version 440
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 uv;
 out vec2 UV;
 void main() { 
 	UV = uv;
 	gl_Position = Position; 
-})POST_VERTEX");
-		}
-		PostProcess_VertexShaderRef++;
-		return *PostProcess_VertexShader;
-	}
-	void DeRefPostProcess_VertexShader() {
-		PostProcess_VertexShaderRef--;
-		if (!PostProcess_VertexShaderRef) 
-			delete PostProcess_VertexShader;
-	}
-	const PVX::OpenGL::Geometry& RefPostProcess_Geometry() {
-		if (!PostProcess_GeometryRef) {
-			PostProcess_Geometry = new PVX::OpenGL::Geometry([] {
-				PVX::OpenGL::ObjectBuilder ob;
-				ob.Begin(GL_QUADS); {
-					ob.TexCoord(	0,		0);
-					ob.Vertex(-1.0f, -1.0f, 0);
-					ob.TexCoord(	1.0f,	0);
-					ob.Vertex(1.0f, -1.0f, 0);
-					ob.TexCoord(	1.0f,	1.0f);
-					ob.Vertex(1.0f, 1.0f, 0);
-					ob.TexCoord(	0,		1.0f);
-					ob.Vertex(-1.0f, 1.0f, 0);
-				} ob.End();
-				return ob.Build();
-			}());
-		}
-		PostProcess_GeometryRef++;
-		return *PostProcess_Geometry;
-	}
-	void DeRefPostProcess_Geometry() {
-		PostProcess_GeometryRef--;
-		if (!PostProcess_GeometryRef) 
-			delete PostProcess_Geometry;
-	}
-	const PVX::OpenGL::Sampler& RefPostProcess_Sampler() {
-		if (!PostProcess_SamplerRef) {
-			PostProcess_Sampler = new PVX::OpenGL::Sampler{ PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::CLAMP };
-		}
-		PostProcess_SamplerRef++;
-		return *PostProcess_Sampler;
-	}
-	void DeRefPostProcess_Sampler() {
-		PostProcess_SamplerRef--;
-		if (!PostProcess_SamplerRef) 
-			delete PostProcess_Sampler;
+})POST_VERTEX"
+		};
 	}
 
-	void DeRef_ALL() {
-		//DeRefPostProcess_Geometry();
-		//DeRefPostProcess_VertexShader();
-		//DeRefPostProcess_Sampler();
+	PVX::OpenGL::Geometry RefPostProcess_Geometry() {
+		return [] {
+			PVX::OpenGL::ObjectBuilder ob;
+			ob.Begin(GL_QUADS); {
+				ob.TexCoord(0, 0);
+				ob.Vertex(-1.0f, -1.0f, 0);
+				ob.TexCoord(1.0f, 0);
+				ob.Vertex(1.0f, -1.0f, 0);
+				ob.TexCoord(1.0f, 1.0f);
+				ob.Vertex(1.0f, 1.0f, 0);
+				ob.TexCoord(0, 1.0f);
+				ob.Vertex(-1.0f, 1.0f, 0);
+			} ob.End();
+			return ob.Build();
+		}();
 	}
 
+	PVX::OpenGL::Sampler RefPostProcess_Sampler() {
+		return { PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::CLAMP };
+	}
 
-	PostProcessor::PostProcessor(PVX::OpenGL::Context& gl) :
+	PostProcessor::PostProcessor(ResourceManager& mgr, PVX::OpenGL::Context& gl) :
+		rManager{ mgr },
 		gl{ gl }, 
-		VertexShader{ RefPostProcess_VertexShader() },
-		FrameGeometry{ RefPostProcess_Geometry() },
-		TexSampler{ RefPostProcess_Sampler() }
+		VertexShader{ mgr.VertexShaders.Get("PostProcess", RefPostProcess_VertexShader) },
+		FrameGeometry{ mgr.Geometry.Get("ScreenSpaceWithUV", RefPostProcess_Geometry) },
+		TexSampler{ mgr.Samplers.Get("LinearClamp", RefPostProcess_Sampler) }
 	{}
 
 	void PostProcessor::AddProcess(
@@ -217,6 +183,30 @@ void main() {
 				{ 3, gMaterial }
 			},
 			{ FinalColor, BloomVertical }
+		);
+
+		AddProcess(
+			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_H_GLSL },
+			{ { 0, BloomVertical } },
+			{ BloomHorizontal }
+		);
+
+		AddProcess(
+			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_V_GLSL },
+			{ { 0, BloomHorizontal } },
+			{ BloomVertical }
+		);
+
+		AddProcess(
+			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_H_GLSL },
+			{ { 0, BloomVertical } },
+			{ BloomHorizontal }
+		);
+
+		AddProcess(
+			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_V_GLSL },
+			{ { 0, BloomHorizontal } },
+			{ BloomVertical }
 		);
 
 		AddProcess(

@@ -84,6 +84,8 @@ namespace PVX::OpenGL {
 	enum class InternalFormat {
 		NONE = 0,
 		DEPTH_COMPONENT = GL_DEPTH_COMPONENT,
+		DEPTH_COMPONENT32F = GL_DEPTH_COMPONENT32F,
+		DEPTH24_STENCIL8 = GL_DEPTH24_STENCIL8,
 		DEPTH_STENCIL = GL_DEPTH_STENCIL,
 		RED = GL_RED,
 		RG = GL_RG,
@@ -195,6 +197,7 @@ namespace PVX::OpenGL {
 	};
 
 	enum class BufferUsege {
+		Unspecified = 0,
 		STREAM_DRAW = GL_STREAM_DRAW,
 		STREAM_READ = GL_STREAM_READ,
 		STREAM_COPY = GL_STREAM_COPY,
@@ -222,7 +225,41 @@ namespace PVX::OpenGL {
 		UNSIGNED_INT_10F_11F_11F_REV = GL_UNSIGNED_INT_10F_11F_11F_REV,
 	};
 
-	typedef struct Attribute {
+	inline int AttribSize(AttribType a) {
+		switch (a) 	{
+			case PVX::OpenGL::AttribType::BYTE:
+			case PVX::OpenGL::AttribType::UNSIGNED_BYTE:
+				return 1;
+			case PVX::OpenGL::AttribType::SHORT:
+			case PVX::OpenGL::AttribType::UNSIGNED_SHORT:
+			case PVX::OpenGL::AttribType::HALF_FLOAT:
+				return 2;
+			case PVX::OpenGL::AttribType::INT:
+			case PVX::OpenGL::AttribType::UNSIGNED_INT:
+			case PVX::OpenGL::AttribType::FLOAT:
+			case PVX::OpenGL::AttribType::FIXED:
+			case PVX::OpenGL::AttribType::INT_2_10_10_10_REV:
+			case PVX::OpenGL::AttribType::UNSIGNED_INT_2_10_10_10_REV:
+			case PVX::OpenGL::AttribType::UNSIGNED_INT_10F_11F_11F_REV:
+				return 4;
+			case PVX::OpenGL::AttribType::DOUBLE:
+				return 8;
+		}
+	}
+	inline int IsInt(AttribType a) {
+		switch (a) 	{
+			case PVX::OpenGL::AttribType::BYTE:
+			case PVX::OpenGL::AttribType::UNSIGNED_BYTE:
+			case PVX::OpenGL::AttribType::SHORT:
+			case PVX::OpenGL::AttribType::UNSIGNED_SHORT:
+			case PVX::OpenGL::AttribType::INT:
+			case PVX::OpenGL::AttribType::UNSIGNED_INT:
+				return 1;
+		}
+		return 0;
+	}
+
+	struct Attribute {
 		bool IsInt;
 		std::string Name;
 		int Size;
@@ -230,7 +267,31 @@ namespace PVX::OpenGL {
 		int Normalized;
 		int Offset;
 		std::string GLSL;
-	} Attribute;
+		//static Attribute Float(const std::string& Name) {
+		//	return { 0, Name, 1, AttribType::FLOAT, 0, -1, "float" };
+		//}
+		//static Attribute Vec2(const std::string& Name) {
+		//	return { 0, Name, 2, AttribType::FLOAT, 0, -1, "vec2" };
+		//}
+		//static Attribute Vec3(const std::string& Name) {
+		//	return { 0, Name, 3, AttribType::FLOAT, 0, -1, "vec3" };
+		//}
+		//static Attribute Vec4(const std::string& Name) {
+		//	return { 0, Name, 4, AttribType::FLOAT, 0, -1, "vec4" };
+		//}
+		//static Attribute Int(const std::string& Name) {
+		//	return { 1, Name, 1, AttribType::INT, 0, -1, "int" };
+		//}
+		//static Attribute iVec2(const std::string& Name) {
+		//	return { 1, Name, 2, AttribType::INT, 0, -1, "ivec2" };
+		//}
+		//static Attribute iVec3(const std::string& Name) {
+		//	return { 1, Name, 3, AttribType::INT, 0, -1, "ivec3" };
+		//}
+		//static Attribute iVec4(const std::string& Name) {
+		//	return { 1, Name, 4, AttribType::INT, 0, -1, "ivec4" };
+		//}
+	};
 
 	class Context {
 	public:
@@ -316,8 +377,30 @@ namespace PVX::OpenGL {
 	};
 
 	enum class BufferType {
-		UNIFORM_BUFFER = GL_UNIFORM_BUFFER,
-		SHADER_STORAGE_BUFFER = GL_SHADER_STORAGE_BUFFER
+		ARRAY_BUFFER = GL_ARRAY_BUFFER,
+		ATOMIC_COUNTER_BUFFER = GL_ATOMIC_COUNTER_BUFFER,
+		COPY_READ_BUFFER = GL_COPY_READ_BUFFER,
+		COPY_WRITE_BUFFER = GL_COPY_WRITE_BUFFER,
+		DISPATCH_INDIRECT_BUFFER = GL_DISPATCH_INDIRECT_BUFFER,
+		DRAW_INDIRECT_BUFFER = GL_DRAW_INDIRECT_BUFFER,
+		ELEMENT_ARRAY_BUFFER = GL_ELEMENT_ARRAY_BUFFER,
+		PIXEL_PACK_BUFFER = GL_PIXEL_PACK_BUFFER,
+		PIXEL_UNPACK_BUFFER = GL_PIXEL_UNPACK_BUFFER,
+		QUERY_BUFFER = GL_QUERY_BUFFER,
+		SHADER_STORAGE_BUFFER = GL_SHADER_STORAGE_BUFFER,
+		TEXTURE_BUFFER = GL_TEXTURE_BUFFER,
+		TRANSFORM_FEEDBACK_BUFFER = GL_TRANSFORM_FEEDBACK_BUFFER,
+		UNIFORM_BUFFER = GL_UNIFORM_BUFFER
+	};
+
+	enum class BufferFlags {
+		NONE = 0,
+		DYNAMIC_STORAGE_BIT = GL_DYNAMIC_STORAGE_BIT,
+		MAP_READ_BIT = GL_MAP_READ_BIT,
+		MAP_WRITE_BIT = GL_MAP_WRITE_BIT,
+		MAP_PERSISTENT_BIT = GL_MAP_PERSISTENT_BIT,
+		MAP_COHERENT_BIT = GL_MAP_COHERENT_BIT,
+		CLIENT_STORAGE_BIT = GL_CLIENT_STORAGE_BIT
 	};
 
 	class Buffer {
@@ -326,6 +409,7 @@ namespace PVX::OpenGL {
 			int Size = 0;
 			BufferType Type = BufferType::UNIFORM_BUFFER;
 			BufferUsege Usage = BufferUsege::STATIC_DRAW;
+			BufferFlags Flags;
 			bool OnlyGrow = true;
 		};
 		Buffer(const Buffer_Data& dt);
@@ -357,10 +441,26 @@ namespace PVX::OpenGL {
 		inline GLenum GetType() const { return GLenum(ptr->Type); }
 
 		static Buffer MakeImmutableShaderStorage(int Size, void* Data);
+		static Buffer MakeBuffer(BufferType Type, BufferFlags Flags, size_t SizeInBytes, const void* Data=nullptr);
+		template<typename T>
+		static Buffer MakeBuffer(BufferType Type, BufferFlags Flags, const std::vector<T>& Data) {
+			return MakeBuffer(Type, Flags, Data.size() * sizeof(T), Data.data());
+		}
+
+		void Read(void* Data);
+		template<typename T>
+		std::vector<T> Read() {
+			std::vector<T> ret(ptr->Size / sizeof(T));
+			Read(ret.data());
+			return std::move(ret);
+		}
+		template<typename T>
+		void Read(std::vector<T>& Data) {
+			Read(Data.data());
+		}
 	protected:
 		std::shared_ptr<Buffer_Data> ptr;
 	};
-
 
 	class VertexBuffer {
 	public:
@@ -368,7 +468,6 @@ namespace PVX::OpenGL {
 		VertexBuffer() : Id{ 0 } {};
 		VertexBuffer(const void* Data, int SizeInBytes);
 		inline VertexBuffer(const std::vector<unsigned char>& Data) :VertexBuffer{ Data.data(), int(Data.size()) } {};
-		
 		inline unsigned int Get() const { return Id; }
 	private:
 		void Update(const void* Data, int SizeInBytes);
@@ -376,7 +475,21 @@ namespace PVX::OpenGL {
 
 		unsigned int Id;
 		PVX::RefCounter Ref;
+		friend class StreamingVertexShader;
 	};
+
+	class StreamingVertexShader {
+	public:
+		StreamingVertexShader();
+		void Update(const void* Data, size_t Size);
+		inline void Update(const std::vector<unsigned char>& Data) { Update(Data.data(), Data.size()); }
+		operator VertexBuffer();
+	private:
+		unsigned int Id = 0;
+		PVX::RefCounter Ref;
+		size_t Size;
+	};
+
 	class IndexBuffer {
 	public:
 		~IndexBuffer();
@@ -423,12 +536,16 @@ namespace PVX::OpenGL {
 
 	class Texture2D {
 	public:
-		//~Texture2D();
+		~Texture2D();
 		Texture2D();
+		Texture2D(const Texture2D&) = default;
+		//Texture2D(Texture2D&&) = default;
+		Texture2D& operator=(const Texture2D&) = default;
 		Texture2D(int Width, int Height, int Channels, int BytesPerChannel);
 		Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
 		Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data);
 		Texture2D(int Width, int Height, InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data);
+		Texture2D(int Width, int Height, int Samples, InternalFormat internalFormat);
 
 		void Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
 		void Update(int Width, int Height, int InternalFormat, int Format, int Type, void * Data);
@@ -477,6 +594,7 @@ namespace PVX::OpenGL {
 		inline void Name(const char* nm) { glObjectLabel(GL_TEXTURE, ptr->Id, -1, nm); }
 		inline int GetWidth() const { return ptr->Size.Width; }
 		inline int GetHeight() const { return ptr->Size.Height; }
+		inline GLenum GetTargetType() {	return ptr->Samples>1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D; }
 		inline const PVX::iVector2D& GetSize() const { return ptr->Size; }
 		void Resize(int Width, int Height);
 	private:
@@ -489,7 +607,7 @@ namespace PVX::OpenGL {
 			TextureType Type = PVX::OpenGL::TextureType(0);
 		};
 		std::shared_ptr<TextureData> ptr;
-		Texture2D(const TextureData&);
+		//Texture2D(const TextureData&);
 		friend class FrameBufferObject;
 	};
 
@@ -535,6 +653,7 @@ namespace PVX::OpenGL {
 		FrameBufferObject(PVX::OpenGL::Context& gl, int Width, int Height);
 		FrameBufferObject(PVX::OpenGL::Context& gl) : gl{ gl } {};
 
+		const Texture2D& AddColorAttachment(InternalFormat iFormat, int Samples);
 		const Texture2D& AddColorAttachment(InternalFormat iFormat, TextureFormat Format, TextureType Type);
 		const Texture2D& AddDepthAttachment();
 		const Texture2D& AddDepthStencilAttachment();
@@ -549,6 +668,16 @@ namespace PVX::OpenGL {
 		inline const Texture2D& AddColorAttachmentRGBA16F() { return AddColorAttachment(InternalFormat::RGBA16F, TextureFormat::RGBA, TextureType::HALF_FLOAT); }
 		inline const Texture2D& AddColorAttachmentRGB32F() { return AddColorAttachment(InternalFormat::RGB32F, TextureFormat::RGB, TextureType::FLOAT); }
 		inline const Texture2D& AddColorAttachmentRGBA32F() { return AddColorAttachment(InternalFormat::RGBA32F, TextureFormat::RGBA, TextureType::FLOAT); }
+
+		inline const Texture2D& AddColorAttachmentRGB8UB(int Samples) { return AddColorAttachment(InternalFormat::RGB8, Samples); }
+		inline const Texture2D& AddColorAttachmentRGBA8UB(int Samples) { return AddColorAttachment(InternalFormat::RGBA8, Samples); }
+		inline const Texture2D& AddColorAttachmentRGB16F(int Samples) { return AddColorAttachment(InternalFormat::RGB16F, Samples); }
+		inline const Texture2D& AddColorAttachmentRGBA16F(int Samples) { return AddColorAttachment(InternalFormat::RGBA16F, Samples); }
+		inline const Texture2D& AddColorAttachmentRGB32F(int Samples) { return AddColorAttachment(InternalFormat::RGB32F, Samples); }
+		inline const Texture2D& AddColorAttachmentRGBA32F(int Samples) { return AddColorAttachment(InternalFormat::RGBA32F, Samples); }
+
+		const Texture2D& AddDepthAttachment(int Samples);
+
 
 		int Build();
 
@@ -572,6 +701,10 @@ namespace PVX::OpenGL {
 		std::vector<Attribute> Attributes;
 		int Stride;
 	};
+	struct Geometry_init2 {
+		VertexBuffer Buffer;
+		std::vector<std::tuple<AttribType, int, int>> Attributes;
+	};
 
 	class Geometry {
 		std::vector<VertexBuffer> VertexBuffers;
@@ -588,6 +721,7 @@ namespace PVX::OpenGL {
 		Geometry& operator=(const Geometry&) = default;
 		~Geometry();
 		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool OldVersion=false);
+		Geometry(PrimitiveType Type, const std::vector<int>& Index, const std::initializer_list<Geometry_init2>& Vertex);
 		void Draw() const;
 		void Draw(int Count) const;
 		unsigned int Get() const { return Id; }
@@ -706,6 +840,13 @@ namespace PVX::OpenGL {
 		void UniformBlock(const std::initializer_list<std::pair<std::string, Buffer>>& Buf);
 		void UniformStorage(const std::string& Name, const Buffer& Buf);
 		void UniformStorage(const std::initializer_list<std::pair<std::string, Buffer>>& Buf);
+	};
+
+	class ComputeProgram {
+		Program p;
+	public:
+		ComputeProgram(const std::string& Code) : p{ { Shader::ShaderType::ComputeShader, Code } } {};
+		void Execute(const std::initializer_list<Buffer>& Buffers, uint32_t CountX, uint32_t CountY = 1, uint32_t CountZ = 1);
 	};
 
 	class Camera {

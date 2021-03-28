@@ -3,6 +3,7 @@
 #include <PVX_OpenGL_Object.h>
 #include <PVX_Object3D.h>
 #include <PVX_json.h>
+//#include <PVX_Threading.h>
 #include <memory>
 
 
@@ -36,17 +37,66 @@ namespace PVX::OpenGL::Helpers {
 		}
 	};
 
+	template<typename T>
+	class SingleResourceManager {
+		std::unordered_map<std::string, T> Resources;
+	public:
+		T Get(const std::string& Name, std::function<T()> LoadFunc) {
+			if (auto f = Resources.find(Name); f == Resources.end())
+				return Resources[Name] = LoadFunc();
+			return Resources.at(Name);
+		}
+	};
+
+	class ResourceManager {
+	public:
+		SingleResourceManager<PVX::OpenGL::Geometry> Geometry;
+		SingleResourceManager<PVX::OpenGL::Shader> VertexShaders;
+		SingleResourceManager<PVX::OpenGL::Shader> FragmentShaders;
+		SingleResourceManager<PVX::OpenGL::Program> Programs;
+		SingleResourceManager<PVX::OpenGL::Texture2D> Textures2D;
+		SingleResourceManager<PVX::OpenGL::Sampler> Samplers;
+	};
+
 	class TextPrinter {
-		PVX::OpenGL::Geometry geo;
+		struct CharInstance {
+			PVX::Vector2D Position;
+			PVX::Vector2D UVOffset;
+		};
+		struct DrawData {
+			PVX::Vector4D Color;
+			PVX::Matrix4x4 Transform;
+		};
+		struct DrawElementsIndirectCommand {
+			uint32_t  count;
+			uint32_t  instanceCount;
+			uint32_t  firstIndex;
+			uint32_t  baseVertex;
+			uint32_t  baseInstance;
+		};
+		ResourceManager& rManager;
 		PVX::OpenGL::Texture2D Atlas;
-		PVX::OpenGL::Buffer Text;
+		PVX::Vector2D TileSize;
+		PVX::OpenGL::StreamingVertexShader Characters;
+		PVX::OpenGL::Buffer Texts;
+		PVX::OpenGL::Geometry geo;
 		PVX::OpenGL::Program Shaders;
 		int xTiles, yTiles;
-		PVX::Vector2D TileSize;
-	public:
-		TextPrinter(const std::string& Texture, int xTiles, int yTiles, const PVX::iVector2D& ScreenSize);
-		void Render(const std::string& Text, const PVX::Vector2D& pos, const PVX::Vector4D& Color = {1.0f, 1.0f, 1.0f, 1.0f });
+
 		PVX::iVector2D ScreenSize;
+		std::vector<DrawData> TextBufferData;
+		std::vector<PVX::Vector2D> Stream;
+		std::vector<DrawElementsIndirectCommand> cmds;
+	public:
+		TextPrinter(ResourceManager& mgr, const std::string& Texture,
+			int xTiles, int yTiles, 
+			const PVX::iVector2D& ScreenSize);
+		void AddText(const std::string_view& Text, 
+			const PVX::Vector2D& pos, 
+			float scale = 1.0f, 
+			const PVX::Vector4D& Color = { 1.0f, 1.0f, 1.0f, 1.0f });
+		inline void SetScreenSize(int Width, int Height) { ScreenSize ={ Width, Height }; }
+		void Render();
 	};
 
 	struct TransformConstant {
@@ -76,6 +126,10 @@ namespace PVX::OpenGL::Helpers {
 		PVX::Vector3D Scale;
 		Transform(const Transform&) = default;
 
+		void Transform_All(const TransformConstant& Const);
+		void Transform_Identity(const TransformConstant& Const);
+		void DoNothing(const TransformConstant& Const);
+
 		void TransformAll(TransformConstant& Const, const TransformConstant* All) const;
 		void TransformNoParent(TransformConstant& Const, const TransformConstant* All) const;
 		void TransformAll_Identity(TransformConstant& Const, const TransformConstant* All) const;
@@ -83,14 +137,38 @@ namespace PVX::OpenGL::Helpers {
 		void PreTransformed(TransformConstant& Const, const TransformConstant* All) const;
 		void PreTransformedNoParent(TransformConstant& Const, const TransformConstant* All) const;
 
+
+
+		PVX::Matrix4x4 GetMatrix_WithParent(const Transform* tr, int Parent) const;
+		PVX::Matrix4x4 GetMatrix_WithoutParent(const Transform* tr, int Parent) const;
+
 		void(Transform::* curTransform)(TransformConstant& Const, const TransformConstant* All) const;
+
+		void(Transform::* cTransform)(const TransformConstant& Const);
+		PVX::Matrix4x4 (Transform::* cGetTransform)(const Transform* tr, int Parent) const;
+
 		inline void GetTransform(TransformConstant& Const, const TransformConstant* All) const {
 			(this->*curTransform)(Const, All);
 		}
+
+		inline void GetTransform(TransformConstant& Const) {
+			(this->*cTransform)(Const);
+		}
+
+		inline PVX::Matrix4x4 GetMatrix(const Transform* tr, int Parent) {
+			return (this->*cGetTransform)(tr, Parent);
+		}
+
 		inline Transform(const PVX::Vector3D& Pos, const PVX::Vector3D& Rot, const PVX::Vector3D& Scl, bool Parent, bool Identity) :
 			Position{ Pos }, Rotation{ Rot }, Scale{ Scl },
 			Matrix{ PVX::Matrix4x4::Identity() }
 		{
+			if (Identity) cTransform = &Transform::Transform_Identity;
+			else cTransform = &Transform::Transform_All;
+
+			if (Parent) cGetTransform = &Transform::GetMatrix_WithParent;
+			else cGetTransform = &Transform::GetMatrix_WithoutParent;
+
 			if (Identity) {
 				if (Parent) {
 					curTransform = &Transform::TransformAll_Identity;
@@ -163,13 +241,14 @@ namespace PVX::OpenGL::Helpers {
 
 	class InstanceData {
 		ObjectGL& Object;
-		std::vector<PVX::OpenGL::Helpers::Transform> Transforms;
+		std::vector<Transform> Transforms;
 		std::vector<float> MorphControls;
 		friend struct ObjectGL;
 		friend class Renderer;
 		bool Active = false;
 	public:
-		inline InstanceData(ObjectGL& obj, const std::vector<PVX::OpenGL::Helpers::Transform>& tran, bool Active) :Object{ obj }, Transforms{ tran } { SetActive(Active); }
+		inline InstanceData(ObjectGL& obj, const std::vector<Transform>& tran, bool Active) :
+			Object{ obj }, Transforms{ tran } { SetActive(Active); }
 
 		inline PVX::OpenGL::Helpers::Transform& Transform(size_t index) { return Transforms[index]; }
 		inline size_t TransformCount() { return Transforms.size(); }
@@ -194,7 +273,6 @@ namespace PVX::OpenGL::Helpers {
 		std::vector<Material> Materials;
 		std::vector<PVX::OpenGL::Buffer> InstanceData;
 		size_t InstanceCount = 0;
-		size_t DrawCount = 0;
 		size_t ActiveInstances = 0;
 		int MorphCount = 0;
 		float FrameRate;
@@ -203,6 +281,9 @@ namespace PVX::OpenGL::Helpers {
 		std::vector<std::vector<AnimationFrame>> Animation;
 
 		void UpdateInstances();
+		void UpdateInstances_1();
+		void UpdateInstances_2();
+		void UpdateInstances_3();
 	};
 
 	struct aLight {
@@ -292,6 +373,7 @@ namespace PVX::OpenGL::Helpers {
 			PVX::OpenGL::FrameBufferObject* FBO;
 			std::vector<std::tuple<int, PVX::OpenGL::Texture2D>> TextureInputs;
 		};
+		ResourceManager& rManager;
 		std::map<int, std::pair<PVX::OpenGL::Texture2D, PVX::Vector2D>> Scales;
 		PVX::OpenGL::Context& gl;
 		PVX::OpenGL::Shader VertexShader;
@@ -301,7 +383,7 @@ namespace PVX::OpenGL::Helpers {
 		std::vector<GLuint> BindSamplers;
 		std::vector<std::unique_ptr<PVX::OpenGL::FrameBufferObject>> FBOs;
 	public:
-		PostProcessor(PVX::OpenGL::Context& gl);
+		PostProcessor(ResourceManager& mgr, PVX::OpenGL::Context& gl);
 		void AddProcess(
 			const PVX::OpenGL::Shader& FragmentShader, 
 			const std::initializer_list<std::tuple<int, PVX::OpenGL::Texture2D>>& Inputs,
@@ -344,8 +426,30 @@ namespace PVX::OpenGL::Helpers {
 		);
 	};
 
+	struct Particle {
+		PVX::Vector4D Position;
+		PVX::Vector4D Velocity;
+		float Life;
+		float pad1, pad2, pad3;
+	};
+
+	class ParticleEmitter {
+	public:
+		PVX::Vector4D Position;
+		PVX::Vector4D InitialVelocity;
+		std::vector<Particle> Particles;
+		float AngleVariance;
+		float VelocityVariance;
+		float LifeSpan;
+		float LifeSpanVariance;
+		float BirthRate;
+		PVX::Vector4D Gravity;
+		PVX::Vector4D Resistance;
+	};
+
 	class Renderer {
 		PVX::OpenGL::Context& gl;
+		ResourceManager& rManager;
 
 		PVX::OpenGL::FrameBufferObject gBufferFBO;
 
@@ -366,17 +470,16 @@ namespace PVX::OpenGL::Helpers {
 		std::map<unsigned int, PVX::OpenGL::Shader> DefaultVertexShaders;
 		std::map<unsigned int, PVX::OpenGL::Shader> DefaultFragmentShaders;
 		std::map<unsigned int, PVX::OpenGL::Program> DefaultShaderPrograms;
+		//PVX::Threading::TaskPump Threads;
+		
+		//std::vector<Transform> Transforms;
 
-		//std::vector<PostProcessor> PostProcesses;
-
-		//int ScreenSizeLoc = -1;
 		int NextObjectId = 1;
 		int NextInstanceId = 1;
 	public:
-		~Renderer();
 		PostProcessor PostProcesses;
 		LightRig<16> Lights;
-		Renderer(int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target = nullptr);
+		Renderer(ResourceManager& mgr, int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target = nullptr);
 		void SetCameraBuffer(PVX::OpenGL::Buffer& CamBuffer);
 		void Render(std::function<void()> RenderClb);
 
