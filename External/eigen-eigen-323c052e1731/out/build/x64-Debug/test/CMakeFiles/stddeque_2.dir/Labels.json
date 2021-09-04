@@ -1,0 +1,16 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e1731/test/stddeque.cpp"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"BuildOfficial"
+		],
+		"name" : "stddeque_2"
+	}
+}

@@ -170,22 +170,20 @@ namespace PVX {
 		}
 
 		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::wstring & ContentPath) {
-			std::wstring cPath = PVX::IO::wCurrentPath() + ContentPath + ((ContentPath.size() && (ContentPath.back() == L'\\')) ? L"" : L"\\");
+			std::wstring cPath = PVX::IO::wCurrentPath() + (ContentPath[0]!=L'/'?L"/":L"") + ContentPath + ((ContentPath.size() && (ContentPath.back() == L'\\')) ? L"" : L"\\");
 			return [this, cPath](HttpRequest & req, HttpResponse& resp) {
-				std::wstring path = cPath + std::regex_replace((std::wstring&)req.Variables[L"Path"], std::wregex(L"/"), L"\\");
+				std::wstring path = std::regex_replace(cPath + (std::wstring&)req.Variables[L"Path"], std::wregex(L"/"), L"\\");
+				if (path.find(L"..") != -1) {
+					resp.StatusCode = 403;
+					return;
+				}
 				if ((resp.StatusCode = resp.Content.BinaryFile(path.c_str())) == 200) {
-#ifdef _DEBUG
-					printf("Serving File: %ws\n", path.c_str());
-#endif
 					std::wsmatch Extension;
 					std::map<std::wstring, std::wstring>::iterator pMime;
 					auto ext = PVX::IO::FileExtension(path);
 					if ((pMime = Mime.find(ext)) != Mime.end()) {
 						resp[L"Content-Type"] = pMime->second;
 					}
-					//if (std::regex_search(path, Extension, std::wregex(L"\\.([^\\.]*)")) && Extension[1].matched && (pMime = Mime.find(Extension[1].str())) != Mime.end()) {
-					//	resp[L"Content-Type"] = pMime->second;
-					//}
 				}
 			};
 		}

@@ -5,12 +5,6 @@
 #include <sstream>
 
 namespace PVX::Network {
-	HttpResponse::HttpResponse() {
-		SouldCompress = true;
-		Handled = false;
-		StatusCode = 200;
-	}
-
 	UtfHelper & HttpResponse::operator[](const std::wstring & Name) {
 		std::wstring name = Name;
 		for (auto & c : name) if (c >= 'A'&&c <= 'Z') { c += 'a' - 'A'; }
@@ -131,6 +125,10 @@ namespace PVX::Network {
 			return true;
 		});
 		return 0;
+	}
+
+	void HttpResponse::Download(const std::wstring& Filename) {
+		Headers[L"Content-Disposition"] = L"attachment; filename=\"" + Filename + L"\"";
 	}
 
 	void HttpResponse::StreamRaw(size_t Size, std::function<bool(TcpSocket & Socket)> fnc) {

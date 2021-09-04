@@ -133,23 +133,24 @@ namespace PVX {
 		std::string TcpSocket::RemoteAddress() const {
 			auto& addr = ((PVX_SocketData*)Data)->Address;
 			return 
-				std::to_string(addr.sa_data[2]) + "." +
-				std::to_string(addr.sa_data[3]) + "." +
-				std::to_string(addr.sa_data[4]) + "." +
-				std::to_string(addr.sa_data[5]);
+				std::to_string((unsigned char)addr.sa_data[2]) + "." +
+				std::to_string((unsigned char)addr.sa_data[3]) + "." +
+				std::to_string((unsigned char)addr.sa_data[4]) + "." +
+				std::to_string((unsigned char)addr.sa_data[5]);
 		}
 		std::wstring TcpSocket::wRemoteAddress() const {
 			auto& addr = ((PVX_SocketData*)Data)->Address;
 			return
-				std::to_wstring(addr.sa_data[2]) + L"." +
-				std::to_wstring(addr.sa_data[3]) + L"." +
-				std::to_wstring(addr.sa_data[4]) + L"." +
-				std::to_wstring(addr.sa_data[5]);
+				std::to_wstring((unsigned char)addr.sa_data[2]) + L"." +
+				std::to_wstring((unsigned char)addr.sa_data[3]) + L"." +
+				std::to_wstring((unsigned char)addr.sa_data[4]) + L"." +
+				std::to_wstring((unsigned char)addr.sa_data[5]);
 		}
-		//TcpSocket::TcpSocket(const SOCKET s, const sockaddr & addr) {
-		//	PVX_Socket_RefCount++;
-		//	Data = new PVX_SocketData{ 1, s, 1, addr };
-		//}
+		uint32_t TcpSocket::dwRemoteAddress() const {
+			return *(uint32_t*)&((PVX_SocketData*)Data)->Address.sa_data[2];
+		}
+
+
 		TcpSocket::TcpSocket(const SOCKET_type s, const void* addr) {
 			PVX_Socket_RefCount++;
 			Data = new PVX_SocketData{ 1, (SOCKET)s, 1, *(sockaddr*)addr };

@@ -1,8 +1,8 @@
-# Install script for directory: D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11
+# Install script for directory: D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug")
+  set(CMAKE_INSTALL_PREFIX "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -34,77 +34,77 @@ endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/lib/zlibd.lib")
+   "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/lib/zlibd.lib")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/zlibd.lib")
+file(INSTALL DESTINATION "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/build/x64-Debug/zlibd.lib")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/bin/zlibd.dll")
+   "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/bin/zlibd.dll")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/bin" TYPE SHARED_LIBRARY FILES "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/zlibd.dll")
+file(INSTALL DESTINATION "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/bin" TYPE SHARED_LIBRARY FILES "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/build/x64-Debug/zlibd.dll")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/lib/zlibstaticd.lib")
+   "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/lib/zlibstaticd.lib")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/lib" TYPE STATIC_LIBRARY FILES "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/zlibstaticd.lib")
+file(INSTALL DESTINATION "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/lib" TYPE STATIC_LIBRARY FILES "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/build/x64-Debug/zlibstaticd.lib")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/include/zconf.h;D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/include/zlib.h")
+   "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/include/zconf.h;D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/include/zlib.h")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/include" TYPE FILE FILES
-    "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/zconf.h"
-    "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/zlib.h"
+file(INSTALL DESTINATION "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/include" TYPE FILE FILES
+    "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/build/x64-Debug/zconf.h"
+    "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/zlib.h"
     )
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/share/man/man3/zlib.3")
+   "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/share/man/man3/zlib.3")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/share/man/man3" TYPE FILE FILES "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/zlib.3")
+file(INSTALL DESTINATION "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/share/man/man3" TYPE FILE FILES "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/zlib.3")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
-   "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/share/pkgconfig/zlib.pc")
+   "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/share/pkgconfig/zlib.pc")
   if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/install/x64-Debug/share/pkgconfig" TYPE FILE FILES "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/zlib.pc")
+file(INSTALL DESTINATION "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/install/x64-Debug/share/pkgconfig" TYPE FILE FILES "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/build/x64-Debug/zlib.pc")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -115,5 +115,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "D:/GitProjects2020/Repos/HttpServer/Modules/zlib-1.2.11/out/build/x64-Debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "D:/GitProjects2022/PVX_FullRepo/External/zlib-1.2.11/out/build/x64-Debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

@@ -1,7 +1,7 @@
 #include <PVX_OpenAL.h>
-#include <alext.h>
-#include <alc.h>
-#include <al.h>
+#include <al/alc.h>
+#include <al/al.h>
+#include <al/alext.h>
 #include <stdio.h>
 #include <thread>
 #include <map>
