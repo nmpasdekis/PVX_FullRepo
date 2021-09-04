@@ -79,6 +79,7 @@ namespace PVX {
 			}
 			std::string RemoteAddress() const;
 			std::wstring wRemoteAddress() const;
+			uint32_t dwRemoteAddress() const;
 			// int SecureConnection();
 		protected:
 			TcpSocket(const SOCKET_type, const void*);
@@ -98,7 +99,7 @@ namespace PVX {
 			void Serve(std::function<void(TcpSocket)> Event);
 			void Stop();
 		protected:
-			std::atomic_int Running, ThreadCount;
+			std::atomic_int Running = 0, ThreadCount;
 			std::thread * ServingThread;
 			PVX::Threading::TaskPump Tasks;
 			std::set<SOCKET_type> Sockets;
@@ -177,9 +178,7 @@ namespace PVX {
 
 		class HttpResponse {
 		public:
-			HttpResponse();
 			UtfHelper & operator[](const std::wstring &);
-			int StatusCode;
 			PVX_DataBuilder Content;
 			void Json(const PVX::JSON::Item & json);
 			void Redirect(const std::wstring & Location, int Status = 303);
@@ -204,16 +203,23 @@ namespace PVX {
 
 			int SingleRangeFile(size_t Offset, size_t Size, const std::wstring & Filename, int FragmentSize=0x00100000);
 
+			void Download(const std::wstring& Filename);
+
 			// return true if More data sould me sent
 			void StreamRaw(size_t Size, std::function<bool(TcpSocket & Socket)> fnc);
 
-			bool SouldCompress, Handled;
 			void SetCookie(const std::wstring & Name, const std::wstring & Value);
 			void ClearCookie(const std::wstring & Name);
 			int SendHeader(size_t ContentLength = 0);
 			void AllowOrigin(HttpRequest& req, const std::set<std::wstring>& Allow = {});
 
 			void MakeWebToken(const PVX::JSON::Item& User);
+
+
+			int StatusCode = 200;
+			bool SouldCompress = true;
+			bool Handled = false;
+
 		protected:
 			TcpSocket Socket;
 			size_t RangeSize;
