@@ -135,11 +135,14 @@ namespace PVX::Network {
 		Streams.push_back({ Size, fnc });
 	}
 
-	void HttpResponse::ClearCookie(const std::wstring & Name) {
-		MoreHeaders.push_back(SimpleTuple{ L"set-cookie", Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT" });
+	void HttpResponse::ClearCookie(const std::wstring & Name, const std::wstring& Path) {
+		if(Path.size())
+			MoreHeaders.push_back(SimpleTuple{ L"Set-Cookie", Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=" + Path });
+		else
+			MoreHeaders.push_back(SimpleTuple{ L"Set-Cookie", Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT" });
 	}
 	void HttpResponse::SetCookie(const std::wstring & Name, const std::wstring & Value) {
-		MoreHeaders.push_back(SimpleTuple{ L"set-cookie", Name + L"=" + Value });
+		MoreHeaders.push_back(SimpleTuple{ L"Set-Cookie", Name + L"=" + Value });
 	}
 
 	void HttpResponse::Redirect(const std::wstring & Location, int Status) {
@@ -292,12 +295,12 @@ namespace PVX::Network {
 	void HttpResponse::MakeWebToken(const PVX::JSON::Item& User) {
 		using namespace PVX::Encrypt;
 		auto usr = PVX::Encode::UTF(PVX::JSON::stringify(User));
-		usr.resize(3 * ((usr.size() + 32 + 2) / 3) - 32);
+		usr.resize(3 * ((usr.size() + 32 + 2) / 3) - 32 + 1);
 		auto hash = HMAC<SHA256_Algorithm>(Server->TokenKey, usr);
-		std::vector<unsigned char> FullToken(32 + usr.size());
+		std::vector<unsigned char> FullToken(32 + 1 + usr.size());
 		memcpy(&FullToken[0], hash.data(), 32);
-		memcpy(&FullToken[32], usr.data(), usr.size());
-		SetCookie(L"pxx-token", PVX::Encode::ToString(PVX::Encode::Base64Url(FullToken)));
+		memcpy(&FullToken[32 + 1], usr.data(), usr.size());
+		SetCookie(L"pvx-token", PVX::Encode::ToString(PVX::Encode::Base64Url(FullToken)) + L"; Path=/");
 	}
 
 }

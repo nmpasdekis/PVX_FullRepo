@@ -1,7 +1,9 @@
 #include <array>
 #include <vector>
+#include <string>
 #include <functional>
 #include <type_traits>
+#include <PVX_Encode.h>
 
 namespace PVX::Encrypt {
 	class CRC32_Algorithm {
@@ -121,5 +123,85 @@ namespace PVX::Encrypt {
 	template<typename Hash, typename T1, typename T2>
 	decltype(Hash()()) HMAC(const T1& Key, const T2& Message) {
 		return HMAC<Hash>(Key.data(), Key.size(), Message.data(), Message.size());
+	}
+
+	template<typename Hash, int Iterations, int saltSize, typename T1, typename T2>
+	decltype(Hash()()) PBKDF2_F(const T1& password, T2& salt, int i) {
+		salt[saltSize + 0] = (i >> 24)&0xff;
+		salt[saltSize + 1] = (i >> 16)&0xff;
+		salt[saltSize + 2] = (i >>  8)&0xff;
+		salt[saltSize + 3] = (i >>  0)&0xff;
+		auto U = HMAC<Hash>(password, salt);
+		auto U0 = U;
+		
+		for (auto j = 1; j < Iterations; j++) {
+			U = HMAC<Hash>(password, U);
+			for (auto k = 0; k<U.size(); k++)
+				U0[k] ^= U[k];
+		}
+		return U0;
+	}
+
+	template<typename Hash, int KeyLen, int saltSize, int Iterations, typename saltType>
+	std::array<unsigned char, KeyLen / 8> PBKDF2(const std::string& password, const saltType& salt) {
+		std::array<unsigned char, saltSize / 8 + 4> Salt;
+		memcpy(&Salt[0], salt, saltSize / 8);
+
+		constexpr int iters = (KeyLen / 8 + Hash::OutputSize - 1) / Hash::OutputSize;
+		std::array<unsigned char, KeyLen / 8> ret;
+
+		int curSize = 0;
+		int i = 1;
+		if constexpr ((KeyLen / 8) >= Hash::OutputSize) {
+			for (; i<iters; i++, curSize += Hash::OutputSize) {
+				auto U = PBKDF2_F<Hash, Iterations, saltSize / 8>(password, Salt, i);
+				memcpy(ret.data() + curSize, U.data(), Hash::OutputSize);
+			}
+		}
+		if constexpr ((KeyLen / 8) % Hash::OutputSize) {
+			auto U = PBKDF2_F<Hash, Iterations, saltSize / 8>(password, Salt, i);
+			memcpy(ret.data() + curSize, U.data(), (KeyLen / 8) % Hash::OutputSize);
+		}
+
+		return ret;
+	}
+
+
+	template<typename Hash, int KeyLen, int saltSize, int Iterations>
+	std::array<unsigned char, KeyLen / 8> PBKDF2(
+		const unsigned char* Password, int PasswordSize, 
+		const unsigned char* salt) {
+
+		std::string password;
+		password.resize(PasswordSize);
+		memcpy(password.data(), Password, PasswordSize);
+		std::array<unsigned char, saltSize / 8 + 4> Salt;
+		memcpy(Salt.data(), salt, saltSize / 8);
+
+		constexpr int iters = (KeyLen / 8 + Hash::OutputSize - 1) / Hash::OutputSize;
+		std::array<unsigned char, KeyLen / 8> ret{};
+
+		int curSize = 0;
+		int i = 1;
+		if constexpr ((KeyLen / 8) >= Hash::OutputSize) {
+			for (; i<iters; i++, curSize += Hash::OutputSize) {
+				auto U = PBKDF2_F<Hash, Iterations, saltSize / 8>(password, Salt, i);
+				memcpy(ret.data() + curSize, U.data(), Hash::OutputSize);
+			}
+		}
+		if constexpr ((KeyLen / 8) % Hash::OutputSize) {
+			auto U = PBKDF2_F<Hash, Iterations, saltSize / 8>(password, Salt, i);
+			memcpy(ret.data() + curSize, U.data(), (KeyLen / 8) % Hash::OutputSize);
+		}
+		return ret;
+	}
+
+	template<typename Algorithm, int SaltSize, int HashLength, int Iterations>
+	bool IdentityPasswordVerifier(const std::wstring& Password, const std::wstring& PasswordHash) {
+		using namespace PVX::Encrypt;
+		auto pass = PVX::Encode::UTF(Password);
+		auto Hashed = PVX::Decode::Base64(PasswordHash);
+		auto NewHash = PBKDF2<Algorithm, HashLength, SaltSize, Iterations>(pass.data(), pass.size(), Hashed.data() + 1);
+		return !memcmp(NewHash.data(), Hashed.data() + 1 + SaltSize / 8, HashLength / 8);
 	}
 }

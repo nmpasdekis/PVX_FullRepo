@@ -7,6 +7,7 @@
 #include <PVX_File.h>
 #include <string_view>
 #include <PVX_Regex.h>
+#include <PVX.inl>
 
 static std::wstring JsonString(const std::wstring& s) {
 	std::wstringstream ret;
@@ -250,11 +251,12 @@ namespace PVX {
 		}
 
 		Item& Item::operator=(const std::vector<unsigned char>& v) {
-			std::string tmp = PVX::Encode::Base64(v);
-			std::wstring String;
-			String.reserve(tmp.size());
-			for (auto c : tmp) String.push_back(c);
-			Value = String;
+			//std::string tmp = PVX::Encode::Base64(v);
+			//std::wstring String;
+			//String.reserve(tmp.size());
+			//for (auto c : tmp) String.push_back(c);
+			//Value = String;
+			Value = v;
 			return *this;
 		}
 
@@ -594,10 +596,13 @@ namespace PVX {
 					return obj.Boolean() ? L"true" : L"false";
 				case jsElementType::String:
 					return JsonString(obj.String());
+					//return L"\"" + obj.String() + L"\"";
 				case jsElementType::Binary:
 					switch (obj.Value.Bson()) {
 						case BSON_Type::ObjectId:
 							return L"ObjectId(\"" + PVX::Encode::wToHex(obj.Value.Binary()) + L"\")";
+						case BSON_Type::Binary:
+							return L"Binary(\"" + PVX::Encode::wToHex(obj.Value.Binary()) + L"\", " + std::to_wstring(obj.Value.BinaryType()) + L")";
 					}
 					return L"undefined";
 				case jsElementType::Array:
@@ -846,6 +851,8 @@ namespace PVX {
 			return ret;
 		}
 
+		static std::wregex EscapeReplacer(LR"regex(\\[\\\"tnr\'])regex", std::regex_constants::optimize);
+
 		static std::wstring RemoveStrings(const std::wstring_view& text, std::vector<std::wstring>& Strings) {
 			std::wstring Text = text.data();
 			long long index = Text.find('"');
@@ -855,7 +862,21 @@ namespace PVX {
 				if (end == -1)
 					return L"";
 
-				Strings.push_back(Text.substr(index + 1, end - index - 1));
+				auto txt = Text.substr(index + 1, end - index - 1);
+
+				auto matches = PVX::regex_matches(txt, EscapeReplacer);
+				txt = PVX::Replace(txt, EscapeReplacer, [](const std::wsmatch& m) -> std::wstring {
+					auto x = m.str();
+					auto c = x[1];
+					switch (c) {
+						case 't': return L"\t";
+						case 'n': return L"\n";
+						case 'r': return L"\r";
+					}
+					return x.c_str() + 1;
+				});
+
+				Strings.push_back(txt);
 				Text = Text.replace(index, end - index + 1, L"\x01");
 				index = Text.find('"', index + 1);
 			}
@@ -929,9 +950,11 @@ namespace PVX {
 			txt.resize(j);
 		}
 
-		void RemoveFunctions(std::wstring& Text, std::vector<std::wstring>& Functions) {
-			Text = PVX::Replace(Text, LR"regex(([$a-zA-Z_][$a-zA-Z_0-9]*)\(([^\)]*)\))regex", [&Functions](const std::wsmatch& m) {
+		void RemoveFunctions(std::wstring& Text, std::vector<std::wstring>& Functions, std::vector<std::vector<std::wstring>>& Args) {
+			using namespace std::string_literals;
+			Text = PVX::Replace(Text, LR"regex(([$a-zA-Z_][$a-zA-Z_0-9]*)\(([^\)]*)\))regex", [&Functions, &Args](const std::wsmatch& m) {
 				Functions.emplace_back(m[1].str());
+				Args.emplace_back(PVX::String::Split_Trimed(m[2].str(), L","s));
 				return L"@";
 			});
 		}
@@ -1082,15 +1105,17 @@ namespace PVX {
 
 		Item parsePlus(const std::wstring_view& Json) {
 			std::vector<std::wstring> Functions;
+			std::vector<std::vector<std::wstring>> FunctionArgs;
 			std::vector<std::wstring> Strings;
 			std::vector<long long> Integers;
 			std::vector<double> Doubles;
-			std::unordered_map<std::wstring, std::function<JSON::Item(const std::wstring&)>> Function{
-				{ L"ObjectId", [](const std::wstring& str) { return ObjectId(str); } }
+			std::unordered_map<std::wstring, std::function<JSON::Item(const std::vector<std::wstring>&)>> Function{
+				{ L"ObjectId", [](const std::vector<std::wstring>& str) { return ObjectId(str[0]); } },
+				{ L"Binary", [](const std::vector<std::wstring>& str) { return Binary(PVX::Decode::FromHex(str[0]), str.size()>1? _wtoi(str[1].c_str()): 0); } }
 			};
 
 			auto tmp = RemoveStrings(Json, Strings);
-			RemoveFunctions(tmp, Functions);
+			RemoveFunctions(tmp, Functions, FunctionArgs);
 			removeSpaces(tmp);
 			removeBoolsAndNulls(tmp);
 			removeNumbers(tmp, Doubles, Integers);
@@ -1126,9 +1151,12 @@ namespace PVX {
 					case (wchar_t)Symbols::Null: Output.emplace_back(0, 0, jsElementType::Null); ItemCount++;  break;
 
 					case (wchar_t)Symbols::Function: {
-						auto& arg = Strings[strings++];
+						std::vector<std::wstring> args = PVX::Map(FunctionArgs[functions], [&](const std::wstring& a) {
+							return (a[0] == (wchar_t)Symbols::Quote)? Strings[strings++] : a;
+						});
+
 						if (auto fnc = Function.find(Functions[functions++]); fnc !=Function.end())
-							Output.emplace_back(0, 0, fnc->second(arg));
+							Output.emplace_back(0, 0, fnc->second(args));
 						else
 							Output.emplace_back(0, 0, jsElementType::Undefined);
 						ItemCount++;  
@@ -1283,6 +1311,16 @@ namespace PVX {
 				auto sz = Int(cur);
 				return String(cur);
 			}
+
+			JSON::Item ReadBinary(const unsigned char*& cur) {
+				auto sz = Int(cur);
+				std::vector<unsigned char> ret(sz);
+				int Type = *(cur++);
+				memcpy_s(&ret[0], sz, cur, sz);
+				cur += sz;
+				return Binary(std::move(ret), Type);
+			}
+
 			Item ReadArray(const unsigned char*& cur);
 
 			Item ReadObject(const unsigned char*& cur) {
@@ -1298,6 +1336,7 @@ namespace PVX {
 							case 0x02: ret[name] = ReadString(cur); break;
 							case 0x03: ret[name] = ReadObject(cur); break;
 							case 0x04: ret[name] = ReadArray(cur); break;
+							case 0x05: ret[name] = ReadBinary(cur); break;
 							case 0x07: ret[name].Value = ObjectId(cur); break;
 							case 0x08: ret[name] = (bool)Byte(cur); break;
 							case 0x0A: ret[name] = nullptr; break;
@@ -1421,6 +1460,12 @@ namespace PVX {
 			Append(Data, (char)0);
 			(*(int*)&Data[SizeIndex]) = Data.size() - SizeIndex;
 		}
+		void AppendBinary(std::vector<unsigned char>& Data, const std::vector<unsigned char>& bin, int Type) {
+			Data.reserve(Data.size() + 5 + bin.size());
+			Append(Data, (int32_t)bin.size());
+			Append(Data, (char)Type);
+			AppendData(Data, bin);
+		}
 
 		void ToBSON(const Item& obj, std::vector<unsigned char>& Data) {
 			switch (obj.Value.Bson()) {
@@ -1437,6 +1482,7 @@ namespace PVX {
 					AppendArray(Data, obj);
 					break;
 				case PVX::JSON::BSON_Type::Binary:
+					AppendBinary(Data, obj.Value.Binary(), obj.Value.BinaryType());
 					break;
 				//case PVX::JSON::BSON_Type::Undefined:
 				//	break;
@@ -1490,6 +1536,11 @@ namespace PVX {
 		JSON::Item ObjectId(const std::wstring_view& hexId) {
 			JSON::Item ret = PVX::Decode::FromHex(hexId);
 			ret.Value.Bson() = BSON_Type::ObjectId;
+			return ret;
+		}
+		JSON::Item Binary(const std::vector<unsigned char>& Data, int Type) {
+			JSON::Item ret = Data;
+			ret.Value.BinaryType() = Type;
 			return ret;
 		}
 	}

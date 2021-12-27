@@ -1,382 +1,297 @@
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+
+#include <functional>
+//#include <cmath>
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#include<PVX_Network.h>
-
-
-//#include<OpenSSl/ssl.h>
-//#include<OpenSSl/err.h>
-#include<stdio.h>
-#include<mutex>
-
-//#include <mstcpip.h>
-//#include <rpc.h>
-//#include <ntdsapi.h>
-
-
-#include <wincrypt.h>
-#include <schnlsp.h>
-
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment(lib, "fwpuclnt.lib")
 
+#include <PVX_Network.h>
 
-//#ifdef _DEBUG
-//#pragma comment (lib, "libcryptoMDd.lib")
-//#pragma comment (lib, "libsslMDd.lib")
-//#else
-//#pragma comment (lib, "libcryptoMD.lib")
-//#pragma comment (lib, "libsslMD.lib")
-//#endif
+namespace {
+	using SendCLB = int (*)(void* dt, const void*, size_t sz);
+	using ReceiveCLB = int (*)(void* sock, void*, size_t sz);
+	using ReleaseCLB = void (*)(void*);
 
-namespace PVX {
-	namespace Network {
-		static int PVX_Socket_RefCount;
-		static WSAData Windows_Socket_Data;
-		struct PVX_SocketData {
-			int Ref;
-			SOCKET Socket;
-			//SSL * SSL_Socket;
-			int Running;
-			struct sockaddr Address;
-		};
+	static WSAData Windows_Socket_Data;
+	struct Callbacks {
+		SendCLB Send;
+		ReceiveCLB Recv;
+		ReleaseCLB Release;
+	};
+	Callbacks StandartActions{};
 
-//		static SSL_CTX * InitOpenSSL(const char* CertFile, const char* KeyFile) {
-//			SSL_CTX *ctx;
-//
-////#if OPENSSL_VERSION_NUMBER < 0x10100000L
-////			SSL_library_init();
-////#else
-////			OPENSSL_init_ssl(0, NULL);
-////#endif
-////			OpenSSL_add_all_algorithms();
-////			SSL_load_error_strings();
-//
-//			const SSL_METHOD *method = TLSv1_server_method();// SSLv23_server_method;//
-//			ctx = SSL_CTX_new(method);
-//			if (ctx == NULL) {
-//				ERR_print_errors_fp(stderr);
-//				abort();
-//			}
-//		
-//			if (SSL_CTX_use_certificate_file(ctx, CertFile, SSL_FILETYPE_PEM) <= 0) {
-//				ERR_print_errors_fp(stderr);
-//				abort();
-//			}
-//			/* set the private key from KeyFile (may be the same as CertFile) */
-//			if (SSL_CTX_use_PrivateKey_file(ctx, KeyFile, SSL_FILETYPE_PEM) <= 0) {
-//				ERR_print_errors_fp(stderr);
-//				abort();
-//			}
-//			/* verify private key */
-//			if (!SSL_CTX_check_private_key(ctx)) {
-//				fprintf(stderr, "Private key does not match the public certificate\n");
-//				abort();
-//			}
-//			return ctx;
-//		}
+	void StandartRelease(void* dt) {
+		closesocket(*(SOCKET*)dt);
+	}
 
-		static SOCKET CreateListenSocket(const char * sPort) {
-			struct addrinfo hint = { 0 };
-			struct addrinfo *Source = 0;
+	SOCKET CreateListenSocket(const char* sPort) {
+		struct addrinfo hint = { 0 };
+		struct addrinfo* Source = 0;
 
-			hint.ai_family = AF_INET;
-			hint.ai_protocol = IPPROTO_TCP;
-			hint.ai_socktype = SOCK_STREAM;
-			hint.ai_flags = AI_PASSIVE;
+		hint.ai_family = AF_INET;
+		hint.ai_protocol = IPPROTO_TCP;
+		hint.ai_socktype = SOCK_STREAM;
+		hint.ai_flags = AI_PASSIVE;
 
-			getaddrinfo(0, sPort, &hint, &Source);
+		getaddrinfo(0, sPort, &hint, &Source);
 
-			SOCKET SocketID = socket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
-			if(SocketID == INVALID_SOCKET)
+		SOCKET SocketID = socket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
+		if (SocketID == INVALID_SOCKET)
+			return 0;
+		if (bind(SocketID, Source->ai_addr, (int)Source->ai_addrlen) == SOCKET_ERROR)
+			return 0;
+
+		freeaddrinfo(Source);
+		listen(SocketID, SOMAXCONN);
+		return SocketID;
+	}
+
+
+	class socketData {
+	public:
+		socketData() = default;
+		socketData(uint32_t* s, const struct sockaddr addr) : Socket{ (SOCKET)s }, Address{ addr } {}
+		~socketData() { Actions->Release(this); }
+
+		SOCKET Socket = socket(AF_INET, SOCK_STREAM, 0);
+		Callbacks* Actions = &StandartActions;
+		int Running = 1;
+		struct sockaddr Address {};
+		void* SSL = nullptr;
+		int Send(const void* Data, size_t Size) { return Actions->Send(this, Data, Size); }
+		int Recv(void* Data, size_t Size) { return Actions->Recv(this, Data, Size); }
+	};
+
+	void socketData_Deleter(void* x) { delete (socketData*)x; }
+
+	class __initSockets {
+	public:
+		__initSockets() {
+			WSAStartup(MAKEWORD(2, 2), &Windows_Socket_Data);
+			StandartActions.Send = [](void* sock, const void* Data, size_t Size) {
+				return send(((socketData*)sock)->Socket, (const char*)Data, (int)Size, 0);
+			};
+			StandartActions.Recv = [](void* sock, void* Data, size_t Size) {
+				return recv(((socketData*)sock)->Socket, (char*)Data, (int)Size, 0);
+			};
+			StandartActions.Release = StandartRelease;
+		}
+		~__initSockets() { WSACleanup(); }
+	} ___initSockets;
+
+
+}
+
+namespace PVX::Network {
+	TcpSocket::TcpSocket() : SocketData{ (void*)new socketData(), socketData_Deleter } {}
+	TcpSocket::TcpSocket(uint32_t* socket, const void* addr) : SocketData{ (void*)new socketData(socket, *(const sockaddr*)addr), socketData_Deleter } {}
+
+	int TcpSocket::CanRead() {
+		fd_set sock{};
+		FD_SET(((socketData*)SocketData.get())->Socket, &sock);
+		return select(0, &sock, 0, 0, 0);
+	}
+	int TcpSocket::CanReadAsync() {
+		struct timeval to { 0, 1 };
+		fd_set sock{};
+		FD_SET(((socketData*)SocketData.get())->Socket, &sock);
+		return select(0, &sock, 0, 0, &to);
+	}
+
+	int TcpSocket::Send(const void* Data, size_t Size) {
+		return ((socketData*)SocketData.get())->Actions->Send(SocketData.get(), Data, Size);
+	}
+
+	void TcpSocket::Disconnect() {
+		((socketData*)SocketData.get())->Actions->Release(this);
+	}
+
+	size_t TcpSocket::SendFragmented(const std::vector<unsigned char>& data, size_t FragmentSize) {
+		size_t Offset = 0;
+		size_t sz = data.size();
+		size_t SendSize = FragmentSize;
+		while (Offset + FragmentSize < sz && SendSize == FragmentSize) {
+			SendSize = Send((const void*)&data[Offset], FragmentSize);
+			Offset += SendSize;
+		}
+		if (Offset < FragmentSize && SendSize >= 0) {
+			SendSize = Send((const void*)&data[Offset], (int)(data.size() - Offset));
+			Offset += SendSize;
+		}
+		return Offset;
+	}
+
+	int TcpSocket::Receive(void* Data, size_t Size) {
+		return ((socketData*)SocketData.get())->Actions->Recv(SocketData.get(), Data, Size);
+	}
+
+	int TcpSocket::ReceiveAsync(void* data, size_t Size) {
+		auto cr = CanReadAsync();
+		if (cr > 0) {
+			return Receive(data, Size);
+		}
+		return cr;
+	}
+	int TcpSocket::ReceiveAsync(std::vector<unsigned char>& data) {
+		int cnt;
+		size_t sz = data.size();
+		do {
+			int sCount = CanReadAsync();
+			if (sCount == 0)
 				return 0;
-			if(bind(SocketID, Source->ai_addr, (int)Source->ai_addrlen) == SOCKET_ERROR)
-				return 0;
 
-			freeaddrinfo(Source);
-			listen(SocketID, SOMAXCONN);
-			return SocketID;
-		}
+			data.resize(sz + 1024);
 
-		//OpenSSL::OpenSSL(): Data{ 0 } {}
-		//OpenSSL::~OpenSSL() {
-		//	if (Data)SSL_CTX_free((SSL_CTX*)Data);
-		//}
-		//OpenSSL::OpenSSL(const char * Certificate) {
-		//	SetCertificate(Certificate);
-		//}
-		//OpenSSL::OpenSSL(const char * Certificate, const char * Pass) {
-		//	SetCertificate(Certificate, Pass);
-		//}
-		//void OpenSSL::SetCertificate(const char * Certificate) {
-		//	Data = InitOpenSSL(Certificate, Certificate);
-		//}
-		//void OpenSSL::SetCertificate(const char * Certificate, const char * Pass) {
-		//	Data = InitOpenSSL(Certificate, Pass);
-		//}
-		static int next;
-
-		TcpSocket::TcpSocket(const TcpSocket & s) {
-			PVX_Socket_RefCount++;
-			Data = s.Data;
-			((PVX_SocketData*)Data)->Ref++;
-		}
-		TcpSocket & Network::TcpSocket::operator=(const TcpSocket & s) {
-			PVX_Socket_RefCount++;
-			DeRef();
-			Data = s.Data;
-			((PVX_SocketData*)Data)->Ref++;
-			return *this;
-		}
-		std::string TcpSocket::RemoteAddress() const {
-			auto& addr = ((PVX_SocketData*)Data)->Address;
-			return 
-				std::to_string((unsigned char)addr.sa_data[2]) + "." +
-				std::to_string((unsigned char)addr.sa_data[3]) + "." +
-				std::to_string((unsigned char)addr.sa_data[4]) + "." +
-				std::to_string((unsigned char)addr.sa_data[5]);
-		}
-		std::wstring TcpSocket::wRemoteAddress() const {
-			auto& addr = ((PVX_SocketData*)Data)->Address;
-			return
-				std::to_wstring((unsigned char)addr.sa_data[2]) + L"." +
-				std::to_wstring((unsigned char)addr.sa_data[3]) + L"." +
-				std::to_wstring((unsigned char)addr.sa_data[4]) + L"." +
-				std::to_wstring((unsigned char)addr.sa_data[5]);
-		}
-		uint32_t TcpSocket::dwRemoteAddress() const {
-			return *(uint32_t*)&((PVX_SocketData*)Data)->Address.sa_data[2];
-		}
-
-
-		TcpSocket::TcpSocket(const SOCKET_type s, const void* addr) {
-			PVX_Socket_RefCount++;
-			Data = new PVX_SocketData{ 1, (SOCKET)s, 1, *(sockaddr*)addr };
-		}
-		TcpSocket::TcpSocket() {
-			if(!PVX_Socket_RefCount++)
-				WSAStartup(MAKEWORD(2, 2), &Windows_Socket_Data);
-			Data = new PVX_SocketData{ 1, socket(AF_INET, SOCK_STREAM, 0), 1, 0 };
-		}
-		TcpSocket::TcpSocket(const char * Port) {
-			if(!PVX_Socket_RefCount++)
-				WSAStartup(MAKEWORD(2, 2), &Windows_Socket_Data);
-			Data = new PVX_SocketData{ 1, CreateListenSocket(Port), 1, 0 };
-		}
-		int TcpSocket::Send(const void * data, size_t sz) {
-			//if (Normal)
-			return send(((PVX_SocketData*)Data)->Socket, (const char*)data, (int)sz, 0);
-			//return SSL_write(((PVX_SocketData*)Data)->SSL_Socket, data, (int)sz);
-		}
-		int TcpSocket::Send(const std::vector<unsigned char>& data) {
-			//if (Normal)
-			return send(((PVX_SocketData*)Data)->Socket, (const char*)data.data(), (int)data.size(), 0);
-			//return SSL_write(((PVX_SocketData*)Data)->SSL_Socket, data.data(), (int)data.size());
-		}
-		int TcpSocket::Send(const std::string & data) {
-			//if (Normal)
-			return send(((PVX_SocketData*)Data)->Socket, (const char*)data.data(), (int)data.size(), 0);
-			//return SSL_write(((PVX_SocketData*)Data)->SSL_Socket, data.data(), (int)data.size());
-		}
-		size_t TcpSocket::SendFragmented(const std::vector<unsigned char> & data, size_t FragmentSize) {
-			size_t Offset = 0;
-			size_t sz = data.size();
-			size_t SendSize = FragmentSize;
-			while (Offset + FragmentSize < sz && SendSize == FragmentSize) {
-				SendSize = send(((PVX_SocketData*)Data)->Socket, (const char*)&data[Offset], FragmentSize, 0);
-				Offset += SendSize;
+			if (sCount < 0 || (cnt = Receive(data.data() + sz, 1024)) < 0) {
+				data.clear();
+				return -1;
 			}
-			if (Offset < FragmentSize && SendSize >= 0) {
-				SendSize = send(((PVX_SocketData*)Data)->Socket, (const char*)&data[Offset], (int)(data.size() - Offset), 0);
-				Offset += SendSize;
+			sz += cnt;
+		} while (cnt == 1024);
+		data.resize(sz);
+		return cnt;
+	}
+
+	std::vector<uint8_t> TcpSocket::Receive() {
+		std::vector<uint8_t> ret(1024);
+		int rsz;
+		size_t cur = 0;
+		for (;;) {
+			//if (CanRead() < 0 || (rsz = Receive(ret.data() + cur, 1024))<0) {
+			//	return {};
+			//}
+			if ( (rsz = Receive(ret.data() + cur, 1024))<0) {
+				return {};
 			}
-			return Offset;
-		}
-		int TcpSocket::Receive(void * data, size_t Size) {
-			//if (Normal)
-			return recv(((PVX_SocketData*)Data)->Socket, (char*)data, (int)Size, 0);
-			//return SSL_read(((PVX_SocketData*)Data)->SSL_Socket, data, (int)Size);
-		}
-		int TcpSocket::ReceiveAsync(void * data, size_t Size) {
-			auto cr = CanReadAsync();
-			if (cr > 0) {
-				//if (Normal)
-					return recv(((PVX_SocketData*)Data)->Socket, (char*)data, (int)Size, 0);
-				//return SSL_read(((PVX_SocketData*)Data)->SSL_Socket, data, (int)Size);
+			if (rsz < 1024) {
+				ret.resize(cur + rsz);
+				return ret;
 			}
-			return cr;
+			cur += 1024;
+			ret.resize(cur + 1024);
 		}
-		int TcpSocket::Receive(std::vector<unsigned char>& data) {
-			int cnt;
-			size_t sz = data.size();
-			do {
-				data.resize(sz + 1024);
-				if (CanRead() < 0 || (cnt = recv(((PVX_SocketData*)Data)->Socket, ((char*)data.data()) + sz, 1024, 0)) < 0) {
-					data.clear();
-					return -1;
+	}
+	int TcpSocket::Receive(std::vector<uint8_t>& Data) {
+		int rsz;
+		size_t cur = Data.size();
+		Data.resize(cur + 1024);
+		for (;;) {
+			//if (CanRead() < 0 || (rsz = Receive(Data.data() + cur, 1024))<0) {
+			//	Data.clear();
+			//	return -1;
+			//}
+			if ((rsz = Receive(Data.data() + cur, 1024))<0) {
+				Data.clear();
+				return -1;
+			}
+			if (rsz < 1024) {
+				Data.resize(cur + rsz);
+				return Data.size();
+			}
+			cur += 1024;
+			Data.resize(cur + 1024);
+		}
+	}
+	int TcpSocket::Receive(std::string& Data) {
+		int rsz;
+		size_t cur = Data.size();
+		Data.resize(cur + 1024);
+		for (;;) {
+			//if (CanRead() < 0 || (rsz = Receive(Data.data() + cur, 1024))<0) {
+			//	Data.clear();
+			//	return -1;
+			//}
+			if ((rsz = Receive(Data.data() + cur, 1024))<0) {
+				Data.clear();
+				return -1;
+			}
+			if (rsz < 1024) {
+				Data.resize(cur + rsz);
+				return Data.size();
+			}
+			cur += 1024;
+			Data.resize(cur + 1024);
+		}
+	}
+	int TcpSocket::Connect(const char* Url, const char* Port) {
+		struct addrinfo hint = { 0 };
+		struct addrinfo* dest;
+		hint.ai_family = AF_INET;
+		hint.ai_protocol = IPPROTO_TCP;
+		hint.ai_socktype = SOCK_STREAM;
+		int c = getaddrinfo(Url, Port, &hint, &dest);
+		if (c)return c;
+		c = connect(((socketData*)SocketData.get())->Socket, dest->ai_addr, (int)dest->ai_addrlen);
+		freeaddrinfo(dest);
+		return c;
+	}
+
+	TcpServer::TcpServer(const char* Port, int ThreadCount) :
+		ServingSocket{ (uint32_t*)CreateListenSocket(Port) } {
+		Running = true;
+		if (ThreadCount<=0)ThreadCount = std::max(1, (int)std::thread::hardware_concurrency() - 1);
+		for (auto i = 0; i<ThreadCount; i++) {
+			Workers.push_back(std::thread([this] {
+				for (;;) {
+					std::function<void()> NextTask;
+					{
+						std::unique_lock<std::mutex> lock{ TaskMutex };
+						TaskAdded.wait(lock, [this] { return Tasks.size() || !Running; });
+						if (Running) {
+							NextTask = std::move(Tasks.front());
+							Tasks.pop();
+						} else
+							return;
+					}
+					NextTask();
+					TaskEnded.notify_one();
 				}
-				sz += cnt >= 0 ? cnt : 0;
-			} while (cnt == 1024);
-			data.resize(sz);
-			return cnt;
+			}));
 		}
-
-		int TcpSocket::ReceiveAsync(std::vector<unsigned char>& data) {
-			int cnt;
-			size_t sz = data.size();
-			do {
-				int sCount = CanReadAsync();
-				if (sCount == 0) return 0;
-
-				data.resize(sz + 1024);
-
-				if (sCount < 0 || (cnt = recv(((PVX_SocketData*)Data)->Socket, ((char*)data.data()) + sz, 1024, 0)) < 0) {
-					data.clear();
-					return -1;
-				}
-				sz += cnt >= 0 ? cnt : 0;
-			} while (cnt == 1024);
-			data.resize(sz);
-			return cnt;
-		}
-
-		const unsigned char * const TcpSocket::GetIP() {
-			return (const unsigned char * const) (*(PVX_SocketData*)Data).Address.sa_data + 2;
-		}
-
-		int TcpSocket::CanRead() {
-			fd_set sock{};
-			FD_SET((*(PVX_SocketData*)Data).Socket, &sock);
-			return select(0, &sock, 0, 0, 0);
-		}
-		int TcpSocket::CanReadAsync() {
-			struct timeval to { 0, 1 };
-			fd_set sock{};
-			FD_SET((*(PVX_SocketData*)Data).Socket, &sock);
-			return select(0, &sock, 0, 0, &to);
-		}
-		int TcpSocket::Receive(std::string & data) {
-			int cnt;
-			size_t sz = data.size();
-			do {
-				data.resize(sz + 1024);
-				if (CanRead() < 0 || (cnt = recv(((PVX_SocketData*)Data)->Socket, ((char*)data.data()) + sz, 1024, 0)) < 0) {
-					data.clear();
-					return -1;
-				}
-				sz += cnt >= 0 ? cnt : 0;
-			} while (cnt == 1024);
-			data.resize(sz);
-			return cnt;
-		}
-		int TcpSocket::SetReceiveTimeout(int ms) {
-			struct timeval timeout;
-			timeout.tv_sec = ms;
-			timeout.tv_usec = ms;
-			
-
-			return setsockopt(((PVX_SocketData*)Data)->Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-			return setsockopt(((PVX_SocketData*)Data)->Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&ms, sizeof(int));
-		}
-		TcpSocket TcpSocket::Accept() {
-			sockaddr info;
-			int len = sizeof(sockaddr);
-			CanRead();
-			auto ret = accept(((PVX_SocketData*)Data)->Socket, &info, &len);
-			//return{ ret, info };
-			return{ (SOCKET_type)ret, &info };
-		}
-
-		void Network::TcpSocket::DeRef() {
-			if(!--((PVX_SocketData*)Data)->Ref) {
-				closesocket(((PVX_SocketData*)Data)->Socket);
-				delete ((PVX_SocketData*)Data);
-				Data = 0;
-			}
-			if(!--PVX_Socket_RefCount) WSACleanup();
-		}
-		TcpSocket::~TcpSocket() {
-			DeRef();
-		}
-		int TcpSocket::Connect(const char * Url) {
-			struct addrinfo hint = { 0 };
-			struct addrinfo *dest;
-			hint.ai_family = AF_UNSPEC;
-			hint.ai_socktype = SOCK_DGRAM;
-
-			int c = getaddrinfo(Url, 0, &hint, &dest);
-
-			dest->ai_addr->sa_data[1] = 80;
-
-			if(c)return 0;
-			c = connect(((PVX_SocketData*)Data)->Socket, dest->ai_addr, (int)dest->ai_addrlen);
-			freeaddrinfo(dest);
-			return c;
-		}
-		int TcpSocket::Connect(const char * ip, const char * port) {
-			struct addrinfo hint = { 0 };
-			struct addrinfo *dest;
-			hint.ai_family = AF_INET;
-			hint.ai_protocol = IPPROTO_TCP;
-			hint.ai_socktype = SOCK_STREAM;
-			int c = getaddrinfo(ip, port, &hint, &dest);
-			if(c)return c;
-			c = connect(((PVX_SocketData*)Data)->Socket, dest->ai_addr, (int)dest->ai_addrlen);
-			freeaddrinfo(dest);
-			return c;
-		}
-
-		void TcpSocket::Disconnect() {
-			if(Data) {
-				closesocket(((PVX_SocketData*)Data)->Socket);
-			}
-		}
-		int TcpSocket::IsOK() {
-			return ((PVX_SocketData*)Data)->Socket != -1;
-		}
-		static std::mutex ThreadMutex;
-
-		TcpServer::~TcpServer() {
-			if(Running)Stop();
-		}
-		void TcpServer::Serve(std::function<void(TcpSocket)> Event) {
-			Running = 1;
-			ServingThread = new std::thread([this, Event]() {
-				while(Running) {
-					TcpSocket s = Accept();
-					if(s.IsOK()) {
-						{
-							std::lock_guard<std::mutex> lock{ ThreadMutex };
-							Sockets.insert(((PVX_SocketData*)(s.Data))->Socket);
-							ThreadCount++;
-						}
-						Tasks.Enqueue([Event, s, this] {
-							Event(s);
+	}
+	TcpServer::~TcpServer() {
+		closesocket((SOCKET)ServingSocket);
+		Stop();
+	}
+	void TcpServer::Serve(std::function<void(TcpSocket)> Event, std::function<void(TcpSocket&)> Transform) {
+		Running = true;
+		ServingThread = std::make_unique<std::thread>([this, Event, Transform] {
+			while (Running) {
+				sockaddr info;
+				int len = sizeof(sockaddr);
+				auto ss = accept((SOCKET)ServingSocket, &info, &len);
+				if (ss != -1) {
+					{
+						std::lock_guard<std::mutex> slock{ SocketGuard };
+						OpenSockets.insert((uint32_t*)ss);
+					}
+					std::lock_guard<std::mutex> lock{ TaskMutex };
+					{
+						Tasks.push([ss, info, Event, Transform, this] {
+							TcpSocket mySocket{ (uint32_t*)ss, (void*)&info };
+							if (Transform) Transform(mySocket);
+							Event(mySocket);
 							{
-								std::lock_guard<std::mutex> lock{ ThreadMutex };
-								this->Sockets.erase(((PVX_SocketData*)(s.Data))->Socket);
-								ThreadCount--;
+								std::lock_guard<std::mutex> slock{ SocketGuard };
+								OpenSockets.erase((uint32_t*)ss);
 							}
 						});
 					}
-				}
-			});
-		}
-		void TcpServer::Stop() {
-			Running = 0;
-			Disconnect();
-			{
-				std::lock_guard<std::mutex> lock{ ThreadMutex };
-				for(auto s : Sockets) {
-					closesocket(s);
+					TaskAdded.notify_one();
 				}
 			}
-			if(ServingThread && ServingThread->joinable())
-				ServingThread->join();
-			delete ServingThread;
-			ServingThread = 0;
-		}
+			for (auto& t : Workers) t.join();
+		});
+	}
+	void TcpServer::Stop() {
+		Running = false;
+		for (auto s : OpenSockets) closesocket((SOCKET)s);
+		TaskAdded.notify_all();
+		if (ServingThread.get() != nullptr) ServingThread->join();
 	}
 }

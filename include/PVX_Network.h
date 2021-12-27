@@ -31,78 +31,49 @@ namespace PVX {
 		class WebSocketServer;
 		class WebSocketPacket;
 
-		//class OpenSSL {
-		//public:
-		//	OpenSSL();
-		//	~OpenSSL();
-		//	void SetCertificate(const char * Certificate);
-		//	void SetCertificate(const char * Certificate, const char * Pass);
-		//	OpenSSL(const char * Certificate);
-		//	OpenSSL(const char * Certificate, const char * Pass);
-		//private:
-		//	void * Data;
-		//	friend class TcpSocket;
-		//};
 		class TcpSocket {
 		public:
 			TcpSocket();
-			TcpSocket(const TcpSocket&);
-			TcpSocket(const char * Port);
-			~TcpSocket();
-			TcpSocket & operator=(const TcpSocket & s);
-			int Send(const void * data, size_t sz);
-			int Send(const std::vector<unsigned char> & Data);
-			int Send(const std::string & Data);
+			int Connect(const char* Url, const char* Port);
+			int Send(const void* Data, size_t Size);
+			size_t SendFragmented(const std::vector<unsigned char>& data, size_t FragmentSize = 0x00800000);
+			inline int Send(const std::vector<uint8_t>& Data) { return Send(Data.data(), Data.size()); }
+			inline int Send(const std::string& Data) { return Send(Data.data(), Data.size()); }
+			int Receive(void* Data, size_t Size);
+			int Receive(std::vector<uint8_t>& Data);
+			int Receive(std::string& Data);
+			std::vector<uint8_t> Receive();
 
-			size_t SendFragmented(const std::vector<unsigned char> & Data, size_t FragmentSize = 0x00800000);
+			int ReceiveAsync(void* data, size_t Size);
+			int ReceiveAsync(std::vector<uint8_t>& data);
 
-			int Receive(void * Data, size_t Size);
-			int Receive(std::vector<unsigned char> & Data);
-			int Receive(std::string & Data);
-			int ReceiveAsync(std::vector<unsigned char> & Data);
-			int ReceiveAsync(void * Data, size_t Size);
-
-			int SetReceiveTimeout(int ms);
-
-			TcpSocket Accept();
-			int Connect(const char * Url);
-			int Connect(const char * ip, const char * port);
-			//void SetSSL(const OpenSSL&);
-			void Disconnect();
-			int IsOK();
 			int CanRead();
 			int CanReadAsync();
-			const unsigned char * const GetIP();
-			template<typename T> 
-			inline T & GetPrivateData() {
-				return *(T*)PrivateData;
-			}
-			std::string RemoteAddress() const;
-			std::wstring wRemoteAddress() const;
-			uint32_t dwRemoteAddress() const;
-			// int SecureConnection();
+			void Disconnect();
+
+			// Internal Use Only
+			template<typename T> T& GetInternalData() { return *(T*)SocketData.get(); }
 		protected:
-			TcpSocket(const SOCKET_type, const void*);
-			//TcpSocket(const SOCKET, const sockaddr &);
-			void * Data, * PrivateData;
-			void DeRef();
-			friend class TcpServer_Old;
+			TcpSocket(uint32_t*, const void*);
+			std::shared_ptr<void> SocketData;
 			friend class TcpServer;
 		};
-		
-		void SecureSocket();
 
-		class TcpServer: public TcpSocket {
+		class TcpServer {
 		public:
-			TcpServer(const char* Post) : TcpSocket(Post), ThreadCount{ 0 }, ServingThread{ nullptr } {};
+			TcpServer(const char* Port, int ThreadCount = 0);
 			~TcpServer();
-			void Serve(std::function<void(TcpSocket)> Event);
+			void Serve(std::function<void(TcpSocket)> clb, std::function<void(TcpSocket&)> OnConnect = nullptr);
 			void Stop();
 		protected:
-			std::atomic_int Running = 0, ThreadCount;
-			std::thread * ServingThread;
-			PVX::Threading::TaskPump Tasks;
-			std::set<SOCKET_type> Sockets;
+			std::atomic_bool Running;
+			uint32_t* ServingSocket;
+			std::unique_ptr<std::thread> ServingThread;
+			std::vector<std::thread> Workers;
+			std::mutex TaskMutex, SocketGuard;
+			std::condition_variable TaskAdded, TaskEnded;
+			std::queue<std::function<void()>> Tasks;
+			std::set<uint32_t*> OpenSockets;
 		};
 
 		class UtfHelper {
@@ -151,7 +122,7 @@ namespace PVX {
 			HttpRequest(const std::string & s);
 			HttpRequest & operator=(const std::string & s);
 			std::vector<unsigned char> RawContent;
-			std::wstring * HasHeader(const std::string & h);
+			std::wstring HasHeader(const std::string & h) const;
 			PVX::JSON::Item Json() const;
 			WebSocket GetWebSocket();
 			bool SouldCompress();
@@ -209,7 +180,7 @@ namespace PVX {
 			void StreamRaw(size_t Size, std::function<bool(TcpSocket & Socket)> fnc);
 
 			void SetCookie(const std::wstring & Name, const std::wstring & Value);
-			void ClearCookie(const std::wstring & Name);
+			void ClearCookie(const std::wstring & Name, const std::wstring& Path = L"");
 			int SendHeader(size_t ContentLength = 0);
 			void AllowOrigin(HttpRequest& req, const std::set<std::wstring>& Allow = {});
 
@@ -267,7 +238,12 @@ namespace PVX {
 			std::function<void(TcpSocket)> GetHandler();
 
 			void Routes(const Route & routes);
-			void Routes(const std::wstring & url, std::function<void(HttpRequest&, HttpResponse&)> Action);
+			void Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
+
+			inline void Routes(const std::wstring& url, std::function<void(HttpResponse&)> Action) { Routes(url, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
+			inline void Routes(const std::wstring& url, std::function<void(HttpRequest&)> Action) { Routes(url, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
+			inline void Routes(const std::wstring& url, std::function<void()> Action) { Routes(url, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
+			
 			void Routes(const std::initializer_list<Route> & routes);
 
 			void AddFilter(std::function<int(HttpRequest&, HttpResponse&)> Filter);
@@ -281,8 +257,29 @@ namespace PVX {
 
 			// Route must contain {Path} Variable
 			std::function<void(HttpRequest&, HttpResponse&)> ContentServer(const std::wstring & ContentPath = L"");
-			Route ContentPathRoute(const std::wstring & url, const std::wstring & Path);
-			void DefaultRouteForContent(const std::wstring & Path);
+			std::function<void(HttpRequest&, HttpResponse&)> HtmlFileRoute(const std::wstring& Filename) {
+				return [Filename](HttpRequest& req, HttpResponse& resp) {
+					resp.ServeFile(Filename, L"text/html");
+				};
+			};
+
+			void ContentRoute(const std::wstring & Url, const std::wstring & Path) {
+				auto url = Url;
+				if (url.front() != L'/')url = L"/" + url;
+				Routes({ url + L"/{Path}", ContentServer(Path) });
+			}
+			void DefaultRouteForContent(const std::wstring & Path) {
+				SetDefaultRoute(ContentServer(Path));
+			}
+			void DefaultHtml(const std::wstring& Filename) {
+				SetDefaultRoute(HtmlFileRoute(Filename));
+			}
+			void ServeFile(const std::wstring& Url, const std::wstring& File) {
+				Routes(Url, [File](HttpResponse& resp) {
+					resp.ServeFile(File);
+				});
+			}
+
 			std::wstring StartSession(PVX::Network::HttpRequest & req, PVX::Network::HttpResponse & resp);
 
 			void BasicAuthentication(std::function<void(const std::wstring&, const std::wstring&)> clb);
@@ -449,14 +446,16 @@ namespace PVX {
 			HttpClient::HttpResponse Post(const std::wstring& url, const std::wstring& Data);
 			HttpClient::HttpResponse Post(const std::wstring& url, const JSON::Item& Data);
 
-			HttpClient & OnReceiveHeader(std::function<void(const std::wstring&)> fnc);
-			HttpClient & OnReceiveData(std::function<void(const std::vector<unsigned char>&)> fnc);
+			HttpClient& OnReceiveHeader(std::function<void(const std::wstring&)> fnc);
+			HttpClient& OnReceiveData(std::function<void(const std::vector<unsigned char>&)> fnc);
+			HttpClient& OnConnect(std::function<void(TcpSocket&)> clb);
 			std::map<std::wstring, std::wstring> Cookies;
 			void Headers(const std::map<std::string, std::wstring>& h);
 			UtfHelper& operator[](const std::string& Name);
 		protected:
 			void Url(const std::wstring & url);
 			void Url(const std::string & url);
+			std::function<void(TcpSocket&)> onConnect;
 			std::function<void(const std::wstring&)> onReceiveHeader;
 			std::function<void(const std::vector<unsigned char>&)> onReceiveData;
 			std::string protocol, domain, query, port;

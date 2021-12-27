@@ -16,10 +16,10 @@ namespace PVX {
 			return PVX::Decode::UTF((unsigned char*)x.data(), (int)(x.size()));
 		}
 		static v8::Local<v8::String> ToString(const std::wstring & val) {
-			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), (char*)PVX::Encode::UTF0(val).data());
+			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), (char*)PVX::Encode::UTF0(val).data()).ToLocalChecked();
 		}
 		static v8::Local<v8::String> ToString(const std::string & val) {
-			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), val.c_str());
+			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), val.c_str()).ToLocalChecked();
 		}
 		v8Value::Array::Array(const std::vector<v8Value>& arr) : Arr{ arr } {}
 
@@ -38,7 +38,7 @@ namespace PVX {
 		v8Value::v8Value(const Array & a) : v8Data{ v8::Array::New(v8::Isolate::GetCurrent(), (int)a.Arr.size()) } {
 			const auto & arr = v8Data.As<v8::Array>();
 			for (auto i = 0; i < a.Arr.size(); i++)
-				arr->Set(i, a.Arr[i].GetValue());
+				arr->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), i, a.Arr[i].GetValue());
 		}
 		v8Value::v8Value(const v8::Local<v8::Value> & v, const v8::Local<v8::Value> & Parent, const std::wstring & Index) : v8Data{ v }, Parent{ Parent }, StringIndex{ ToString(Index) }{}
 		v8Value::v8Value(const v8::Local<v8::Value> & v, const v8::Local<v8::Value> & Parent, const v8::Local<v8::String> & Index) : v8Data{ v }, Parent{ Parent }, StringIndex{ Index }{}
@@ -67,9 +67,10 @@ namespace PVX {
 			Function(clb);
 		}
 		v8Value::v8Value(std::function<v8Value()> clb) {
-			Function([clb](std::vector<v8Value>& Params) -> v8Value {
+			auto fnc = [clb](std::vector<v8Value>& Params) -> v8Value {
 				return clb;
-			});
+			};
+			Function(fnc);
 		}
 
 
@@ -109,20 +110,24 @@ namespace PVX {
 		}
 		v8Value v8Value::map(std::function<v8Value(const v8Value&)> fnc) {
 			int len = Length();
-			auto ret = v8::Array::New(v8::Isolate::GetCurrent(), len);
+			auto iso = v8::Isolate::GetCurrent();
+			auto context = iso->GetCurrentContext();
+			auto ret = v8::Array::New(iso, len);
 			auto This = v8Data.As<v8::Array>();
 			for (auto i = 0; i < len; i++) {
-				ret->Set(i, fnc(v8Value(This->Get(i))).GetValue());
+				ret->Set(context, i, fnc(v8Value(This->Get(context, i).ToLocalChecked())).GetValue());
 			}
 			return v8Value{ ret };
 		}
 		v8Value v8Value::filter(std::function<bool(const v8Value&)> fnc) {
 			int len = Length();
-			auto ret = v8::Array::New(v8::Isolate::GetCurrent(), len);
+			auto iso = v8::Isolate::GetCurrent();
+			auto context = iso->GetCurrentContext();
+			auto ret = v8::Array::New(iso, len);
 			auto This = v8Data.As<v8::Array>();
 			for (auto i = 0; i < len; i++) {
-				auto x = This->Get(i);
-				if(fnc(v8Value(x))) ret->Set(i, x);
+				auto x = This->Get(context, i).ToLocalChecked();
+				if(fnc(v8Value(x))) ret->Set(context, i, x);
 			}
 			return v8Value{ ret };
 		}
@@ -131,9 +136,9 @@ namespace PVX {
 			v8Data = v;
 			if (!Parent.IsEmpty()) {
 				if (StringIndex.IsEmpty())
-					Parent.As<v8::Array>()->Set(Index, v8Data);
+					Parent.As<v8::Array>()->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), Index, v8Data);
 				else
-					Parent.As<v8::Object>()->Set(StringIndex, v8Data);
+					Parent.As<v8::Object>()->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), StringIndex, v8Data);
 			}
 			return *this;
 		}
@@ -193,11 +198,12 @@ namespace PVX {
 		//}
 
 		std::vector<std::wstring> v8Value::keys() {
-			auto n = v8Data.As<v8::Object>()->GetPropertyNames(v8::Isolate::GetCurrent()->GetCurrentContext()).ToLocalChecked();
+			auto context = v8::Isolate::GetCurrent()->GetCurrentContext();
+			auto n = v8Data.As<v8::Object>()->GetPropertyNames(context).ToLocalChecked();
 			int Count = n->Length();
 			std::vector<std::wstring> ret;
 			ret.reserve(Count);
-			for (auto i = 0; i < Count; i++) ret.push_back(ToString(n->Get(i)));
+			for (auto i = 0; i < Count; i++) ret.push_back(ToString(n->Get(context, i).ToLocalChecked()));
 			return ret;
 		}
 		int v8Value::Length() {
@@ -257,20 +263,20 @@ namespace PVX {
 		v8Value& v8Value::operator[](int Index) {
 			if (auto ch = ArrayChild.find(Index); ch!=ArrayChild.end())
 				return ch->second;
-			ArrayChild.insert({ Index, { v8Data.As<v8::Array>()->Get(Index), v8Data, Index } });
+			ArrayChild.insert({ Index, { v8Data.As<v8::Array>()->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), Index).ToLocalChecked(), v8Data, Index } });
 			return ArrayChild[Index];
 		}
 		v8Value& v8Value::operator[](const std::wstring & Index) {
 			if (auto ch = ObjectChild.find(Index); ch!=ObjectChild.end())
 				return ch->second;
-			ObjectChild.insert({ Index, { v8Data.As<v8::Object>()->Get(ToString(Index)), v8Data, Index } });
+			ObjectChild.insert({ Index, { v8Data.As<v8::Object>()->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), ToString(Index)).ToLocalChecked(), v8Data, Index } });
 			return ObjectChild[Index];
 		}
 		v8Value& v8Value::operator[](const std::string & index) {
 			auto Index = PVX::Encode::ToString(index);
 			if (auto ch = ObjectChild.find(Index); ch!=ObjectChild.end())
 				return ch->second;
-			ObjectChild.insert({ Index, { v8Data.As<v8::Object>()->Get(ToString(index)), v8Data, Index } });
+			ObjectChild.insert({ Index, { v8Data.As<v8::Object>()->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), ToString(index)).ToLocalChecked(), v8Data, Index } });
 			return ObjectChild[Index];
 		}
 
@@ -280,6 +286,7 @@ namespace PVX {
 #define v8Undef v8::Undefined(v8::Isolate::GetCurrent())
 		static v8::Local<v8::Value> Reduce(v8::Local<v8::Value> v) {
 			auto anIsolate = v8::Isolate::GetCurrent();
+			auto context = anIsolate->GetCurrentContext();
 
 			if (v->IsNull()) return v8Undef;
 			else if (v->IsArray()){
@@ -290,15 +297,15 @@ namespace PVX {
 				auto ret = v8::Array::New(anIsolate);
 				int count = 0;
 				for (int i = 0; i < len; i++) {
-					auto item = Reduce(arr->Get(i));
+					auto item = Reduce(arr->Get(context, i).ToLocalChecked());
 					count += item->IsUndefined() ? 1 : 0;
-					ret->Set(i, item);
+					ret->Set(context, i, item);
 				}
 				if (count == len)return v8Undef;
 				return ret;
 			} else if (v->IsObject() && !(v->IsFunction() || v->IsSet())) {
 				auto obj = v.As<v8::Object>();
-				auto names = obj->GetOwnPropertyNames(anIsolate->GetCurrentContext()).ToLocalChecked();
+				auto names = obj->GetOwnPropertyNames(context).ToLocalChecked();
 
 				int len = names->Length();
 
@@ -306,10 +313,10 @@ namespace PVX {
 				auto ret = v8::Object::New(anIsolate);
 				int count = 0;
 				for (int i = 0; i < len; i++) {
-					auto index = names->Get(i);
-					auto item = Reduce(obj->Get(index));
+					auto index = names->Get(context, i).ToLocalChecked();
+					auto item = Reduce(obj->Get(context, index).ToLocalChecked());
 					if (!item->IsUndefined()) {
-						ret->Set(index, item);
+						ret->Set(context, index, item);
 						count++;
 					}
 				}
@@ -342,25 +349,28 @@ namespace PVX {
 				case JSON::BSON_Type::Boolean: return v8::Boolean::New(cur, Val.Boolean());
 				case JSON::BSON_Type::Array: {
 					v8::Local<v8::Array> ret = v8::Array::New(cur, Val.length());
+					auto context = v8::Isolate::GetCurrent()->GetCurrentContext();
 					for (auto i = 0; i < Val.length(); i++)
-						ret->Set(i, FromJson(Val[i]));
+						ret->Set(context, i, FromJson(Val[i]));
 					return ret;
 				}
 				case JSON::BSON_Type::Object: {
 					v8::Local<v8::Object> ret = v8::Object::New(cur);
-					Val.eachInObject([&ret](const std::wstring& Name, const JSON::Item& Value) {
-						ret->Set(ToString(Name), FromJson(Value));
+					auto context = v8::Isolate::GetCurrent()->GetCurrentContext();
+					Val.eachInObject([&ret, &context](const std::wstring& Name, const JSON::Item& Value) {
+						ret->Set(context, ToString(Name), FromJson(Value));
 					});
 					return ret;
 				}
 				case JSON::BSON_Type::ObjectId: {
+					auto context = v8::Isolate::GetCurrent()->GetCurrentContext();
 					auto data = v8Value{
 						{ L"Type", v8Value(int(JSON::BSON_Type::ObjectId)) },
 						{ L"Value", v8Value(ToString(PVX::Encode::ToHex(Val.Value.Binary()))) }
 					};
 					auto ret = v8::FunctionTemplate::New(cur, PVX_BSON_Callback)->GetFunction(cur->GetCurrentContext()).ToLocalChecked();
 					ret->SetName(ToString("BSON::ObjectId"));
-					ret.As<v8::Object>()->Set(ToString("toJSON"), v8::FunctionTemplate::New(cur, PVX_ObjectId_Callback, data.GetValue())->GetFunction(cur->GetCurrentContext()).ToLocalChecked());
+					ret.As<v8::Object>()->Set(context, ToString("toJSON"), v8::FunctionTemplate::New(cur, PVX_ObjectId_Callback, data.GetValue())->GetFunction(cur->GetCurrentContext()).ToLocalChecked());
 					return ret;
 				}
 			}
@@ -442,9 +452,11 @@ namespace PVX {
 			return SetValue(clb);
 		}
 		v8Value& v8Value::operator=(std::function<v8Value()> clb) {
-			return SetValue({ [clb](std::vector<v8Value>& Params) -> v8Value {
-				return clb();
-			} });
+			return SetValue({ 
+				[clb](std::vector<v8Value>& Params) -> v8Value {
+					return clb();
+				} 
+			});
 		}
 
 

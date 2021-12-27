@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include<PVX_Network.h>
 #include<PVX_File.h>
 #include<PVX_Encode.h>
@@ -86,10 +88,65 @@ namespace PVX {
 			Action = action;
 		}
 
-		int GetRequest(TcpSocket& s, HttpRequest& http, std::vector<uchar>& Content) {
+		long long FindEnd(std::vector<uint8_t>& buffer) {
+			for (auto i = 0; i < long long(buffer.size()) - 3; i++) {
+				if (!memcmp(&buffer[i], "\r\n\r\n", 4)) 
+					return i;
+			}
+			return -1;
+		}
+
+		void RemoveFront(std::vector<uint8_t>& buff, size_t sz) {
+			if (sz == buff.size()) {
+				buff.clear();
+			} else {
+				for (size_t i = sz, j = 0; i< buff.size(); i++, j++) {
+					buff[j] = buff[i];
+				}
+				buff.resize(buff.size() - sz);
+			}
+		}
+
+		int GetRequest(std::vector<uint8_t>& buffer, TcpSocket& s, HttpRequest& Request, std::vector<uint8_t>& Content) {
+			Request.Socket = s;
+			int rcvSize;
+			int EoH = -1;
+			while ((EoH = FindEnd(buffer)) == -1 && (rcvSize = s.Receive(buffer)) > 0);
+
+			if (EoH != -1) {
+				size_t contentLength = 0;
+				size_t sz = EoH + 4;
+
+				Request.RawHeader.resize(sz);
+				memcpy(Request.RawHeader.data(), buffer.data(), sz);
+				RemoveFront(buffer, sz);
+
+				Request = Request.RawHeader;
+				
+				if (auto cc = Request.Headers.find("content-length"); cc != Request.Headers.end() && (contentLength = _wtoi(cc->second->c_str()))) {
+					Content.reserve(contentLength);
+					if (int more = std::min(contentLength, buffer.size());  more) {
+						Content.resize(more);
+						memcpy(Content.data(), buffer.data(), more);
+						RemoveFront(buffer, more);
+					}
+					while (Content.size() < contentLength && s.Receive(Content) > 0);
+					if (Content.size() > contentLength) {
+						buffer.resize(Content.size() - contentLength);
+						memcpy(buffer.data(), &Content[contentLength], Content.size() - contentLength);
+						Content.resize(contentLength);
+					}
+				}
+				return 1;
+			}
+			return 0;
+		}
+
+		int GetRequest2(TcpSocket& s, HttpRequest& http, std::vector<uchar>& Content) {
 			int EoH = -1;
 			http.Socket = s;
-			while (s.Receive(http.RawHeader) > 0 &&
+			int rcvSize;
+			while ((rcvSize = s.Receive(http.RawHeader)) > 0 &&
 				(EoH = http.RawHeader.find("\r\n\r\n")) == -1);
 			if (EoH != -1) {
 				size_t contentLength = 0;
@@ -122,6 +179,7 @@ namespace PVX {
 			if (url.front() != L'/')url = L"/" + url;
 			Router.push_back({ url, Action });
 		}
+
 		void HttpServer::Routes(const std::initializer_list<Route>& routes) {
 			for (auto & r : routes) {
 				Router.push_back(r);
@@ -188,15 +246,13 @@ namespace PVX {
 			};
 		}
 
-		Route HttpServer::ContentPathRoute(const std::wstring & Url, const std::wstring & Path) {
-			auto url = Url;
-			if (url.front() != L'/')url = L"/" + url;
-			return{ url + L"/{Path}", ContentServer(Path) };
-		}
+		//Route HttpServer::ContentPathRoute(const std::wstring & Url, const std::wstring & Path) {
+		//	auto url = Url;
+		//	if (url.front() != L'/')url = L"/" + url;
+		//	return{ url + L"/{Path}", ContentServer(Path) };
+		//}
 
-		void HttpServer::DefaultRouteForContent(const std::wstring & Path) {
-			SetDefaultRoute(ContentServer(Path));
-		}
+		//void HttpServer::DefaultRouteForContent(const std::wstring & Path)
 
 		std::wstring HttpServer::MakeSession() {
 			auto now = std::chrono::system_clock::now().time_since_epoch().count();
@@ -225,11 +281,11 @@ namespace PVX {
 
 		int HttpServer::HandleWebToken(HttpRequest& req, HttpResponse& resp) {
 			using namespace PVX::Encrypt;
-			if (auto k = req.Cookies.find(L"pxx-token"); k!=req.Cookies.end() && k->second.size() > ((32 * 4 + 2) / 3)) {
+			if (auto k = req.Cookies.find(L"pvx-token"); k!=req.Cookies.end() && k->second.size() > ((32 * 4 + 2) / 3)) {
 				auto Token = PVX::Decode::Base64Url(k->second);
-				auto Hash = HMAC<SHA256_Algorithm>(TokenKey.data(), TokenKey.size(), Token.data() + 32, Token.size()-32);
+				auto Hash = HMAC<SHA256_Algorithm>(TokenKey.data(), TokenKey.size(), Token.data() + 32 + 1, Token.size() - 32 - 1);
 				if (!memcmp(Hash.data(), Token.data(), 32)) {
-					req.User = PVX::JSON::parse(Token.data() + 32, Token.size() - 32);
+					req.User = PVX::JSON::parse(Token.data() + 32 + 1, Token.size() - 32 - 1);
 				}
 			}
 			return 1;
@@ -303,21 +359,15 @@ namespace PVX {
 		}
 		std::function<void(TcpSocket)> HttpServer::GetHandler() {
 			return [this](TcpSocket Socket) {
+
+				// Catch Memory Exceptions (maybe)
 				signal(SIGSEGV, [](int Signal) {
 					throw "Access Violation";
 				});
-				//signal(SIGTERM, [](int Signal) {
-				//	throw "An Exception";
-				//});
 
 				HttpRequest Request;
-				while (GetRequest(Socket, Request, Request.RawContent)) {
-					//if (Request.Method=="OPTIONS") {
-					//	HttpResponse r;
-					//	r.StatusCode = 405;
-					//	SendResponse(Socket, Request, r);
-					//}
-
+				std::vector<uint8_t> Buffer;
+				while (GetRequest(Buffer, Socket, Request, Request.RawContent)) {
 					for (auto & r : Router) {
 						if (r.Match(Request.QueryString, Request.Variables, Request.Get)) {
 							HandleRequest(Socket, Request, r);

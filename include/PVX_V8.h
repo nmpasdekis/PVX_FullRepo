@@ -1,7 +1,7 @@
 #ifndef __PVX_V8_H__
 #define __PVX_V8_H__
 
-#include <../External/V8/include/v8.h>
+#include <v8.h>
 #include <vector>
 #include <map>
 #include <functional>

@@ -12,6 +12,7 @@ namespace PVX::Network {
 	HttpRequest & HttpRequest::operator=(const std::string & s) {
 		Headers.clear();
 		SetHeader(s);
+		RawContent.clear();
 		return *this;
 	}
 
@@ -27,8 +28,8 @@ namespace PVX::Network {
 	}
 	std::vector<HttpRequest::RequestRange> HttpRequest::GetRanges() {
 		auto ranges = HasHeader("range");
-		if (ranges) {
-			auto Ranges = ranges->substr(ranges->find(L'=') + 1);
+		if (ranges.size()) {
+			auto Ranges = ranges.substr(ranges.find(L'=') + 1);
 			return PVX::Map(PVX::String::Split_No_Empties(Ranges, L","), [](const std::wstring & part) {
 				auto r = PVX::String::Split_No_Empties_Trimed(part, L"-");
 				return HttpRequest::RequestRange{ (size_t)_wtoi64(r[0].c_str()), r.size() > 1 ? (size_t)_wtoi64(r[1].c_str()) : -2 };
@@ -64,15 +65,36 @@ namespace PVX::Network {
 		}
 		return 0;
 	}
-	std::wstring * HttpRequest::HasHeader(const std::string & h) {
-		auto f = Headers.find(h);
-		if (f != Headers.end())
-			return &f->second();
-		return nullptr;
+	std::wstring HttpRequest::HasHeader(const std::string & h) const {
+		if (auto f = Headers.find(h); f != Headers.end())
+			return (std::wstring)f->second;
+		return {};
 	}
 
 	PVX::JSON::Item HttpRequest::Json() const {
-		return PVX::JSON::parse(RawContent);
+		if(auto cType = HasHeader("content-type"); cType.size()){
+			if(cType.find(L"application/json") != std::string::npos)
+				return PVX::JSON::parse(RawContent);
+			if (cType.find(L"application/x-www-form-urlencoded") != std::string::npos) {
+				auto ret = PVX::JSON::EmptyObject();
+				for (auto& w : PVX::String::Split(PVX::Decode::UTF(RawContent), L"&")) {
+					auto [name, value] = PVX::String::Split2_Trimed(w, L"=");
+					auto v = PVX::Decode::Uri(value);
+					if (auto h = ret.Has(name)) {
+						if (h->Type() == PVX::JSON::jsElementType::Array)
+							h->push(v);
+						else {
+							auto it = *h;
+							ret[name] = PVX::JSON::jsArray{ it, v };
+						}
+					} else {
+						ret[name] = v;
+					}
+				}
+				return ret;
+			}
+		}
+		return PVX::JSON::jsElementType::Undefined;
 	}
 
 	static std::wregex SplitHeaderRegex(LR"raw(([^\:]+):\s*([^;\r\n]*)(;\s*(.+))?(:?\r\n)?)raw", std::regex_constants::optimize);
@@ -101,9 +123,9 @@ namespace PVX::Network {
 		SetDefaultHeader(Response);
 		Response.Socket = Socket;
 
-		if (auto h = http.HasHeader("content-type"); h) {
+		if (auto h = http.HasHeader("content-type"); h.size()) {
 			std::map<std::wstring, std::wstring> ContentOptions;
-			auto m = PVX::regex_match(*h, ContentTypeRegex);
+			auto m = PVX::regex_match(h, ContentTypeRegex);
 			std::wstring ContentType = m[1];
 			if (m.size() > 3) PVX::onMatch(m[3], ContentOptionsRegex, [&ContentOptions](const std::wsmatch & mm) { ContentOptions[mm[1]] = mm[2]; });
 			if (ContentType == L"multipart/form-data") {
@@ -182,8 +204,8 @@ namespace PVX::Network {
 		}
 	}
 	bool HttpRequest::SouldCompress() {
-		std::wstring * h = 0;
-		return (h = HasHeader("accept-encoding")) && (h->find(L"deflate") != std::wstring::npos);
+		std::wstring h = HasHeader("accept-encoding");
+		return (h.size()  && (h.find(L"deflate") != std::wstring::npos));
 	}
 	std::wstring HttpRequest::operator[](const std::wstring& Name) {
 		return Variables[Name]();
@@ -199,7 +221,7 @@ namespace PVX::Network {
 	}
 	void HttpRequest::BasicAuthentication(std::function<void(const std::wstring& Username, const std::wstring& Password)> clb) {
 		const std::wregex r(LR"regex(basic\s+(.+))regex", std::regex_constants::optimize|std::regex_constants::icase);
-		if (auto& Auth = *HasHeader("authorization"); &Auth) {
+		if (auto Auth = HasHeader("authorization"); Auth.size()) {
 			if (auto match = PVX::regex_match(Auth, r); match.size()) {
 				auto [Username, Password] = PVX::String::Split2(PVX::Decode::UTF(PVX::Decode::Base64(PVX::Encode::ToString(match[1]))), L":");
 				clb(Username, Password);

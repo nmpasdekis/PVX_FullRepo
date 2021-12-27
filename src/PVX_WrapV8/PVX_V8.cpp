@@ -62,16 +62,16 @@ namespace PVX {
 		}
 		Engine::Engine() {
 			if (!InstanceCount++) {
-				auto v8Path = PVX::IO::FilePathPart(V8Path + "v8.dll");
+				//auto v8Path = PVX::IO::FilePathPart(V8Path + "v8.dll");
 
-				LoadLibrary((v8Path + "\\icuuc.dll").c_str());
-				LoadLibrary((v8Path + "\\icui18n.dll").c_str());
-				LoadLibrary((v8Path + "\\v8_libbase.dll").c_str());
-				LoadLibrary((v8Path + "\\v8_libplatform.dll").c_str());
-				LoadLibrary((v8Path + "\\v8.dll").c_str());
+				//LoadLibrary((v8Path + "\\icuuc.dll").c_str());
+				//LoadLibrary((v8Path + "\\icui18n.dll").c_str());
+				//LoadLibrary((v8Path + "\\v8_libbase.dll").c_str());
+				//LoadLibrary((v8Path + "\\v8_libplatform.dll").c_str());
+				//LoadLibrary((v8Path + "\\v8.dll").c_str());
 
 				v8::V8::InitializeICUDefaultLocation("");
-				v8::V8::InitializeExternalStartupData((v8Path + "\\Data").c_str());
+				//v8::V8::InitializeExternalStartupData((v8Path + "\\Data").c_str());
 				platform = v8::platform::NewDefaultPlatform();
 				v8::V8::InitializePlatform(platform.get());
 				v8::V8::Initialize();
@@ -81,13 +81,13 @@ namespace PVX {
 		Engine::~Engine() {
 			Release();
 			if (!--InstanceCount) {
-				v8::V8::Dispose();
-				v8::V8::ShutdownPlatform();
+				//v8::V8::Dispose();
+				//v8::V8::ShutdownPlatform();
 			}
 		}
 
 		v8::Local<v8::String> Engine::ToString(const char * Text) {
-			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), Text);
+			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), Text).ToLocalChecked();
 		}
 
 		v8Value Engine::RunCode(const std::wstring & Code) {
@@ -130,7 +130,7 @@ namespace PVX {
 			auto params = PVX::Map(Params, v8Value::FromJson);
 			auto name = ToString(Function);
 			if (pd.v8Global->Has(pd.context, name).ToChecked()) {
-				auto fnc = pd.v8Global->Get(name).As<v8::Function>();
+				auto fnc = pd.v8Global->Get(pd.context, name).ToLocalChecked().As<v8::Function>();
 				return ToJson(fnc->Call(pd.context, pd.v8Global, (int)params.size(), params.size() ? params.data() : nullptr).ToLocalChecked());
 			}
 			return PVX::JSON::jsElementType::Undefined;
@@ -140,7 +140,7 @@ namespace PVX {
 			auto params = PVX::Map(Params, [](const v8Value & v) { return v.GetValue(); });
 			auto name = ToString(Function);
 			if (pd.v8Global->Has(pd.context, name).ToChecked()) {
-				auto fnc = pd.v8Global->Get(name).As<v8::Function>();
+				auto fnc = pd.v8Global->Get(pd.context, name).ToLocalChecked().As<v8::Function>();
 				return fnc->Call(pd.context, pd.v8Global, (int)params.size(), params.size() ? params.data() : nullptr).ToLocalChecked();
 			}
 			return v8Value::Type::Undefined;
@@ -150,7 +150,7 @@ namespace PVX {
 			auto params = PVX::Map(Params, [](const v8Value & v) { return v.GetValue(); });
 
 			if (pd.v8Global->Has(pd.context, Name.GetValue()).ToChecked()) {
-				auto fnc = pd.v8Global->Get(Name.GetValue()).As<v8::Function>();
+				auto fnc = pd.v8Global->Get(pd.context, Name.GetValue()).ToLocalChecked().As<v8::Function>();
 				return fnc->Call(pd.context, pd.v8Global, (int)params.size(), params.size() ? params.data() : nullptr).ToLocalChecked();
 			}
 			return v8Value::Type::Undefined;
@@ -159,7 +159,7 @@ namespace PVX {
 			V8PrivateData & pd = *(V8PrivateData*)PrivateData;
 			auto params = PVX::Map(Params, [](const v8Value & v) { return v.GetValue(); });
 			if (Object.GetValue().As<v8::Object>()->Has(pd.context, Name.GetValue()).ToChecked()) {
-				auto fnc = Object.GetValue().As<v8::Function>()->Get(Name.GetValue()).As<v8::Function>();
+				auto fnc = Object.GetValue().As<v8::Function>()->Get(pd.context, Name.GetValue()).ToLocalChecked().As<v8::Function>();
 				return fnc->Call(pd.context, Object.GetValue(), (int)params.size(), params.size() ? params.data() : nullptr).ToLocalChecked();
 			}
 			return v8Value::Type::Undefined;
@@ -194,10 +194,10 @@ namespace PVX {
 			return PVX::Decode::UTF((unsigned char*)x.data(), (int)(x.size()));
 		}
 		v8::Local<v8::String> Engine::ToString(const std::wstring & str) {
-			return v8::String::NewFromUtf8(((V8PrivateData*)PrivateData)->Isolate, (char*)PVX::Encode::UTF0(str).data());
+			return v8::String::NewFromUtf8(((V8PrivateData*)PrivateData)->Isolate, (char*)PVX::Encode::UTF0(str).data()).ToLocalChecked();
 		}
 		v8::Local<v8::String> Engine::ToString(const std::vector<unsigned char>& str) {
-			return v8::String::NewFromUtf8(((V8PrivateData*)PrivateData)->Isolate, (char*)str.data());
+			return v8::String::NewFromUtf8(((V8PrivateData*)PrivateData)->Isolate, (char*)str.data()).ToLocalChecked();
 		}
 	}
 	std::wstring ToString(const v8::Handle<v8::Value>& val) {
@@ -224,19 +224,21 @@ namespace PVX {
 		} else if (val->IsString()) {
 			return ToString(val);
 		} else if (val->IsArray()) {
+			auto context = v8::Isolate::GetCurrent()->GetCurrentContext();
 			auto Array = val.As<v8::Array>();
 			uint32_t len = Array->Length();
 			PVX::JSON::Item ret = PVX::JSON::jsElementType::Array;
-			for (uint32_t i = 0; i < len; i++) ret.push(ToJson(Array->Get(i)));
+			for (uint32_t i = 0; i < len; i++) ret.push(ToJson(Array->Get(context, i).ToLocalChecked()));
 			return ret;
 		} else if (val->IsObject()) {
+			auto context = v8::Isolate::GetCurrent()->GetCurrentContext();
 			auto obj = val.As<v8::Object>();
-			auto Array = obj->GetPropertyNames(v8::Isolate::GetCurrent()->GetCurrentContext()).ToLocalChecked();
+			auto Array = obj->GetPropertyNames(context).ToLocalChecked();
 			int len = Array->Length();
 			PVX::JSON::Item ret = PVX::JSON::jsElementType::Object;
 			for (int i = 0; i < len; i++) {
-				auto name = Array->Get(i);
-				auto x = ToJson(obj->Get(name));
+				auto name = Array->Get(context, i).ToLocalChecked();
+				auto x = ToJson(obj->Get(context, name).ToLocalChecked());
 				if (x.Type() != JSON::jsElementType::Undefined) ret[PVX::ToString(name)] = x;
 			}
 			return ret;

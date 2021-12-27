@@ -106,7 +106,7 @@ namespace PVX {
 			SQLCHAR State[1024];
 			SQLINTEGER    NativeErrorPtr;
 			SQLCHAR       MessageText[1024];
-			SQLSMALLINT   BufferLength;
+			//SQLSMALLINT   BufferLength;
 			SQLSMALLINT   TextLengthPtr;
 			SQLGetDiagRecA(SQL_HANDLE_STMT, hStmt, 1, State, &NativeErrorPtr, MessageText, 1023, &TextLengthPtr);
 			return (char*)MessageText;
@@ -136,13 +136,13 @@ namespace PVX {
 			ret = SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc);
 			ret = SQLDriverConnectA(hDbc, GetDesktopWindow(), (SQLCHAR*)&connectionString[0], SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
 		}
-
+		// "DRIVER={SQL Server};SERVER=" + Server + ";DATABASE=" + Database + ";UID=" + Username + ";PWD=" + Password + ";"
 		SQL::SQL(const std::string & Database, const std::string & Username, const std::string & Password, const std::string & Server) :
-			SQL("DRIVER={SQL Server};SERVER=" + Server + ";DATABASE=" + Database + ";UID=" + Username + ";PWD=" + Password + ";") {}
+			SQL(MakeConnectionString(Database, Username, Password, Server)) {}
 
 		SQL::~SQL() {
-			for (auto & h : Statements)
-				SQLFreeHandle(SQL_HANDLE_STMT, h);
+			//for (auto & h : Statements)
+			//	SQLFreeHandle(SQL_HANDLE_STMT, h);
 
 			if (hDbc) {
 				SQLDisconnect(hDbc);
@@ -155,7 +155,7 @@ namespace PVX {
 
 		static std::wregex QueryParamRegex(L"@[_0-9a-zA-Z]+", std::regex_constants::optimize | std::regex_constants::ECMAScript);
 		struct _BigParam {
-			int cur;
+			size_t cur;
 			std::vector<unsigned char> Data;
 		};
 		SQLHSTMT SQL::Exec(const std::wstring & qUery, const std::vector<ParamTuple> & Params) {
@@ -174,14 +174,14 @@ namespace PVX {
 				query = PVX::Replace(query, L"@" + p, L"?");
 			}
 
-			auto q = PVX::Encode::UTF(query);
-			q.push_back(0);
+			auto q = PVX::Encode::UTF0(query);
+			//q.push_back(0);
 			SQLHSTMT hStmt;
 			SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);
 			SQLPrepareA(hStmt, &q[0], SQL_NTS);
 
 
-			SQLLEN     LenOrInd;
+			//SQLLEN     LenOrInd;
 			int Index = 1;
 			SQLRETURN paramRet;
 			std::vector<_BigParam> BigParams;
@@ -194,7 +194,7 @@ namespace PVX {
 					else
 						paramRet = SQLBindParameter(hStmt, Index++, SQL_PARAM_INPUT, pp.cType, pp.Type, 1, 0, &Null, 1, &pp.len);
 				} else {
-					int id = BigParams.size() + 1;
+					size_t id = BigParams.size() + 1;
 					BigParams.push_back({ 0, pp.Data });
 					//auto tp = SQLGetTypeInfo(hStmt, pp.Type);
 					paramRet = SQLBindParameter(hStmt, Index++, SQL_PARAM_INPUT, pp.cType, pp.Type, pp.BufferSize, 0, (PTR)id, 0, &pp.len);
@@ -206,9 +206,9 @@ namespace PVX {
 				SQLPOINTER pToken = NULL;
 				Result = SQLParamData(hStmt, &pToken);
 				if (Result == SQL_NEED_DATA) {
-					auto & bdt = BigParams[((int)pToken) - 1];
+					auto & bdt = BigParams[((size_t)pToken) - 1];
 					while (bdt.cur < bdt.Data.size()) {
-						int sz = bdt.Data.size() - bdt.cur;
+						auto sz = bdt.Data.size() - bdt.cur;
 						if (sz > 1000) sz = 1000;
 
 						auto dtRes = SQLPutData(hStmt, bdt.Data.data() + bdt.cur, sz);
@@ -220,7 +220,7 @@ namespace PVX {
 			if (Result != 0) {
 				Error = GetError(hStmt);
 			}
-			Statements.push_back(hStmt);
+			//Statements.push_back(hStmt);
 			return hStmt;
 		}
 
@@ -312,7 +312,7 @@ namespace PVX {
 		PVX::JSON::Item SQL::JsonUpdateJson(const std::wstring & Table, const PVX::JSON::Item & Values, const std::set<std::wstring>& ConditionParams, const std::wstring & Where, const std::vector<std::wstring>& ReturnFields) {
 			return ReaderToJson(Update(Table, ToParams(Values), ConditionParams, Where, ReturnFields));
 		}
-		PVX::JSON::Item SQL::JsonUpdate(const std::wstring & Table, const const std::vector<ParamTuple> & Values, const std::set<std::wstring>& ConditionParams, const std::wstring & Where, const std::vector<std::wstring>& ReturnFields) {
+		PVX::JSON::Item SQL::JsonUpdate(const std::wstring & Table, const std::vector<ParamTuple> & Values, const std::set<std::wstring>& ConditionParams, const std::wstring & Where, const std::vector<std::wstring>& ReturnFields) {
 			return ReaderToJson(Update(Table, Values, ConditionParams, Where, ReturnFields));
 		}
 		SQL_Reader SQL::DeleteJson(const std::wstring & Table, const PVX::JSON::Item & Params, const std::wstring & Where, const std::vector<std::wstring>& ReturnFields) {
@@ -469,67 +469,84 @@ namespace PVX {
 			for (auto &[Name, Value] : params.getObject()) {
 				Params.push_back({ Name, Value });
 			}
+			auto result = JsonQuery(query, Params);
+			result.each([](PVX::JSON::Item& line) {
+				for (auto& k : line.Keys()) {
+					if (!wcsncmp(k.c_str(), L"parseJSON_", 10)) {
+						line[k.substr(10)] = PVX::JSON::parse(line[k].String());
+						line.Delete(k);
+					}
+				}
+			});
+			return result;
+		}
+
+		PVX::JSON::Item SQL::JsonQueryJson2(const std::wstring& query, const PVX::JSON::Item& params) {
+			std::vector<ParamTuple> Params;
+			for (auto& [Name, Value] : params.getObject()) {
+				Params.push_back({ Name, Value });
+			}
 			return JsonQuery(query, Params);
 		}
 
-		const int SQL_Reader::FieldCount() {
+		const size_t SQL_Reader::FieldCount() const {
 			return Names.size();
 		}
-		const std::wstring & SQL_Reader::FieldName(int Index) {
+		const std::wstring & SQL_Reader::FieldName(int Index) const {
 			return Names[Index];
 		}
-		const int SQL_Reader::FieldType(int Index) {
+		const int SQL_Reader::FieldType(int Index) const {
 			return FieldByNum[Index].DataType;
 		}
-		const int SQL_Reader::FieldType(const std::wstring & Name) {
-			return Fields[Name]->DataType;
+		const int SQL_Reader::FieldType(const std::wstring & Name) const {
+			return Fields.at(Name)->DataType;
 		}
-		Ref & SQL_Reader::operator[](int Index) {
+		const Ref & SQL_Reader::operator[](int Index) {
 			auto & f = FieldByNum[Index];
 			if (!f.Read) ReadColumn(f);
 			return *(Ref*)f.Data.data();
 		}
-		Ref & SQL_Reader::operator[](const std::wstring & Name) {
+		const Ref & SQL_Reader::operator[](const std::wstring & Name) {
 			auto & f = *Fields[Name];
 			if (!f.Read) ReadColumn(f);
 			return *(Ref*)&f.Data[0];
 		}
-		std::vector<unsigned char> & SQL_Reader::operator()(int Index) {
+		const std::vector<unsigned char> & SQL_Reader::operator()(int Index) {
 			auto & f = FieldByNum[Index];
 			if (!f.Read) ReadColumn(f);
 			return f.Data;
 		}
-		std::vector<unsigned char> & SQL_Reader::operator()(const std::wstring & Name) {
+		const std::vector<unsigned char> & SQL_Reader::operator()(const std::wstring & Name) {
 			auto & f = *Fields[Name];
 			if (!f.Read) ReadColumn(f);
 			return f.Data;
 		}
-		int SQL_Reader::IsNull(int Index) {
+		bool SQL_Reader::IsNull(int Index) {
 			auto & f = FieldByNum[Index];
 			if (!f.Read) ReadColumn(f);
 			return f.IsNull;
 		}
-		int SQL_Reader::IsEmpty(int Index) {
+		bool SQL_Reader::IsEmpty(int Index) {
 			auto & f = FieldByNum[Index];
 			if (!f.Read) ReadColumn(f);
 			return !f.Data.size();
 		}
-		int SQL_Reader::IsNullOrEmpty(int Index) {
+		bool SQL_Reader::IsNullOrEmpty(int Index) {
 			auto & f = FieldByNum[Index];
 			if (!f.Read) ReadColumn(f);
 			return f.IsNull || !f.Data.size();
 		}
-		int SQL_Reader::IsNull(const std::wstring & Name) {
+		bool SQL_Reader::IsNull(const std::wstring & Name) {
 			auto & f = *Fields[Name];
 			if (!f.Read) ReadColumn(f);
 			return f.IsNull;
 		}
-		int SQL_Reader::IsEmpty(const std::wstring & Name) {
+		bool SQL_Reader::IsEmpty(const std::wstring & Name) {
 			auto & f = *Fields[Name];
 			if (!f.Read) ReadColumn(f);
 			return !f.Data.size();
 		}
-		int SQL_Reader::IsNullOrEmpty(const std::wstring & Name) {
+		bool SQL_Reader::IsNullOrEmpty(const std::wstring & Name) {
 			auto & f = *Fields[Name];
 			if (!f.Read) ReadColumn(f);
 			return f.IsNull || !f.Data.size();
@@ -589,9 +606,9 @@ namespace PVX {
 			auto err = SQLFetch(hStmt);
 			if (err == SQL_SUCCESS) {
 				for (auto & f : FieldByNum) f.Read = 0;
-				//for (auto i = 0; i < Names.size(); i++) {
-				//	ReadColumn(FieldByNum[i]);
-				//}
+				for (auto i = 0; i < Names.size(); i++) {
+					ReadColumn(FieldByNum[i]);
+				}
 				return 1;
 			}
 			Error = GetError(hStmt);
@@ -602,14 +619,14 @@ namespace PVX {
 			SQLNumResultCols(hStmt, &sNumResults);
 
 			SQLCHAR ColumnName[1024];
-			SQLSMALLINT BufferLength;
+			//SQLSMALLINT BufferLength;
 			SQLSMALLINT	NameLength;
 			SQLSMALLINT DataType;
 			SQLULEN		ColumnSize;
 			SQLSMALLINT	DecimalDigits;
 			SQLSMALLINT	Nullable;
-			SQLRETURN err;
-			SQLLEN	indPtr;
+			//SQLRETURN err;
+			//SQLLEN	indPtr;
 
 			long long	FieldSize, ssType;
 
@@ -621,7 +638,7 @@ namespace PVX {
 				SQLColAttribute(hStmt, i, SQL_DESC_OCTET_LENGTH, NULL, 0, NULL, (SQLLEN*)&FieldSize);
 				SQLColAttribute(hStmt, i, SQL_DESC_TYPE, NULL, 0, NULL, (SQLLEN*)&ssType);
 
-				std::string tp = VarTypeMap[ssType];
+				std::string tp = VarTypeMap[(SQLSMALLINT)ssType];
 
 				Names.push_back(colName);
 				FieldByNum.push_back({

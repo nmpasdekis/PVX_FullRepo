@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\..\..\..\C++ Projects 2022\VertexCMS\packages\Microsoft.ClearScript.V8.ICUData.7.2.0\build\Microsoft.ClearScript.V8.ICUData.props" Condition="Exists('..\..\..\..\C++ Projects 2022\VertexCMS\packages\Microsoft.ClearScript.V8.ICUData.7.2.0\build\Microsoft.ClearScript.V8.ICUData.props')" />
+  <Import Project="..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\build\native\v8-v142-x64.props" Condition="Exists('..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\build\native\v8-v142-x64.props')" />
+  <Import Project="..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8.redist-v142-x64.9.3.345.3\build\native\v8.redist-v142-x64.props" Condition="Exists('..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8.redist-v142-x64.9.3.345.3\build\native\v8.redist-v142-x64.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -22,6 +25,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
+    <VCToolsVersion>14.29.30133</VCToolsVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -37,27 +41,29 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\..\V8.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\..\V8.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\V8\include;D:\GitProjects2020\PVX_FullRepo\include;D:\GitProjects2020\PVX_FullRepo\External\V8_Build\include;$(IncludePath)</IncludePath>
+    <IncludePath>D:\GitProjects2022\PVX_FullRepo\External\v8-v142-x64.9.3.345.3\include;D:\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\include;$(SolutionDir)include;$(SolutionDir)External\V8\include;D:\GitProjects2022\PVX_FullRepo\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
-    <LibraryPath>$(SolutionDir)External\V8\lib\$(Configuration);$(ProjectDir)..\..\External\V8\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+    <LibraryPath>D:\GitProjects2022\PVX_FullRepo\External\v8-v142-x64.9.3.345.3\lib\$(Configuration);D:\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\lib\$(Configuration);$(SolutionDir)External\V8\lib\$(Configuration);$(ProjectDir)..\..\External\V8\lib\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\V8\include;D:\GitProjects2020\PVX_FullRepo\include;D:\GitProjects2020\PVX_FullRepo\External\V8_Build\include;$(IncludePath)</IncludePath>
+    <IncludePath>D:\GitProjects2022\PVX_FullRepo\External\v8-v142-x64.9.3.345.3\include;D:\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\include;$(SolutionDir)include;$(SolutionDir)External\V8\include;D:\GitProjects2022\PVX_FullRepo\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
-    <LibraryPath>$(SolutionDir)External\V8\lib\$(Configuration);$(ProjectDir)..\..\External\V8\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+    <LibraryPath>D:\GitProjects2022\PVX_FullRepo\External\v8-v142-x64.9.3.345.3\lib\$(Configuration);D:\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\lib\$(Configuration);$(SolutionDir)External\V8\lib\$(Configuration);$(ProjectDir)..\..\External\V8\lib\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -70,7 +76,8 @@
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
     </ProjectReference>
     <Lib>
-      <AdditionalDependencies>v8.dll.lib;v8_libbase.dll.lib;v8_libplatform.dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlib.dll.lib;v8.dll.lib;v8_libbase.dll.lib;v8_libplatform.dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/NODEFAULTLIB:library %(AdditionalOptions)</AdditionalOptions>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -78,7 +85,7 @@
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -93,13 +100,13 @@
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
     </ProjectReference>
     <Lib>
-      <AdditionalDependencies>v8.dll.lib;v8_libbase.dll.lib;v8_libplatform.dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlib.dll.lib;v8.dll.lib;v8_libbase.dll.lib;v8_libplatform.dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/NODEFAULTLIB:library %(AdditionalOptions)</AdditionalOptions>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Defaults.cpp" />
     <ClCompile Include="PVX_V8.cpp" />
-    <ClCompile Include="PVX_V8_Async.cpp" />
     <ClCompile Include="v8Value.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -108,7 +115,17 @@
   <ItemGroup>
     <ResourceCompile Include="PVX_WrapV8.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8.redist-v142-x64.9.3.345.3\build\native\v8.redist-v142-x64.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8.redist-v142-x64.9.3.345.3\build\native\v8.redist-v142-x64.props'))" />
+    <Error Condition="!Exists('..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\build\native\v8-v142-x64.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\build\native\v8-v142-x64.props'))" />
+    <Error Condition="!Exists('..\..\..\..\C++ Projects 2022\VertexCMS\packages\Microsoft.ClearScript.V8.ICUData.7.2.0\build\Microsoft.ClearScript.V8.ICUData.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\C++ Projects 2022\VertexCMS\packages\Microsoft.ClearScript.V8.ICUData.7.2.0\build\Microsoft.ClearScript.V8.ICUData.props'))" />
+  </Target>
 </Project>

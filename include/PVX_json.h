@@ -108,6 +108,12 @@ namespace PVX {
 				v.Type = PVX::JSON::jsElementType::Undefined;
 			}
 
+			int& BinaryType() {
+				return Value.Binary->Type;
+			}
+			int BinaryType() const {
+				return Value.Binary->Type;
+			}
 
 			bool& operator=(const bool v) { Release(); Type = jsElementType::Boolean; Value.Boolean = v; BsonType = BSON_Type::Boolean; return Value.Boolean; }
 			long long& operator=(const int v) { Release(); Type = jsElementType::Integer; Value.Integer = v; BsonType = BSON_Type::Int64; return Value.Integer; }
@@ -344,6 +350,49 @@ namespace PVX {
 			const Item* Has(const std::wstring&) const;
 			Item* Has(const std::wstring&);
 
+			inline void Delete(const std::wstring& Name) {
+				if (Type() == PVX::JSON::jsElementType::Object) {
+					getObject().erase(Name);
+				}
+			}
+
+			template<typename T>
+			inline std::vector<T> ToVector(std::function<T(const PVX::JSON::Item&)> clb) const {
+				std::vector<T> ret;
+				if (Value.GetType() == JSON::jsElementType::Array) {
+					ret.reserve(length());
+					for (auto& i : getArray()) {
+						ret.push_back(clb(i));
+					}
+				}
+				return ret;
+			}
+
+			inline bool Boolean(const std::wstring& Name) const {
+				if (Type() == PVX::JSON::jsElementType::Object) {
+					if (auto h = Has(Name); h) return h->Boolean();
+				}
+				return false;
+			}
+			inline const std::wstring String(const std::wstring& Name) const {
+				if (Type() == PVX::JSON::jsElementType::Object) {
+					if (auto h = Has(Name); h) return h->String();
+				}
+				return L"";
+			}
+			inline double Double(const std::wstring& Name) const {
+				if (Type() == PVX::JSON::jsElementType::Object) {
+					if (auto h = Has(Name); h) return h->NumberSafeDouble();
+				}
+				return 0;
+			}
+			inline long long Integer(const std::wstring& Name) const {
+				if (Type() == PVX::JSON::jsElementType::Object) {
+					if (auto h = Has(Name); h) return h->NumberSafeInteger();
+				}
+				return 0;
+			}
+
 			bool If(const std::wstring& Name, std::function<void(JSON::Item&)> Then);
 			bool If(const std::wstring& Name, std::function<void(const JSON::Item&)> Then) const;
 
@@ -472,6 +521,7 @@ namespace PVX {
 		void ToBSON(const JSON::Item& obj, std::vector<unsigned char>& Data);
 		JSON::Item ObjectId(const std::string_view& hexId);
 		JSON::Item ObjectId(const std::wstring_view& hexId);
+		JSON::Item Binary(const std::vector<unsigned char>& Data, int Type = 0);
 
 		inline const JSON::Item EmptyObject() { return PVX::JSON::jsElementType::Object; }
 		inline const JSON::Item EmptyArray() { return PVX::JSON::jsElementType::Array; }

@@ -530,7 +530,6 @@ namespace PVX {
 #pragma warning(disable:4201)
 	__declspec(align(16))
 	union Matrix4x4 {
-		Matrix4x4() = default;
 		float m[4][4];
 		struct {
 			float m00, m01, m02, m03,
@@ -547,10 +546,10 @@ namespace PVX {
 
 		inline static constexpr Matrix4x4 Identity() {
 			return {
-				1.0f, 0, 0, 0,
-				0, 1.0f, 0, 0,
-				0, 0, 1.0f, 0,
-				0, 0, 0, 1.0f
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
 			};
 		}
 

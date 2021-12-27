@@ -9,6 +9,10 @@
 
 namespace PVX {
 	namespace Network {
+		HttpClient& HttpClient::OnConnect(std::function<void(TcpSocket&)> clb) {
+			onConnect = clb;
+			return *this;
+		}
 		HttpClient::HttpClient() : headers{
 			{"accept", L"*/*" },
 			{"user-agent", L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36" },
@@ -127,6 +131,7 @@ namespace PVX {
 				ret.StatusCode = 404;
 				return ret;
 			}
+			if (onConnect) onConnect(Socket);
 
 			if (Socket.Send(PVX::Encode::UTF(Header))) {
 				Receive(Socket, ret.Headers, ret.Data, ret.Protocol, ret.StatusCode);
@@ -174,6 +179,8 @@ namespace PVX {
 				ret.StatusCode = 404;
 				return ret;
 			}
+			if (onConnect) onConnect(Socket);
+
 			if (Socket.Send(PVX::Encode::UTF(Header))) {
 				if (Data.size()) if (!Socket.Send(Data)) return ret;
 				Receive(Socket, ret.Headers, ret.Data, ret.Protocol, ret.StatusCode);

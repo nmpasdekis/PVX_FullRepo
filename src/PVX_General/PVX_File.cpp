@@ -583,6 +583,9 @@ namespace PVX {
 		JSON::Item LoadJson(const wchar_t * Filename) {
 			return JSON::parse(PVX::IO::ReadBinary(Filename));
 		}
+		int Write(const std::wstring& Filename, const PVX::JSON::Item& Json) {
+			return Write(Filename, PVX::Encode::UTF(PVX::JSON::stringify(Json)));
+		}
 		std::wstring wCurrentPath() {
 			wchar_t Path[MAX_PATH + 1];
 			GetCurrentDirectoryW(MAX_PATH, Path);

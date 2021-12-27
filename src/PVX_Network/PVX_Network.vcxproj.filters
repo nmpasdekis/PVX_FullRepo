@@ -38,14 +38,16 @@
     <ClCompile Include="PVX_TcpSocket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PVX_TcpSocket_Security.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PVX_UtfHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PVX_WebSocket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\PVX_Network.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
