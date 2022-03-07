@@ -37,6 +37,8 @@ namespace PVX{
 		std::string ToHexUpper(const std::vector<unsigned char>& Data);
 		std::wstring wToHex(const std::vector<unsigned char>& Data);
 		std::wstring wToHexUpper(const std::vector<unsigned char>& Data);
+		std::string encodeURI(const std::string& url);
+		std::string encodeURI(const std::wstring& url);
 	}
 	namespace Decode{
 		std::vector<unsigned char> Base64(const std::string & base64);

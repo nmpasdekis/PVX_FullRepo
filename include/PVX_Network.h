@@ -31,6 +31,40 @@ namespace PVX {
 		class WebSocketServer;
 		class WebSocketPacket;
 
+		enum class TcpSocketOption {
+			NoDelay = 0x0001,
+			Expedited_1122 = 0x0002,
+			KeepAlive = 3,
+			MaxSeg = 4,
+			MaxRT = 5,
+			StdUrg = 6,
+			NoUrg = 7,
+			AtMark = 8,
+			NoSynRetries = 9,
+			Timestamps = 10,
+			Offload_Preference = 11,
+			Congestion_Algorithm = 12,
+			Delay_Fin_Ack = 13,
+			MaxRTMS = 14,
+			FastOpen = 15,
+			KeepCnt = 16,
+			KeepIdle = 3,
+			KeepIntvl = 17,
+			Fail_Connect_On_ICMP_Error = 18,
+			ICMP_Error_Info = 19
+		};
+		enum class SocketOption {
+			Debug = 0x0001,
+			AcceptConn = 0x0002,
+			ReuseAddr = 0x0004,
+			KeepAlive = 0x0008,
+			DontRoute = 0x0010,
+			Broadcast = 0x0020,
+			UseLoopback = 0x0040,
+			Linger = 0x0080,
+			OobinLine = 0x0100
+		};
+
 		class TcpSocket {
 		public:
 			TcpSocket();
@@ -50,6 +84,18 @@ namespace PVX {
 			int CanRead();
 			int CanReadAsync();
 			void Disconnect();
+
+			template<typename T>
+			int SetOption(TcpSocketOption Op, const T& Value) {
+				return SetOption(Op, &Value, sizeof(T));
+			}
+			int SetOption(TcpSocketOption Op, const void* Value, int ValueSize);
+
+			template<typename T>
+			int SetOption(SocketOption Op, const T& Value) {
+				return SetOption(Op, &Value, sizeof(T));
+			}
+			int SetOption(SocketOption Op, const void* Value, int ValueSize);
 
 			// Internal Use Only
 			template<typename T> T& GetInternalData() { return *(T*)SocketData.get(); }
@@ -450,18 +496,28 @@ namespace PVX {
 			HttpClient& OnReceiveData(std::function<void(const std::vector<unsigned char>&)> fnc);
 			HttpClient& OnConnect(std::function<void(TcpSocket&)> clb);
 			std::map<std::wstring, std::wstring> Cookies;
-			void Headers(const std::map<std::string, std::wstring>& h);
+			HttpClient& Headers(const std::unordered_map<std::string, std::wstring>& h);
+			HttpClient& Headers_Raw(const std::unordered_map<std::string, std::wstring>& h);
+			HttpClient& HeadersAll(const std::unordered_map<std::string, std::wstring>& h);
+			HttpClient& HeadersAll_Raw(const std::unordered_map<std::string, std::wstring>& h);
 			UtfHelper& operator[](const std::string& Name);
+
+			const std::string& Domain() const { return domain; }
+			const std::string& Port() const { return port; }
+			const std::string& Protocol() const { return protocol; }
 		protected:
+			void urlHelper(const std::string_view& url);
+			std::string_view DomainHelper(std::string_view url);
 			void Url(const std::wstring & url);
 			void Url(const std::string & url);
+			std::wstring MakeHeader(const char * Verb);
+			int Receive(PVX::Network::TcpSocket&, std::vector<std::pair<std::wstring, std::wstring>> & Headers, std::vector<unsigned char> &, std::wstring & Proto, int & Status);
+
 			std::function<void(TcpSocket&)> onConnect;
 			std::function<void(const std::wstring&)> onReceiveHeader;
 			std::function<void(const std::vector<unsigned char>&)> onReceiveData;
-			std::string protocol, domain, query, port;
-			std::map<std::string, UtfHelper> headers;
-			std::wstring MakeHeader(const char * Verb);
-			int Receive(PVX::Network::TcpSocket&, std::vector<std::pair<std::wstring, std::wstring>> & Headers, std::vector<unsigned char> &, std::wstring & Proto, int & Status);
+			std::string protocol = "http", port = "80", domain, path;
+			std::unordered_map<std::string, UtfHelper> headers;
 		};
 	}
 }

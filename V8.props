@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <IncludePath>D:\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\include;D:\GitProjects2022\PVX_FullRepo\External\V8\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\C++ Projects 2022\VertexCMS\packages\v8-v142-x64.9.3.345.3\lib\Release;D:\GitProjects2022\PVX_FullRepo\External\V8\lib\$(Configuration);$(LibraryPath)</LibraryPath>
+    <ExecutablePath>D:\C++ Projects 2022\VertexCMS\packages\v8.redist-v142-x64.9.3.345.3\lib\Release;D:\GitProjects2022\PVX_FullRepo\External\V8\v8Build\$(Configuration);$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup />
+  <ItemGroup />
+</Project>
