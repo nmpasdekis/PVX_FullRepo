@@ -125,6 +125,7 @@ namespace PVX {
 		HttpClient::HttpResponse HttpClient::Get() {
 			HttpClient::HttpResponse ret;
 			TcpSocket Socket;
+			Socket.SetOption(TcpSocketOption::NoDelay, (int)1);
 			auto Header = MakeHeader("GET");
 
 			if (Socket.Connect(domain.c_str(), port.c_str())) {
@@ -161,7 +162,13 @@ namespace PVX {
 		static bool NeedUriEncode(const std::wstring& str) {
 			size_t i;
 			auto sz = str.size();
-			for (i = 0; i < sz && str[i]<128; i++);
+			for (i = 0; i<sz && str[i]<128 && str[i]>32; i++);
+			return i < sz;
+		}
+		static bool NeedUriEncode(const std::string& str) {
+			size_t i;
+			auto sz = str.size();
+			for (i = 0; i<sz && str[i]<128 && str[i]>32; i++);
 			return i < sz;
 		}
 
@@ -193,19 +200,19 @@ namespace PVX {
 		}
 
 		HttpClient::HttpResponse HttpClient::Get(const std::string& url) {
-			query = url;
+			Url(url);
 			return Get();
 		}
 		HttpClient::HttpResponse HttpClient::Post(const std::string& url, const std::vector<unsigned char>& Data) {
-			query = url;
+			Url(url);
 			return Get();
 		}
 		HttpClient::HttpResponse HttpClient::Post(const std::string& url, const std::wstring& Data) {
-			query = url;
+			Url(url);
 			return Post(Data);
 		}
 		HttpClient::HttpResponse HttpClient::Post(const std::string& url, const JSON::Item& Data) {
-			query = url;
+			Url(url);
 			return Post(Data);
 		}
 
@@ -227,82 +234,72 @@ namespace PVX {
 		}
 
 		HttpClient::HttpResponse HttpClient::Get(const std::wstring& url) {
-			query = ComponentUri(url);
+			//query = ComponentUri(url);
+			Url(url);
 			return Get();
 		}
 		HttpClient::HttpResponse HttpClient::Post(const std::wstring& url, const std::vector<unsigned char>& Data) {
-			query = ComponentUri(url);
+			//query = ComponentUri(url);
+			Url(url);
 			return Post(Data);
 		}
 		HttpClient::HttpResponse HttpClient::Post(const std::wstring& url, const std::wstring& Data) {
-			query = ComponentUri(url);
+			//query = ComponentUri(url);
+			Url(url);
 			return Post(Data);
 		}
 		HttpClient::HttpResponse HttpClient::Post(const std::wstring& url, const JSON::Item& Data) {
-			query = ComponentUri(url);
+			//query = ComponentUri(url);
+			Url(url);
 			return Post(Data);
 		}
 
 
 		HttpClient::HttpClient(const std::string& url): HttpClient() {
-			Url(url);
+			urlHelper( DomainHelper( PVX::Encode::encodeURI(url) ) );
 		}
 		HttpClient::HttpClient(const std::wstring& url): HttpClient() {
-			Url(url);
+			urlHelper(DomainHelper(PVX::Encode::encodeURI(url)));
 		}
 
 
-
-		static std::wregex url_regex1(LR"__((https?)://([^/\?]+)(?:([^\?]+))?(?:\?(.*))?)__", std::regex_constants::optimize);
-		//static std::wregex url_regex2(LR"__(/([^\?/]*))__", std::regex_constants::optimize);
-		//static std::wregex url_regex3(LR"__(([^\=\&]+)(?:\=([^\&]*))?\&?)__", std::regex_constants::optimize);
-
-
-		void HttpClient::Url(const std::wstring & src) {
-			using namespace PVX::Encode;
-			if (NeedUriEncode(src)) {
-				auto url = regex_match(src, url_regex1);
-
-				std::string src2 = ToString(url[1]) + "://" + ToString(url[2]);
-
-				if (url[3].matched) {
-					src2 += PVX::String::Join(PVX::Map(PVX::String::Split(url[3].str(), L"/"), [](const std::wstring& s) { return Uri(s); }), "/");
-				}
-				if (url[4].matched) {
-					src2 += "?" + PVX::String::Join(PVX::Map(PVX::String::Split(url[4].str(), L"&"), [](const std::wstring& s) {
-						return PVX::String::Join(PVX::Map(PVX::String::Split(s, L"="), [](const std::wstring& s) { return Uri(s); }), "=");
-					}), "&");
-				}
-				Url(src2);
-			} else {
-				Url(ToString(src));
+		std::string_view HttpClient::DomainHelper(std::string_view src) {
+			auto protoEnd = src.find("://");
+			if (protoEnd != std::wstring::npos) {
+				protocol = PVX::String::ToLower(std::string(src.substr(0, protoEnd)));
+				if (protocol=="https")
+					port = "443";
+				src = src.substr(protoEnd + 3);
 			}
-		}
+			auto domainEnd = src.find("/");
+			if (domainEnd == std::wstring::npos) domainEnd = src.size();
 
-		void HttpClient::Url(const std::string & src) {
-			protocol = src.substr(0, src.find("://"));
-
-			for (auto & c : protocol) c &= ~('a'^'A');
-
-			if (protocol == "HTTP")
-				port = "80";
-			else
-				port = "443";
-
-			auto psz = protocol.size() + 3;
-			auto l = src.find("/", psz);
-			if (l == std::string::npos) l = src.length();
-			domain = src.substr(psz, l - psz);
-			
-			auto colon = domain.find(':');
-			if (colon != std::string::npos) {
-				port = domain.substr(colon + 1);
-				domain.resize(colon);
-				domain.shrink_to_fit();
+			if (domainEnd != 0) {
+				auto tmpDomain = src.substr(0, domainEnd);
+				auto portIndex = tmpDomain.find(':');
+				if (portIndex != std::wstring::npos) {
+					domain = tmpDomain.substr(0, portIndex);
+					port = tmpDomain.substr(portIndex+1);
+				} else {
+					domain = tmpDomain;
+				}
+				src = src.substr(domainEnd);
 			}
-			query = src.substr(l);
+			return src;
 		}
 
+		void HttpClient::urlHelper(const std::string_view& src) {
+			path = "/";
+			path += (src.size() && src[0]=='/') ? src.substr(1) : src;
+		}
+
+		void HttpClient::Url(const std::string& Src) {
+			urlHelper(PVX::Encode::encodeURI(Src));
+		}
+		void HttpClient::Url(const std::wstring& Src) {
+			urlHelper(PVX::Encode::encodeURI(Src));
+		}
+		
 		HttpClient & HttpClient::OnReceiveHeader(std::function<void(const std::wstring&)> fnc) {
 			onReceiveHeader = fnc;
 			return *this;
@@ -313,21 +310,48 @@ namespace PVX {
 			return *this;
 		}
 
-		void HttpClient::Headers(const std::map<std::string, std::wstring>& H) {
+		HttpClient& HttpClient::Headers(const std::unordered_map<std::string, std::wstring>& H) {
 			for (auto& [Name, Value]  : H) {
+				headers[PVX::String::ToLower(Name)] = Value;
+			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::Headers_Raw(const std::unordered_map<std::string, std::wstring>& H) {
+			for (auto& [Name, Value] : H) {
 				headers[Name] = Value;
 			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::HeadersAll(const std::unordered_map<std::string, std::wstring>& H) {
+			headers = std::unordered_map<std::string, PVX::Network::UtfHelper>();
+			for (auto& [Name, Value] : H) {
+				headers[PVX::String::ToLower(Name)] = Value;
+			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::HeadersAll_Raw(const std::unordered_map<std::string, std::wstring>& H) {
+			headers = std::unordered_map<std::string, PVX::Network::UtfHelper>();
+			for (auto& [Name, Value] : H) {
+				headers[Name] = Value;
+			}
+			return *this;
 		}
 
 		UtfHelper& HttpClient::operator[](const std::string& Name) {
-			return headers[Name];
+			return headers[PVX::String::ToLower(Name)];
 		}
 
 		std::wstring HttpClient::MakeHeader(const char * Verb) {
 			using namespace PVX::Encode;
 			std::wstringstream ret;
 
-			ret << ToString((std::stringstream() << Verb << " " << query << " " << protocol << "/1.1\r\n" << "Host: " << domain << "\r\n").str());
+			ret << ToString((std::stringstream() << 
+				Verb << " " << path << " HTTP/1.1\r\n" <<
+				"Host: " << domain << "\r\n").str());
+
 			for (auto & h : headers) {
 				ret << ToString(h.first) << L": " << h.second() << L"\r\n";
 			}
@@ -426,7 +450,6 @@ namespace PVX {
 
 			return 0;
 		}
-
 
 		HttpClient::HttpResponse::HttpResponse() {
 

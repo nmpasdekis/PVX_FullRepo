@@ -31,6 +31,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_DeepNeuralNetsCL", "src
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_MSSQL", "src\PVX_MSSQL\PVX_MSSQL.vcxproj", "{97A0AF65-8D3B-4FFD-8D10-766DA0BDF894}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_OpenSSL", "src\PVX_OpenSSL\PVX_OpenSSL.vcxproj", "{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -129,6 +131,12 @@ Global
 		{97A0AF65-8D3B-4FFD-8D10-766DA0BDF894}.Release|x64.Build.0 = Release|x64
 		{97A0AF65-8D3B-4FFD-8D10-766DA0BDF894}.Release|x86.ActiveCfg = Release|Win32
 		{97A0AF65-8D3B-4FFD-8D10-766DA0BDF894}.Release|x86.Build.0 = Release|Win32
+		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Debug|x64.ActiveCfg = Debug|x64
+		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Debug|x64.Build.0 = Debug|x64
+		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Debug|x86.ActiveCfg = Debug|x64
+		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Release|x64.ActiveCfg = Release|x64
+		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Release|x64.Build.0 = Release|x64
+		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

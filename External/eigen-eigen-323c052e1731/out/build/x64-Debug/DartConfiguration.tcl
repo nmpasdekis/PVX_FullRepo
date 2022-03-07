@@ -11,7 +11,7 @@ BuildDirectory: D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e173
 CostDataFile: 
 
 # Site is something like machine.domain, i.e. pragmatic.crd
-Site: DESKTOP-DUU7O29
+Site: desktop-duu7o29
 
 # Build name is osname-revision-compiler, i.e. Linux-2.4.2-2smp-c++
 BuildName: unknownwin-19.29.30133.0-sse2-64bit

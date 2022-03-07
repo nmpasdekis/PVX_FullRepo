@@ -89,6 +89,12 @@ namespace {
 
 namespace PVX::Network {
 	TcpSocket::TcpSocket() : SocketData{ (void*)new socketData(), socketData_Deleter } {}
+	int TcpSocket::SetOption(TcpSocketOption Op, const void* Value, int ValueSize) {
+		return setsockopt(((socketData*)SocketData.get())->Socket, IPPROTO_TCP, (int)Op, (const char*)Value, ValueSize);
+	}
+	int TcpSocket::SetOption(SocketOption Op, const void* Value, int ValueSize) {
+		return setsockopt(((socketData*)SocketData.get())->Socket, SOL_SOCKET, (int)Op, (const char*)Value, ValueSize);
+	}
 	TcpSocket::TcpSocket(uint32_t* socket, const void* addr) : SocketData{ (void*)new socketData(socket, *(const sockaddr*)addr), socketData_Deleter } {}
 
 	int TcpSocket::CanRead() {

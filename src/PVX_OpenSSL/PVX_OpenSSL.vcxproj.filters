@@ -18,6 +18,9 @@
     <ClCompile Include="PVX_OpenSSL.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PVX_HttpsClientHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\PVX_OpenSSL.h">
