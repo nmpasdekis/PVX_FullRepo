@@ -4,14 +4,14 @@
 
 
 # Configuration directories and files
-SourceDirectory: D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e1731
-BuildDirectory: D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e1731/out/build/x64-Debug
+SourceDirectory: D:/mine/PVX_FullRepo/External/eigen-eigen-323c052e1731
+BuildDirectory: D:/mine/PVX_FullRepo/External/eigen-eigen-323c052e1731/out/build/x64-Debug
 
 # Where to place the cost data store
 CostDataFile: 
 
 # Site is something like machine.domain, i.e. pragmatic.crd
-Site: desktop-duu7o29
+Site: DESKTOP-OO8JGPM
 
 # Build name is osname-revision-compiler, i.e. Linux-2.4.2-2smp-c++
 BuildName: unknownwin-19.29.30133.0-sse2-64bit
@@ -26,8 +26,8 @@ SubmitURL: http://manao.inria.fr/CDash/submit.php?project=Eigen+3.3
 NightlyStartTime: 00:00:00 UTC
 
 # Commands for the build/test/submit cycle
-ConfigureCommand: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" "D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e1731"
-MakeCommand: C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe --build . --target buildtests --config "${CTEST_CONFIGURATION_TYPE}" --  
+ConfigureCommand: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" "D:/mine/PVX_FullRepo/External/eigen-eigen-323c052e1731"
+MakeCommand: C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe --build . --target buildtests --config "${CTEST_CONFIGURATION_TYPE}" --  
 DefaultCTestConfigurationType: Release
 
 # version control
@@ -62,7 +62,7 @@ UpdateOptions:
 UpdateType: 
 
 # Compiler info
-Compiler: C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe
+Compiler: C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe
 CompilerVersion: 19.29.30133.0
 
 # Dynamic analysis (MemCheck)

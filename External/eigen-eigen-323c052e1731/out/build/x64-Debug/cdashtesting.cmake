@@ -1,9 +1,9 @@
 
-set(CTEST_SOURCE_DIRECTORY  "D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e1731")
-set(CTEST_BINARY_DIRECTORY  "D:/GitProjects2022/PVX_FullRepo/External/eigen-eigen-323c052e1731/out/build/x64-Debug")
+set(CTEST_SOURCE_DIRECTORY  "D:/mine/PVX_FullRepo/External/eigen-eigen-323c052e1731")
+set(CTEST_BINARY_DIRECTORY  "D:/mine/PVX_FullRepo/External/eigen-eigen-323c052e1731/out/build/x64-Debug")
 set(CTEST_CMAKE_GENERATOR   "Ninja")
 set(CTEST_BUILD_NAME        "unknownwin-19.29.30133.0-sse2-64bit")
-set(CTEST_SITE              "desktop-duu7o29")
+set(CTEST_SITE              "DESKTOP-OO8JGPM")
 
 set(MODEL Experimental)
 if(${CTEST_SCRIPT_ARG} MATCHES Nightly)
