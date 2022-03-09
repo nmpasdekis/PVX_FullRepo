@@ -282,6 +282,9 @@ namespace PVX {
 			~HttpServer();
 
 			std::function<void(TcpSocket)> GetHandler();
+			operator std::function<void(TcpSocket)>() {
+				return GetHandler();
+			}
 
 			void Routes(const Route & routes);
 			void Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);

@@ -15,7 +15,7 @@ int main() {
 
 
 	TcpServer serv;
-	serv.Serve(http.GetHandler());
+	serv.Serve(http);
 	getchar();
 	return 0;
 }
