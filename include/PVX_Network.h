@@ -107,7 +107,7 @@ namespace PVX {
 
 		class TcpServer {
 		public:
-			TcpServer(const char* Port, int ThreadCount = 0);
+			TcpServer(const char* Port = "80", int ThreadCount = 0);
 			~TcpServer();
 			void Serve(std::function<void(TcpSocket)> clb, std::function<void(TcpSocket&)> OnConnect = nullptr);
 			void Stop();

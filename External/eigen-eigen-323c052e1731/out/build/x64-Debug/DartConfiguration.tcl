@@ -11,7 +11,7 @@ BuildDirectory: D:/mine/PVX_FullRepo/External/eigen-eigen-323c052e1731/out/build
 CostDataFile: 
 
 # Site is something like machine.domain, i.e. pragmatic.crd
-Site: DESKTOP-OO8JGPM
+Site: desktop-oo8jgpm
 
 # Build name is osname-revision-compiler, i.e. Linux-2.4.2-2smp-c++
 BuildName: unknownwin-19.29.30133.0-sse2-64bit

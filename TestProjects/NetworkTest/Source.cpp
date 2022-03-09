@@ -7,13 +7,15 @@ int main() {
 
 	http.Routes(L"/api/test", [](HttpRequest& req, HttpResponse& resp) {
 		resp.Json({
-			{ L"Message", L"Hello" }
+			{ L"Message", L"Hello" },
+			{ L"Message2", L"Hello" },
 		});
 	});
 
 
 
-	TcpServer serv("80");
+	TcpServer serv;
 	serv.Serve(http.GetHandler());
+	getchar();
 	return 0;
 }
