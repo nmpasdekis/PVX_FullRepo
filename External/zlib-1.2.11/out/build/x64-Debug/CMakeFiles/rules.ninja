@@ -22,7 +22,7 @@ msvc_deps_prefix = Note: including file:
 
 rule C_COMPILER__zlib_Debug
   deps = msvc
-  command = C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
+  command = C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building C object $out
 
 
@@ -32,7 +32,7 @@ rule C_COMPILER__zlib_Debug
 rule RC_COMPILER__zlib_Debug
   depfile = $DEP_FILE
   deps = gcc
-  command = "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmcldeps.exe" RC $in $DEP_FILE $out "Note: including file: " "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\rc.exe $DEFINES $INCLUDES $FLAGS /fo $out $in
+  command = "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmcldeps.exe" RC $in $DEP_FILE $out "Note: including file: " "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\rc.exe $DEFINES $INCLUDES $FLAGS /fo $out $in
   description = Building RC object $out
 
 
@@ -40,7 +40,7 @@ rule RC_COMPILER__zlib_Debug
 # Rule for linking C shared library.
 
 rule C_SHARED_LIBRARY_LINKER__zlib_Debug
-  command = cmd.exe /C "$PRE_LINK && "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_dll --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /dll /version:1.2 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES  && $POST_BUILD"
+  command = cmd.exe /C "$PRE_LINK && "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_dll --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /dll /version:1.2 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES  && $POST_BUILD"
   description = Linking C shared library $TARGET_FILE
   restat = $RESTAT
 
@@ -50,7 +50,7 @@ rule C_SHARED_LIBRARY_LINKER__zlib_Debug
 
 rule C_COMPILER__zlibstatic_Debug
   deps = msvc
-  command = C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
+  command = C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building C object $out
 
 
@@ -58,7 +58,7 @@ rule C_COMPILER__zlibstatic_Debug
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER__zlibstatic_Debug
-  command = cmd.exe /C "$PRE_LINK && C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\lib.exe /nologo $LINK_FLAGS /out:$TARGET_FILE $in  && $POST_BUILD"
+  command = cmd.exe /C "$PRE_LINK && C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\lib.exe /nologo $LINK_FLAGS /out:$TARGET_FILE $in  && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
 
@@ -68,7 +68,7 @@ rule C_STATIC_LIBRARY_LINKER__zlibstatic_Debug
 
 rule C_COMPILER__example_Debug
   deps = msvc
-  command = C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
+  command = C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building C object $out
 
 
@@ -76,7 +76,7 @@ rule C_COMPILER__example_Debug
 # Rule for linking C executable.
 
 rule C_EXECUTABLE_LINKER__example_Debug
-  command = cmd.exe /C "$PRE_LINK && "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_exe --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
+  command = cmd.exe /C "$PRE_LINK && "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_exe --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking C executable $TARGET_FILE
   restat = $RESTAT
 
@@ -86,7 +86,7 @@ rule C_EXECUTABLE_LINKER__example_Debug
 
 rule C_COMPILER__minigzip_Debug
   deps = msvc
-  command = C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
+  command = C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\cl.exe  /nologo $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building C object $out
 
 
@@ -94,7 +94,7 @@ rule C_COMPILER__minigzip_Debug
 # Rule for linking C executable.
 
 rule C_EXECUTABLE_LINKER__minigzip_Debug
-  command = cmd.exe /C "$PRE_LINK && "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_exe --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100190~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~2\MICROS~1\2019\ENTERP~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
+  command = cmd.exe /C "$PRE_LINK && "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E vs_link_exe --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100183~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~2\MICROS~1\2019\PROFES~1\VC\Tools\MSVC\1429~1.301\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking C executable $TARGET_FILE
   restat = $RESTAT
 
@@ -111,7 +111,7 @@ rule CUSTOM_COMMAND
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --regenerate-during-build -SD:\GitProjects2022\PVX_FullRepo\External\zlib-1.2.11 -BD:\GitProjects2022\PVX_FullRepo\External\zlib-1.2.11\out\build\x64-Debug
+  command = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --regenerate-during-build -SD:\mine\PVX_FullRepo\External\zlib-1.2.11 -BD:\mine\PVX_FullRepo\External\zlib-1.2.11\out\build\x64-Debug
   description = Re-running CMake...
   generator = 1
 
@@ -120,7 +120,7 @@ rule RERUN_CMAKE
 # Rule for cleaning all built files.
 
 rule CLEAN
-  command = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe" $FILE_ARG -t clean $TARGETS
+  command = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe" $FILE_ARG -t clean $TARGETS
   description = Cleaning all built files...
 
 
@@ -128,6 +128,6 @@ rule CLEAN
 # Rule for printing all primary targets available.
 
 rule HELP
-  command = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe" -t targets
+  command = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe" -t targets
   description = All primary targets available:
 

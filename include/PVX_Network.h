@@ -107,7 +107,7 @@ namespace PVX {
 
 		class TcpServer {
 		public:
-			TcpServer(const char* Port, int ThreadCount = 0);
+			TcpServer(const char* Port = "80", int ThreadCount = 0);
 			~TcpServer();
 			void Serve(std::function<void(TcpSocket)> clb, std::function<void(TcpSocket&)> OnConnect = nullptr);
 			void Stop();
@@ -282,6 +282,9 @@ namespace PVX {
 			~HttpServer();
 
 			std::function<void(TcpSocket)> GetHandler();
+			operator std::function<void(TcpSocket)>() {
+				return GetHandler();
+			}
 
 			void Routes(const Route & routes);
 			void Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
