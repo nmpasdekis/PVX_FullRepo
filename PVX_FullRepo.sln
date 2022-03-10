@@ -33,6 +33,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_OpenSSL", "src\PVX_Open
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestProjects", "TestProjects", "{EE0A9A89-4699-468A-9B6D-D9982F72A10F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NeuralNetCPU", "NeuralNetCPU\NeuralNetCPU.vcxproj", "{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E040AB61-45D6-4A5C-A197-8C4739748411} = {E040AB61-45D6-4A5C-A197-8C4739748411}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -127,9 +132,18 @@ Global
 		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Release|x64.ActiveCfg = Release|x64
 		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Release|x64.Build.0 = Release|x64
 		{76BB5E1C-7B8D-44F1-B2A9-1194F75852B3}.Release|x86.ActiveCfg = Release|x64
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}.Debug|x64.ActiveCfg = Debug|x64
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}.Debug|x64.Build.0 = Debug|x64
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}.Debug|x86.ActiveCfg = Debug|x64
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}.Release|x64.ActiveCfg = Release|x64
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}.Release|x64.Build.0 = Release|x64
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{78DF4F4A-DD77-40DC-887D-4F5BFE9425C5} = {EE0A9A89-4699-468A-9B6D-D9982F72A10F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {849EF270-398B-4B13-9AA7-10D8715AC202}

@@ -80,7 +80,7 @@ namespace PVX {
 
 			size_t nOutput() const;
 			netData Output();
-			inline auto Output(int64_t i) {return output.col(i); }
+			inline auto Output(int64_t i) { return output.col(i); }
 			netData RealOutput();
 			netData RealOutput(int64_t);
 			size_t BatchSize() const;
@@ -152,6 +152,7 @@ namespace PVX {
 			netData DeltaWeights;
 			netData RMSprop;
 			netData curGradient;
+
 			netData(*Activate)(const netData & Gradient);
 			netData(*Derivative)(const netData & Gradient);
 
@@ -394,7 +395,8 @@ namespace PVX {
 			OutputLayer(NeuralLayer_Base * Last, OutputType Type = OutputType::MeanSquare);
 			float GetError(const netData & Data);
 			float Train(const netData & Data);
-			float Train(const float * Data);
+			float Train(const float* Data);
+			float Train(const float* Data, int Count);
 			void Result(float * Result);
 			const netData& Result();
 			size_t nOutput();

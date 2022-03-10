@@ -31,7 +31,10 @@ namespace PVX {
 			return TrainFnc(Data);
 		}
 		float OutputLayer::Train(const float * Data) {
-			return Train(Eigen::Map<netData>((float*)Data, 1, output.cols()));;
+			return Train(Eigen::Map<netData>((float*)Data, nOutput(), output.cols()));;
+		}
+		float OutputLayer::Train(const float* Data, int Count) {
+			return Train(Eigen::Map<netData>((float*)Data, Count, output.cols()));;
 		}
 
 		float OutputLayer::Train_MeanSquare(const netData & TrainData) {

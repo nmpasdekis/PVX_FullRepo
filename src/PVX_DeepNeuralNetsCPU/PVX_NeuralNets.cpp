@@ -6,7 +6,7 @@
 
 namespace PVX::DeepNeuralNets {
 	extern int UseDropout;
-	float NeuralLayer_Base::__LearnRate = 0.0001f;
+	float NeuralLayer_Base::__LearnRate = 0.001f;
 	float NeuralLayer_Base::__Momentum = 0.999f;
 	float NeuralLayer_Base::__iMomentum = 0.001f;
 	float NeuralLayer_Base::__RMSprop = 0.999f;
