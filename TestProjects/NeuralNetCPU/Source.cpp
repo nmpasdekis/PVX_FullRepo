@@ -1,8 +1,11 @@
 #include <PVX_NeuralNetsCPU.h>
 #include <iostream>
+#include <iomanip>
 
 int main() {
 	using namespace PVX::DeepNeuralNets;
+
+	NeuralLayer_Base::LearnRate(0.01);
 
 	PVX::DeepNeuralNets::InputLayer Input("Input", 2);
 	PVX::DeepNeuralNets::NeuronLayer Layer1("Layer 1", &Input, 8);
@@ -35,7 +38,7 @@ int main() {
 		}
 		printf("Error: %.5f\r", err);
 		if (!(j%10))
-			std::cout << "\n" << Output.Result() << "\n";
+			std::cout << "\n" << std::setprecision(2) << Output.Result() << "\n";
 	}
 	return 0;
 }
