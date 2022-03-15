@@ -61,11 +61,11 @@ namespace PVX::Solvers {
 		
 		Error = ErrorFnc();
 		if (Error<LastError) {
-			ClearMomentum();
 			LastError = Error;
 			Memcpy(SavePoint.data(), Updater);
 		}
 		if (Error / LastError > 1.1f) {
+			ClearMomentum();
 			Error = LastError;
 			Memcpy(Updater, SavePoint.data());
 		}

@@ -17,7 +17,8 @@ namespace PVX {
 				Audio = 0;
 				Video = 0;
 				ScaleContext = 0;
-				av_init_packet(&ReadPacket);
+				ReadPacket = *av_packet_alloc();
+				//av_init_packet(&ReadPacket);
 			}
 			~_Media() {
 				if(Audio) {
@@ -316,8 +317,10 @@ namespace PVX {
 			int err;
 			int more = 1;
 			while(more) {
-				if(!(err = m.ReadAudioFrame(data))) return 1;
-				if(err == 11) more = !m.FillBuffers();
+				if(!(err = m.ReadAudioFrame(data))) 
+					return 1;
+				if(err == 11) 
+					more = !m.FillBuffers();
 			}
 			return 0;
 		}
@@ -382,15 +385,6 @@ namespace PVX {
 			}
 		}
 		void Media::ReadAllAudio(std::vector<short>& data) {
-			//_Media & m = *(_Media*)Data;
-			//auto sz = data.size();
-			//std::vector<short> tmp;
-			//while(ReadAudioStream(tmp)) {
-			//	data.resize(sz + tmp.size());
-			//	memcpy(&data[sz], &tmp[0], tmp.size() * sizeof(short));
-			//	sz = data.size();
-			//}
-
 			_Media& m = *(_Media*)Data;
 			size_t sz = 0;
 			std::vector<float> tmp, Unormalized;
@@ -441,8 +435,9 @@ namespace PVX {
 		int Media::AudioSampleRate() {
 			return (*(_Media*)Data).Audio->sample_rate;
 		}
-		int Media::AudioBitsPerSmple() {
-			return (*(_Media*)Data).AudioBytesPerSample << 3;
+		int Media::AudioBitsPerSample() {
+			return ((*(_Media*)Data).AudioBytesPerSample << 3) /
+				(*(_Media*)Data).Audio->channels;
 		}
 		int Media::AudioChannels() {
 			return (*(_Media*)Data).Audio->channels;
@@ -515,6 +510,7 @@ namespace PVX {
 
 			av_read_frame(m.Context, &m.ReadPacket);
 			//while(!m.FillBuffers());
+			m.FillBuffers();
 			
 			//if (m.Video) {
 			//	m.ScaleContext = sws_getCachedContext(0,

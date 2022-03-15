@@ -1,5 +1,7 @@
 #define EIGEN_MPL2_ONLY
 #include <Eigen/dense>
+#include <Eigen/SVD>
+
 using netData = Eigen::MatrixXf;
 
 inline Eigen::Block<netData, -1, -1, false> outPart(netData & m) {
@@ -23,10 +25,23 @@ inline size_t _CorrectMat(const netData& m) {
 	auto sz = m.size();
 	const auto* dt = m.data();
 	for (volatile auto i = 0; i<sz; i++) {
-		auto& d = dt[i];
-		if ((!(d>0) && !(d<=0)) || d==(d+1)) {
+		if (!std::isfinite(dt[i])) {
 			return i + 1;
 		}
 	}
 	return 0;
+}
+
+inline void FixMatrix(netData& m, std::function<float()> fnc = [] { return 0; }) {
+	auto sz = m.size();
+	auto* dt = m.data();
+	for (auto i = 0; i<sz; i++) {
+		if (!std::isfinite(dt[i]))
+			dt[i] = fnc();
+	}
+}
+
+inline netData makeUnit(const netData& mat) {
+	Eigen::JacobiSVD svd(mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	return svd.matrixU() * svd.matrixV().transpose();
 }

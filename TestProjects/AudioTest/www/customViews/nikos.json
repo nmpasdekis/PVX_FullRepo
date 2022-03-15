@@ -1,0 +1,1 @@
+{"Category":"Pages","Access":["SuperAdmin"],"Controller":"[\"$scope\", \"$http\", function ($scope, $http) { }]","Html":"<md-card>\n    <md-toolbar>\n        <div class=\"md-toolbar-tools\">Nikos</div>\n    </md-toolbar>\n    <md-card-content>\n    Nikos\n    </md-card-content>\n    <md-card-actions>\n    \n    </md-card-actions>\n</md-card>","Name":"nikos"}

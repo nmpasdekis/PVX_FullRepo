@@ -1,0 +1,8 @@
+<md-content layout="column" flex>
+	<md-select ng-model="curDevive">
+		<md-option ng-repeat="d in Devices" ng-value="d">{{d}}</md-option>
+	</md-select>
+	<md-select ng-model="curCaptureDevive">
+		<md-option ng-repeat="d in CaptureDevices" ng-value="d">{{d}}</md-option>
+	</md-select>
+</md-content>

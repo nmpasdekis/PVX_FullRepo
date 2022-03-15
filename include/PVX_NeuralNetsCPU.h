@@ -3,7 +3,7 @@
 
 #define EIGEN_MPL2_ONLY
 
-#include <../External/eigen-eigen-323c052e1731/Eigen/dense>
+#include <Eigen/dense>
 #include <vector>
 #include <PVX_BinSaver.h>
 #include <string>
@@ -128,7 +128,7 @@ namespace PVX {
 
 			void InputRaw(const netData & Data);
 			netData MakeRawInput(const netData & Data);
-			netData MakeRawInput(const float* Data, size_t Count = 1);
+			netData MakeRawInput(const float* Data, size_t Count);
 			netData MakeRawInput(const std::vector<float>& Input);
 
 			void SetLearnRate(float) {};

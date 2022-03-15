@@ -168,11 +168,15 @@ namespace PVX {
 			if(Channels == 1) {
 				if (BitsPerSamples == 8) return AL_FORMAT_MONO8;
 				else if (BitsPerSamples == 16) return AL_FORMAT_MONO16;
-				else return AL_FORMAT_MONO_FLOAT32;
+				else {
+					return AL_FORMAT_MONO_FLOAT32;
+				}
 			} else {
 				if(BitsPerSamples == 8) return AL_FORMAT_STEREO8;
 				else if(BitsPerSamples == 16) return AL_FORMAT_STEREO16;
-				else return AL_FORMAT_STEREO_FLOAT32;
+				else {
+					return AL_FORMAT_STEREO_FLOAT32;
+				}
 			}
 		}
 		Buffer::Buffer():
@@ -199,6 +203,10 @@ namespace PVX {
 			SetData(Data);
 		}
 		Buffer::Buffer(const AudioData<short>& Data) {
+			alGenBuffers(1, &Id);
+			SetData(Data);
+		}
+		Buffer::Buffer(const AudioData<float>& Data) {
 			alGenBuffers(1, &Id);
 			SetData(Data);
 		}
@@ -506,9 +514,9 @@ namespace PVX {
 				return ret;
 			}
 		}
-		std::vector<StereoSample> ToFloatSamplesStereo(int BitsPerSample, const void * Data, int Size) {
+		std::vector<StereoSample32> ToFloatSamplesStereo(int BitsPerSample, const void * Data, int Size) {
 			if(BitsPerSample == 16) {
-				std::vector<StereoSample> ret(Size >> 2);
+				std::vector<StereoSample32> ret(Size >> 2);
 				short * Buffer = (short*)Data;
 				float * r = &ret[0].Left;
 				float inv = 1.0f / 0x8000;
@@ -517,7 +525,7 @@ namespace PVX {
 				}
 				return ret;
 			} else {
-				std::vector<StereoSample> ret(Size >> 1);
+				std::vector<StereoSample32> ret(Size >> 1);
 				unsigned char * Buffer = (unsigned char*)Data;
 				float * r = &ret[0].Left;
 				float inv = 1.0f / 127.5f;

@@ -89,6 +89,7 @@ namespace PVX {
 			Buffer(int Channnels, int BitsPerSamples, int SampleRate, void * Data = 0, int SampleCount = 0);
 			Buffer(const AudioData<unsigned char>& Data);
 			Buffer(const AudioData<short>& Data);
+			Buffer(const AudioData<float>& Data);
 			Buffer(int SampleRate, const std::vector<short>& Samples);
 			
 			void SetData(const void * Data, int Size);
@@ -201,6 +202,26 @@ namespace PVX {
 			std::queue<uint32_t> Buffers;
 		};
 
+		typedef struct StereoSample32 {
+			float Left, Right;
+		} StereoSample32;
+
+		typedef struct StereoSample16 {
+			short Left, Right;
+		} StereoSample;
+
+		inline std::function<void(const unsigned char* Data, int Size)> CaptureMono16(std::function<void(const short* Samples, int SampleCount)> fnc) {
+			return [fnc](const unsigned char* Data, int Size) {
+				fnc((const short*)Data, Size >> 1);
+			};
+		}
+
+		inline std::function<void(const unsigned char* Data, int Size)> CaptureStereo16(std::function<void(const StereoSample16* Samples, int SampleCount)> fnc) {
+			return [fnc](const unsigned char* Data, int Size) {
+				fnc((const StereoSample16*)Data, Size >> 2);
+			};
+		}
+
 #define PVX_AUDIO_CAPTURE_STEPS 3
 
 		class Engine {
@@ -210,6 +231,14 @@ namespace PVX {
 
 			void InitCapture(int Channnels, int BitsPerSamples, int SampleRate, int BufferSizeInSamples = -5, const char * DeviceName = 0);
 			void SetCapture(int WindowSizeInSamples, std::function<void(const unsigned char * Data, int ByteCount)> Function, int WindowStepInSamples = -1);
+			
+			void SetCapture(int WindowSizeInSamples, std::function<void(const short* Samples, int SampleCount)> fnc, int WindowStepInSamples = -1) {
+				SetCapture(WindowSizeInSamples, CaptureMono16(fnc), WindowStepInSamples);
+			}
+			void SetCapture(int WindowSizeInSamples, std::function<void(const StereoSample16* Samples, int SampleCount)> fnc, int WindowStepInSamples = -1) {
+				SetCapture(WindowSizeInSamples, CaptureStereo16(fnc), WindowStepInSamples);
+			}
+			
 			void CaptureStart();
 			void CaptureStop();
 			void Capture();
@@ -246,7 +275,9 @@ namespace PVX {
 			int Position;
 			int OutSize;
 		public:
-			BufferedOutput(int OutSize, std::function<void(T*)> Output): Buffer(OutSize * 2), OnOutput{ Output }, Position{ 0 }, OutSize{ OutSize } {}
+			BufferedOutput(int OutSize, std::function<void(T*)> Output): 
+				Buffer(OutSize * 2), OnOutput{ Output }, Position{ 0 }, OutSize{ OutSize } {}
+
 			void Input(T * Data, int Count) {
 				if(Buffer.size() < Position + Count)
 					Buffer.resize(Position + Count * 2);
@@ -259,11 +290,6 @@ namespace PVX {
 				}
 			}
 		};
-
-		typedef struct StereoSample {
-			float Left, Right;
-		} StereoSample;
-
 
 
 		typedef std::vector<float> FloatVector;
@@ -297,7 +323,7 @@ namespace PVX {
 
 
 		FloatVector ToFloatSamples(int BitsPerSample, const void * Data, int Size);
-		std::vector<StereoSample> ToFloatSamplesStereo(int BitsPerSample, const void * Data, int Size);
+		std::vector<StereoSample32> ToFloatSamplesStereo(int BitsPerSample, const void * Data, int Size);
 		std::vector<unsigned char> SamplesToData(int BitsPerSample, const float * Data, int Count);
 
 

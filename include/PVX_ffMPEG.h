@@ -45,7 +45,7 @@ namespace PVX {
 				else{
 					return {
 						(unsigned int)AudioChannels(),
-						(unsigned int)(AudioBitsPerSmple()<16 ? 8 : 16),
+						(unsigned int)(AudioBitsPerSample()<16 ? 8 : 16),
 						(unsigned int)AudioSampleRate(),
 						std::move(ret)
 					};
@@ -56,7 +56,7 @@ namespace PVX {
 			int ReadVideoFrame(std::vector<unsigned char> & Pixels);
 
 			int AudioSampleRate();
-			int AudioBitsPerSmple();
+			int AudioBitsPerSample();
 			int AudioChannels();
 
 			void SetAudioEvent(std::function<void(const std::vector<short> & Data)> Event);

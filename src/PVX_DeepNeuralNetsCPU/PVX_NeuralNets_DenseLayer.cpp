@@ -63,16 +63,13 @@ namespace PVX {
 			activation{ Activation },
 			DeltaWeights{ netData::Zero(nOutput, nInput + 1ll) },
 			Weights{ netData::Random(nOutput, nInput + 1ll) },
-			//RMSprop{ netData::Zero(nOutput, 1ll) }
-			//RMSprop{ netData::Ones(nOutput, 1ll) }
 			RMSprop{ netData::Ones(nOutput, nInput + 1ll) }
-			//RMSprop{ netDataArray::Zero(nOutput, nInput + 1ll) }
 		{
-			if (!InitOpenMP) {
-				Eigen::initParallel();
-				Eigen::setNbThreads(8);
-				InitOpenMP = 1;
-			}
+			//if (!InitOpenMP) {
+			//	Eigen::initParallel();
+			//	Eigen::setNbThreads(8);
+			//	InitOpenMP = 1;
+			//}
 			Id = ++NextId;
 
 			_LearnRate = __LearnRate;
