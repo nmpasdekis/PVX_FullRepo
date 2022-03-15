@@ -137,12 +137,12 @@ namespace PVX::Network {
 
 	void HttpResponse::ClearCookie(const std::wstring & Name, const std::wstring& Path) {
 		if(Path.size())
-			MoreHeaders.push_back(SimpleTuple{ L"Set-Cookie", Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=" + Path });
+			MoreHeaders[L"Set-Cookie"] = Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=" + Path;
 		else
-			MoreHeaders.push_back(SimpleTuple{ L"Set-Cookie", Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT" });
+			MoreHeaders[L"Set-Cookie"] = Name + L"=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 	}
 	void HttpResponse::SetCookie(const std::wstring & Name, const std::wstring & Value) {
-		MoreHeaders.push_back(SimpleTuple{ L"Set-Cookie", Name + L"=" + Value });
+		MoreHeaders[L"Set-Cookie"] = Name + L"=" + Value;
 	}
 
 	void HttpResponse::Redirect(const std::wstring & Location, int Status) {
@@ -279,8 +279,8 @@ namespace PVX::Network {
 			Headers[L"content-length"] = tmp;
 		}
 
-		for (auto & h : Headers) Response << h.first << ": " << (std::wstring) h.second << "\r\n";
-		for (auto & h : MoreHeaders) Response << h.Name << ": " << h.Value << "\r\n";
+		for (auto & [Name, Value] : Headers) Response << Name << ": " << (std::wstring)Value << "\r\n";
+		for (auto & [Name, Value] : MoreHeaders) Response << Name << ": " << Value << "\r\n";
 
 		Response << "\r\n";
 		return Socket.Send(Response.GetDataVector()) < 0;

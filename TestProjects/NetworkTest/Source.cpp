@@ -11,7 +11,8 @@ int main() {
 			{ L"Message2", L"Hello" },
 		});
 	});
-
+	http.ContentRoute(L"/js", L"html\\js");
+	http.DefaultHtml(L"html\\index.html");
 
 
 	TcpServer serv;

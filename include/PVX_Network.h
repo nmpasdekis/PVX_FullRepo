@@ -137,10 +137,6 @@ namespace PVX {
 			operator std::wstring() const;
 		};
 
-		typedef struct SimpleTuple {
-			std::wstring Name, Value;
-		} SimpleTuple;
-
 		struct MultipartFormPartItem {
 			std::wstring Value;
 			std::map<std::wstring, std::wstring> Values;
@@ -160,7 +156,6 @@ namespace PVX {
 			std::string Method;
 			std::string Protocol;
 			std::string Version;
-			//UtfHelper QueryString;
 			std::wstring QueryString;
 			UtfHelper Get;
 			std::map<std::string, UtfHelper> Headers;
@@ -247,8 +242,9 @@ namespace PVX {
 				std::function<bool(TcpSocket&)> Func;
 			} myStream;
 			std::vector<myStream> Streams;
-			std::map<std::wstring, UtfHelper> Headers;
-			std::vector<SimpleTuple> MoreHeaders;
+			std::unordered_map<std::wstring, UtfHelper> Headers;
+			std::unordered_map<std::wstring, std::wstring> MoreHeaders;
+
 			friend class HttpServer;
 			friend class Controller;
 		};
@@ -345,7 +341,8 @@ namespace PVX {
 			std::vector<Route> Router;
 			Route DefaultRoute;
 			std::map<std::wstring, std::wstring> Mime;
-			std::vector<SimpleTuple> DefaultHeader;
+			//std::vector<SimpleTuple> DefaultHeader;
+			std::unordered_map<std::wstring, std::wstring>  DefaultHeader;
 			std::vector<std::function<int(HttpRequest&, HttpResponse&)>> Filters;
 			std::set<std::wstring> Sessions;
 			std::string TokenKey;

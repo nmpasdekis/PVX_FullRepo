@@ -34,8 +34,8 @@ namespace PVX {
 				SetDefaultRoute(ContentServer(it->String()));
 
 			if (auto it = Config.Has(L"ResponseHeader"); it)
-				for (auto & Value : it->getObject())
-					DefaultHeader.push_back({ Value.first, Value.second.String() });
+				for (auto & [Name, Value] : it->getObject())
+					DefaultHeader[Name] = Value.String();
 		}
 
 		HttpServer::~HttpServer() {
@@ -350,8 +350,8 @@ namespace PVX {
 
 		void HttpServer::SetDefaultHeader(HttpResponse & http) {
 			http.Server = this;
-			for (auto h : DefaultHeader)
-				http[h.Name] = h.Value;
+			for (auto & [Name, Value] : DefaultHeader)
+				http[Name] = Value;
 		}
 
 		void HttpServer::AddFilter(std::function<int(HttpRequest&, HttpResponse&)> Filter) {
