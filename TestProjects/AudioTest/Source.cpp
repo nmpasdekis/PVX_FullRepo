@@ -23,6 +23,19 @@ int main() {
 		resp.Json(devs);
 	});
 
+	http.Routes(L"/api/devices", [&](PVX::Network::HttpResponse& resp) {
+		auto devsOut = PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
+			return PVX::Decode::Windows1253(n.c_str());
+		});
+		auto devsIn = PVX::Map(PVX::Audio::Engine::CaptureDevices(), [](const std::string& n) {
+			return PVX::Decode::Windows1253(n.c_str());
+		});
+		resp.Json({
+			{ L"Output", devsOut },
+			{ L"Input", devsIn }
+		});
+	});
+
 	http.Routes(L"/api/data/save/{name}", [](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
 		std::wstring name = req[L"name"];
 		PVX::IO::Write(L"www\\data\\" + name, req.RawContent);
