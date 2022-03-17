@@ -1,0 +1,6 @@
+[{
+	"Id": "38B3CCA1-D6A4-4037-95EF-BCA03FFA3AA8",
+	"PasswordHash": "AP+3S2Q/YK73GT/fGYNhGZ/gPaHH3XlMsE6Zskh5klD7FqGSWrF7qP3WHRilMprzDQ==",
+	"UserName": "admin",
+	"Roles": ["SuperAdmin", "Admin"]
+}]

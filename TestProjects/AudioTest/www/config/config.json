@@ -1,0 +1,20 @@
+{
+	"title": "PerVertEX CMS",
+	"navMenu": [
+		{
+			"Title": "Item1",
+			"sref": "root.view({'name': 'nikos', '#': undefined })",
+			"icon": "mdi-home"
+		},
+		{
+			"Title": "Item1",
+			"sref": "root.view({'name': 'SQL Services', '#': undefined })",
+			"icon": "mdi-database"
+		},
+		{
+			"Title": "Item2",
+			"sref": "root.view({'name': 'Custom Views', '#': undefined })",
+			"icon": "mdi-code-braces"
+		}
+	]
+}

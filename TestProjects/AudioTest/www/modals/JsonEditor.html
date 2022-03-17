@@ -1,0 +1,48 @@
+﻿<style>
+	md-dialog {
+		opacity: 0;
+		min-width: 240px;
+		max-width: 100%;
+		max-height: 100%;
+		width: 95%;
+		height: 95%;
+		position: relative;
+		overflow: auto;
+		box-shadow: 0 7px 8px -4px rgba(0,0,0,.2), 0 13px 19px 2px rgba(0,0,0,.14), 0 5px 24px 4px rgba(0,0,0,.12);
+		-webkit-box-orient: vertical;
+		-webkit-box-direction: normal;
+		-webkit-flex-direction: column;
+		flex-direction: column;
+	}
+
+	.editor {
+		height: 70vh !important;
+	}
+
+	md-pagination-wrapper {
+		width: 290px !important;
+	}
+</style>
+
+<md-dialog aria-label="Editor" ng-keypress="$event.stopPropagation()" ng-keyup="$event.stopPropagation()" ng-keydown="$event.stopPropagation()">
+    <md-toolbar>
+        <div class="md-toolbar-tools">
+            <h2>Edit Json</h2>
+        </div>
+    </md-toolbar>
+
+	<md-dialog-content>
+		<div class="editor"
+			 ui-ace="{ mode: 'json', theme: 'monokai' }"
+			 ng-model="ref.text"
+			 style="font-family: monospace; white-space: pre; min-height: calc(100vh - 165px)">
+		</div>
+	</md-dialog-content>
+
+    <md-dialog-actions layout="row">
+        <md-button class="md-raised md-primary" md-autofocus ng-click="format()">Format</md-button>
+        <span flex></span>
+        <md-button class="md-raised md-primary" ng-click="ok()">ok</md-button>
+        <md-button class="md-raised md-warn" ng-click="$mdDialog.cancel()">cancel</md-button>
+    </md-dialog-actions>
+</md-dialog>

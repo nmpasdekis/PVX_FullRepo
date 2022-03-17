@@ -1,8 +1,26 @@
-<md-content layout="column" flex>
-	<md-select ng-model="curDevive">
-		<md-option ng-repeat="d in Devices" ng-value="d">{{d}}</md-option>
-	</md-select>
-	<md-select ng-model="curCaptureDevive">
-		<md-option ng-repeat="d in CaptureDevices" ng-value="d">{{d}}</md-option>
-	</md-select>
+<md-content layout="column" style="background-color: #888;" flex>
+	<md-content layout="row" flex style="background-color:lightgray">
+		<strong style="margin:auto 10px">{{Config.title}}</strong>
+		<span flex></span>
+		<md-button ng-if="!User" style="margin:0" ng-click="showLogin()">Login</md-button>
+		<md-button ng-if="User" style="margin:0" ng-click="logOff()">Logoff</md-button>
+	</md-content>
+	<div layout="row">
+		<div style="color:white; display:inline-block; height:calc(100vh - 36px); background-color: #4a4a4a;">
+			<md-list class="main-menu" style="padding-top: 0;">
+				<md-list-item ng-click="menu.collapsed=!menu.collapsed">
+					<i class="mdi mdi-24px mdi-menu"></i>
+				</md-list-item>
+				<md-list-item ng-repeat="m in Config.navMenu" ng-if="IsInRole(m.Roles)" ui-sref-active="menu-active" ui-sref="{{m.sref}}">
+					<i class="mdi mdi-24px {{m.icon}}"></i>
+					<span ng-if="!menu.collapsed">{{m.Title}}</span>
+				</md-list-item>
+				<md-list-item ng-if="User.Roles.includes('Admin')" ng-click="exit()">
+					<i class="mdi mdi-24px mdi-menu"></i>
+					<span ng-if="!menu.collapsed">Close Application</span>
+				</md-list-item>
+			</md-list>
+		</div>
+		<ui-view flex></ui-view>
+	</div>
 </md-content>

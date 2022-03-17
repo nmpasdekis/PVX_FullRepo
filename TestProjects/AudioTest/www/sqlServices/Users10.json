@@ -1,0 +1,1 @@
+{"Name":"Users10","Roles":["Admin"],"Category":"Category 2","Description":null,"Query":"select top 10\n    Id,\n    dbo.UserFields(Id) parseJSON_Fields\nfrom AspNetUsers\ngo","Single":false,"Params":null}

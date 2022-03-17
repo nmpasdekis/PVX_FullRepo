@@ -1,0 +1,1 @@
+{"Name":"GetAll","Roles":["SuperAdmin"],"Category":"Test","Query":"select top 10\n    mmaData parseJSON_mmaData,\n    uaData parseJSON_uaData,\n    *\n    \nfrom EMV_All_Mentee_Data\nwhere \n    cast(int, (ROW_NUMBER() over (order by Username)) / 10) = 0 RowNum\n    Json_value(mmaData, '$.action187.Data.FullDateTime') is not null","Params":null}

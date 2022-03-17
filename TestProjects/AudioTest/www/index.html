@@ -1,6 +1,5 @@
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 <head>
-	<title>Audio</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="icon" href="/content/images/favicon.ico?v=4">
 	<base href="/" />
@@ -19,8 +18,55 @@
 	<script src="/js/general.js"></script>
 	<script src="/js/module.js"></script>
 	<script src="/js/directives.js"></script>
-	<script src="/js/script.js"></script>
+	<script src="/js/factories.js"></script>
+	<script src="/js/index.js"></script>
+	<style>
+		.menu-active {
+			color: white;
+			background-color: blue;
+		}
+
+		.main-menu span {
+			margin: 0 5px;
+		}
+
+		.main-menu .md-button {
+			min-width: auto;
+		}
+		.ace_print-margin {
+			display: none;
+		}
+		.iBlock {
+			display: inline-block;
+			vertical-align: top;
+			margin: 10px;
+		}
+		.table{
+			width:100%;
+			max-width:100%;
+		}
+		.table td{
+			padding: 0 5px;
+		}
+		.table tr{
+			height:24px;
+		}
+			.table th {
+				padding: 0 5px;
+				height: 25px;
+			}
+		.editor {
+			min-height: 300px;
+			width: 100%;
+		}
+		md-input-container .md-errors-spacer{
+			min-height: 0;
+		}
+		h4{
+			margin-top: 0;
+			margin-bottom: 0;
+		}
+	</style>
 </head>
-<body ng-app="app" ng-cloak ui-view>
-</body>
+	<body ng-app="app" ng-cloak ui-view></body>
 </html>
