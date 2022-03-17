@@ -2,6 +2,7 @@
 #include <PVX_ffMPEG.h>
 #include <PVX_Network.h>
 #include <PVX_File.h>
+#include <PVX_Encode.h>
 
 void CustomViews(PVX::Network::HttpServer& http);
 void SqlServices(PVX::Network::HttpServer& http);
@@ -14,11 +15,30 @@ int main() {
 	http.EnableWebToken("myAccessKey");
 
 	http.Routes(L"/api/device/output/names", [&](PVX::Network::HttpResponse& resp) {
-		resp.Json(PVX::Audio::Engine::Devices());
+		auto devs = PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
+			return PVX::Decode::Windows1253(n.c_str());
+		});
+		resp.Json(devs);
 	});
 
 	http.Routes(L"/api/device/input/names", [&](PVX::Network::HttpResponse& resp) {
-		resp.Json(PVX::Audio::Engine::CaptureDevices());
+		auto devs = PVX::Map(PVX::Audio::Engine::CaptureDevices(), [](const std::string& n) {
+			return PVX::Decode::Windows1253(n.c_str());
+		});
+		resp.Json(devs);
+	});
+
+	http.Routes(L"/api/devices", [&](PVX::Network::HttpResponse& resp) {
+		auto devsOut = PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
+			return PVX::Decode::Windows1253(n.c_str());
+		});
+		auto devsIn = PVX::Map(PVX::Audio::Engine::CaptureDevices(), [](const std::string& n) {
+			return PVX::Decode::Windows1253(n.c_str());
+		});
+		resp.Json({
+			{ L"Output", devsOut },
+			{ L"Input", devsIn }
+		});
 	});
 
 	http.Routes(L"/api/data/save/{name}", [](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
