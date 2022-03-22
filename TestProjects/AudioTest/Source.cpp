@@ -4,10 +4,18 @@
 #include <PVX_File.h>
 #include <PVX_Encode.h>
 
+PVX::Audio::Engine al;
+PVX::Audio::Buffer song(PVX::AudioVideo::LoadFile("AfterDark.mp3").ReadAllAudio<short>());
+PVX::Audio::Source Source;
+
+
 int main() {
 	PVX::Network::HttpServer http;
 	PVX::Network::TcpServer tcp;
 	tcp.Serve(http);
+
+	Source.SetBuffer(song);
+
 
 	http.Routes(L"/api/device/output/names", [&](PVX::Network::HttpResponse& resp) {
 		auto devs = PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
@@ -34,6 +42,14 @@ int main() {
 			{ L"Output", devsOut },
 			{ L"Input", devsIn }
 		});
+	});
+
+	http.Routes(L"/api/play", [] {
+		Source.Play();
+	});
+
+	http.Routes(L"/api/stop", [] {
+		Source.Stop();
 	});
 
 	http.Routes(L"/api/data/save/{name}", [](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
