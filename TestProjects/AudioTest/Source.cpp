@@ -4,18 +4,15 @@
 #include <PVX_File.h>
 #include <PVX_Encode.h>
 
-PVX::Audio::Engine al;
-PVX::Audio::Buffer song(PVX::AudioVideo::LoadFile("AfterDark.mp3").ReadAllAudio<short>());
-PVX::Audio::Source Source;
-
+void CustomViews(PVX::Network::HttpServer& http);
+void SqlServices(PVX::Network::HttpServer& http);
 
 int main() {
 	PVX::Network::HttpServer http;
 	PVX::Network::TcpServer tcp;
 	tcp.Serve(http);
 
-	Source.SetBuffer(song);
-
+	http.EnableWebToken("myAccessKey");
 
 	http.Routes(L"/api/device/output/names", [&](PVX::Network::HttpResponse& resp) {
 		auto devs = PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
@@ -58,10 +55,19 @@ int main() {
 	});
 
 	http.ContentRoute(L"/js", L"www\\js");
-	http.ContentRoute(L"/js", L"www\\customViews");
+	http.ContentRoute(L"/customViews", L"www\\customViews");
 	http.ContentRoute(L"/views", L"www\\views");
 	http.ContentRoute(L"/data", L"www\\data");
+	http.ContentRoute(L"/css", L"www\\css");
+	http.ContentRoute(L"/modals", L"www\\modals");
+	http.ServeFile(L"/api/config", L"www\\config\\config.json");
+	
+	CustomViews(http);
+	SqlServices(http);
+	
 	http.DefaultHtml(L"www\\index.html");
+
+
 
 	getchar();
 

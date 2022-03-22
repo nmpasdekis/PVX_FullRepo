@@ -1,0 +1,1 @@
+{"Name":"ActionCompletedPerMentee","Roles":["SuperAdmin","Admin","Supervisor","Mentee"],"Category":"Category 2","Description":null,"Query":"select Completed\nfrom EMC_Mentor_Mentee_Action mma\nwhere\n    (@actionid is null OR ActionId=@actionid) and\n    (@userid is null OR MenteeId=@userid)","Single":false,"Params":["actionid","userid"]}
