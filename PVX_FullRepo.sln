@@ -57,6 +57,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PVX_OpenGL_Helpers", "src\PVX_OpenGL_Helpers\PVX_OpenGL_Helpers.vcxproj", "{1C140DDF-A519-4198-B557-9BF1B76BB9A4}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fbx", "TestProjects\Fbx\Fbx.vcxproj", "{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F509FB51-C91C-489D-BFAC-71D54D6A4D4E} = {F509FB51-C91C-489D-BFAC-71D54D6A4D4E}
+		{3B243D7C-B09A-488E-B957-489794DC689F} = {3B243D7C-B09A-488E-B957-489794DC689F}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
