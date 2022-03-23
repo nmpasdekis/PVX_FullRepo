@@ -586,25 +586,27 @@ namespace PVX::Object3D {
 	}
 
 	std::vector<int> GetTriangleMaterialMap(FbxMesh* Mesh) {
-		int PolygonCount = Mesh->GetPolygonCount();
-		fbxsdk::FbxLayerElementMaterial* pLayerMaterials = Mesh->GetLayer(0)->GetMaterials();
-		FbxLayerElementArrayTemplate<int>& indexArray = pLayerMaterials->GetIndexArray();
-
 		std::vector<int> ret;
+		int PolygonCount = Mesh->GetPolygonCount();
+		auto Layer = Mesh->GetLayer(0);
+		fbxsdk::FbxLayerElementMaterial* pLayerMaterials = Layer->GetMaterials();
+		if (pLayerMaterials) {
+			FbxLayerElementArrayTemplate<int>& indexArray = pLayerMaterials->GetIndexArray();
 
-		if (pLayerMaterials->GetMappingMode() == FbxLayerElement::eAllSame) {
-			int m = indexArray[0];
-			for (int i = 0; i < PolygonCount; i++) {
-				int count = Mesh->GetPolygonSize(i) - 2;
-				for (int j = 0; j < count; j++) {
-					ret.push_back(m);
+			if (pLayerMaterials->GetMappingMode() == FbxLayerElement::eAllSame) {
+				int m = indexArray[0];
+				for (int i = 0; i < PolygonCount; i++) {
+					int count = Mesh->GetPolygonSize(i) - 2;
+					for (int j = 0; j < count; j++) {
+						ret.push_back(m);
+					}
 				}
-			}
-		} else {
-			for (int i = 0; i < PolygonCount; i++) {
-				int count = Mesh->GetPolygonSize(i) - 2;
-				for (int j = 0; j < count; j++) {
-					ret.push_back(indexArray[i]);
+			} else {
+				for (int i = 0; i < PolygonCount; i++) {
+					int count = Mesh->GetPolygonSize(i) - 2;
+					for (int j = 0; j < count; j++) {
+						ret.push_back(indexArray[i]);
+					}
 				}
 			}
 		}
@@ -614,6 +616,9 @@ namespace PVX::Object3D {
 	std::vector<ObjectSubPart> Split(const ObjectSubPart& part, const std::vector<int> PolyIndex) {
 		int Max = -1;
 		for (auto p : PolyIndex) if (Max < p) Max = p;
+
+		if (Max==-1)
+			return {};
 
 		std::vector<ObjectSubPart> ret(Max + 1);
 		for (auto& r : ret) {
@@ -657,6 +662,32 @@ namespace PVX::Object3D {
 		return FbxCast<FbxFileTexture>(Tex)->GetFileName();
 	}
 
+	PVX::Vector3D GetProperty3D(FbxSurfaceMaterial* mat, const char* propName) {
+		const auto prop = mat->FindProperty(propName);
+		if (prop.IsValid()) 
+			return ToVec3(prop.Get<FbxVector4>());
+		return {};
+	}
+	PVX::Vector2D GetProperty2D(FbxSurfaceMaterial* mat, const char* propName) {
+		const auto prop = mat->FindProperty(propName);
+		if (prop.IsValid())
+			return ToVec2(prop.Get<FbxVector2>());
+		return {};
+	}
+	float GetPropertyFloat(FbxSurfaceMaterial* mat, const char* propName) {
+		const auto prop = mat->FindProperty(propName);
+		if (prop.IsValid())
+			return prop.Get<double>();
+		return {};
+	}
+	std::string GetPropertyTexture(FbxSurfaceMaterial* mat, const char* propName) {
+		const auto prop = mat->FindProperty(propName);
+		if (prop.IsValid())
+			if (FbxTexture* Tex = prop.GetSrcObject<FbxTexture>())
+				return FbxCast<FbxFileTexture>(Tex)->GetFileName();
+		return {};
+	}
+
 	int ReadMaterials(PVX::Object3D::Object& Scene, FbxScene* fbxScene) {
 		int mCount = fbxScene->GetMaterialCount();
 		for (int i = 0; i < mCount; i++) {
@@ -671,71 +702,96 @@ namespace PVX::Object3D {
 
 			PVX::Object3D::PlaneMaterial& stdMat = Scene.Material[Name];
 
-			FbxSurfaceLambert* Lambert = (FbxSurfaceLambert*)mat;
+			stdMat.Diffuse = stdMat.Color = GetProperty3D(mat, FbxSurfaceMaterial::sDiffuse);
+			stdMat.DiffuseFactor = GetPropertyFloat(mat, FbxSurfaceMaterial::sDiffuseFactor);
 
-			stdMat.Color = ToVec3(Lambert->Diffuse.Get());
-			//stdMat.Color *= (float)Lambert->ColorFactor.Get();
-			stdMat.Diffuse = ToVec3(Lambert->Diffuse.Get());
-			stdMat.DiffuseFactor = (float)Lambert->DiffuseFactor.Get();
-			stdMat.Ambient = ToVec3(Lambert->Ambient.Get());
-			stdMat.AmbientFactor = (float)Lambert->AmbientFactor.Get();
-			stdMat.Emissive = ToVec3(Lambert->Emissive.Get());
-			stdMat.EmissiveFactor = (float)Lambert->EmissiveFactor.Get();
-			stdMat.Bump = (float)Lambert->BumpFactor.Get();
+			stdMat.Ambient = GetProperty3D(mat, FbxSurfaceMaterial::sAmbient);
+			stdMat.AmbientFactor = GetPropertyFloat(mat, FbxSurfaceMaterial::sAmbientFactor);
 
-			PVX::Vector3D tmpVec;
-			tmpVec = ToVec3(Lambert->TransparentColor.Get());
-			tmpVec *= (float)Lambert->TransparencyFactor.Get();
-			stdMat.Alpha = 1.0f - (tmpVec.x + tmpVec.y + tmpVec.z) / 3.0f;
+			stdMat.Emissive = GetProperty3D(mat, FbxSurfaceMaterial::sEmissive);
+			stdMat.EmissiveFactor = GetPropertyFloat(mat, FbxSurfaceMaterial::sEmissiveFactor);
+
+			stdMat.Bump = GetPropertyFloat(mat, FbxSurfaceMaterial::sBumpFactor);
+
+			stdMat.Specular = GetProperty3D(mat, FbxSurfaceMaterial::sSpecular);
+			stdMat.SpecularFactor = GetPropertyFloat(mat, FbxSurfaceMaterial::sSpecularFactor);
+			stdMat.SpecularPower = GetPropertyFloat(mat, FbxSurfaceMaterial::sShininess);
+
+			PVX::Vector3D tmpVec3;
+			tmpVec3 = GetProperty3D(mat, FbxSurfaceMaterial::sTransparentColor);
+			tmpVec3 *= GetProperty3D(mat, FbxSurfaceMaterial::sTransparencyFactor);
+			stdMat.Alpha = 1.0f - (tmpVec3.x + tmpVec3.y + tmpVec3.z) / 3.0f;
+
+			stdMat.Textures.Diffuse = GetPropertyTexture(mat, FbxSurfaceMaterial::sDiffuse);
+			stdMat.Textures.Ambient = GetPropertyTexture(mat, FbxSurfaceMaterial::sAmbient);
+			stdMat.Textures.Emissive = GetPropertyTexture(mat, FbxSurfaceMaterial::sEmissive);
+			stdMat.Textures.Specular = GetPropertyTexture(mat, FbxSurfaceMaterial::sSpecular);
+
+			//FbxSurfaceLambert* Lambert = (FbxSurfaceLambert*)mat;
+
+			//stdMat.Color = ToVec3(Lambert->Diffuse.Get());
+			////stdMat.Color *= (float)Lambert->ColorFactor.Get();
+			//stdMat.Diffuse = ToVec3(Lambert->Diffuse.Get());
+			//stdMat.DiffuseFactor = (float)Lambert->DiffuseFactor.Get();
+			//stdMat.Ambient = ToVec3(Lambert->Ambient.Get());
+			//stdMat.AmbientFactor = (float)Lambert->AmbientFactor.Get();
+			//stdMat.Emissive = ToVec3(Lambert->Emissive.Get());
+			//stdMat.EmissiveFactor = (float)Lambert->EmissiveFactor.Get();
+			//stdMat.Bump = (float)Lambert->BumpFactor.Get();
+
+			//PVX::Vector3D tmpVec;
+			//tmpVec = ToVec3(Lambert->TransparentColor.Get());
+			//tmpVec *= (float)Lambert->TransparencyFactor.Get();
+			//stdMat.Alpha = 1.0f - (tmpVec.x + tmpVec.y + tmpVec.z) / 3.0f;
 
 
-			if (FbxTexture* Tex = Lambert->Diffuse.GetSrcObject<FbxTexture>())
-				stdMat.Textures.Diffuse = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+			//if (FbxTexture* Tex = Lambert->Diffuse.GetSrcObject<FbxTexture>())
+			//	stdMat.Textures.Diffuse = FbxCast<FbxFileTexture>(Tex)->GetFileName();
 
-			if (FbxTexture* Tex = Lambert->Ambient.GetSrcObject<FbxTexture>())
-				stdMat.Textures.Ambient = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+			//if (FbxTexture* Tex = Lambert->Ambient.GetSrcObject<FbxTexture>())
+			//	stdMat.Textures.Ambient = FbxCast<FbxFileTexture>(Tex)->GetFileName();
 
-			if (FbxTexture* Tex = Lambert->Emissive.GetSrcObject<FbxTexture>())
-				stdMat.Textures.Emissive = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+			//if (FbxTexture* Tex = Lambert->Emissive.GetSrcObject<FbxTexture>())
+			//	stdMat.Textures.Emissive = FbxCast<FbxFileTexture>(Tex)->GetFileName();
 
-			//int tmp = 0;
+			////int tmp = 0;
 
-			//auto nrm = Lambert->NormalMap;
-			//auto nrmc = nrm.GetSrcObjectCount();
-			//for (auto i = 0; i< nrmc; i++) {
-			//	auto test = nrm.GetSrcObject(i);
-			//	tmp++;
+			////auto nrm = Lambert->NormalMap;
+			////auto nrmc = nrm.GetSrcObjectCount();
+			////for (auto i = 0; i< nrmc; i++) {
+			////	auto test = nrm.GetSrcObject(i);
+			////	tmp++;
+			////}
+			//////auto nrmt = Lambert->NormalMap.GetSrcObject<FbxTexture>();
+
+			////auto bmp = Lambert->NormalMap;
+			////auto bmpc = nrm.GetSrcObjectCount();
+			////for (auto i = 0; i< bmpc; i++) {
+			////	auto test = bmp.GetSrcObject(i);
+			////	tmp++;
+			////}
+			//////auto bmpt = Lambert->NormalMap.GetSrcObject<FbxTexture>();
+
+			//if (FbxTexture* Tex = Lambert->Bump.GetSrcObject<FbxTexture>())
+			//	stdMat.Textures.Bump = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+
+			//if (FbxTexture* Tex = Lambert->NormalMap.GetSrcObject<FbxTexture>())
+			//	stdMat.Textures.Bump = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+
+
+			//if (FbxTexture* Tex = Lambert->TransparencyFactor.GetSrcObject<FbxTexture>())
+			//	stdMat.Textures.Transparency = FbxCast<FbxFileTexture>(Tex)->GetFileName();
+
+			//if (mat->GetClassId().Is(FbxSurfacePhong::ClassId)) {
+			//	FbxSurfacePhong* Phong = (FbxSurfacePhong*)mat;
+
+			//	stdMat.Specular = ToVec3(Phong->Specular.Get());
+			//	stdMat.SpecularFactor = (float)Phong->SpecularFactor.Get();
+			//	stdMat.SpecularPower = (float)Phong->Shininess.Get();
+
+			//	if (FbxTexture* Tex = Phong->Specular.GetSrcObject<FbxTexture>())
+			//		stdMat.Textures.Specular = FbxCast<FbxFileTexture>(Tex)->GetFileName();
 			//}
-			////auto nrmt = Lambert->NormalMap.GetSrcObject<FbxTexture>();
-
-			//auto bmp = Lambert->NormalMap;
-			//auto bmpc = nrm.GetSrcObjectCount();
-			//for (auto i = 0; i< bmpc; i++) {
-			//	auto test = bmp.GetSrcObject(i);
-			//	tmp++;
-			//}
-			////auto bmpt = Lambert->NormalMap.GetSrcObject<FbxTexture>();
-
-			if (FbxTexture* Tex = Lambert->Bump.GetSrcObject<FbxTexture>())
-				stdMat.Textures.Bump = FbxCast<FbxFileTexture>(Tex)->GetFileName();
-
-			if (FbxTexture* Tex = Lambert->NormalMap.GetSrcObject<FbxTexture>())
-				stdMat.Textures.Bump = FbxCast<FbxFileTexture>(Tex)->GetFileName();
-
-
-			if (FbxTexture* Tex = Lambert->TransparencyFactor.GetSrcObject<FbxTexture>())
-				stdMat.Textures.Transparency = FbxCast<FbxFileTexture>(Tex)->GetFileName();
-
-			if (mat->GetClassId().Is(FbxSurfacePhong::ClassId)) {
-				FbxSurfacePhong* Phong = (FbxSurfacePhong*)mat;
-
-				stdMat.Specular = ToVec3(Phong->Specular.Get());
-				stdMat.SpecularFactor = (float)Phong->SpecularFactor.Get();
-				stdMat.SpecularPower = (float)Phong->Shininess.Get();
-
-				if (FbxTexture* Tex = Phong->Specular.GetSrcObject<FbxTexture>())
-					stdMat.Textures.Specular = FbxCast<FbxFileTexture>(Tex)->GetFileName();
-			}
 
 
 			

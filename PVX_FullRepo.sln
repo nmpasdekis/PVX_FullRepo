@@ -55,6 +55,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AudioTest", "TestProjects\A
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fbx", "TestProjects\Fbx\Fbx.vcxproj", "{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F509FB51-C91C-489D-BFAC-71D54D6A4D4E} = {F509FB51-C91C-489D-BFAC-71D54D6A4D4E}
+		{3B243D7C-B09A-488E-B957-489794DC689F} = {3B243D7C-B09A-488E-B957-489794DC689F}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -176,12 +180,10 @@ Global
 		{D2995DE2-3BA8-4847-A3F8-F012FD0904F9}.Release|x86.ActiveCfg = Release|x64
 		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Debug|x64.ActiveCfg = Debug|x64
 		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Debug|x64.Build.0 = Debug|x64
-		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Debug|x86.ActiveCfg = Debug|Win32
-		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Debug|x86.Build.0 = Debug|Win32
+		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Debug|x86.ActiveCfg = Debug|x64
 		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Release|x64.ActiveCfg = Release|x64
 		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Release|x64.Build.0 = Release|x64
-		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Release|x86.ActiveCfg = Release|Win32
-		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Release|x86.Build.0 = Release|Win32
+		{1DCFA2AC-50F4-42F0-BF87-CB3AE2683B76}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
