@@ -42,6 +42,14 @@ int main() {
 		});
 	});
 
+	http.Routes(L"/api/play", [] {
+		Source.Play();
+	});
+
+	http.Routes(L"/api/stop", [] {
+		Source.Stop();
+	});
+
 	http.Routes(L"/api/data/save/{name}", [](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
 		std::wstring name = req[L"name"];
 		PVX::IO::Write(L"www\\data\\" + name, req.RawContent);

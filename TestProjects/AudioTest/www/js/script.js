@@ -3,5 +3,10 @@ app.controller("root", ["$scope", "$http", "$q", function ($scope, $http, $q) {
         $scope.Devices = r[0].data;
         $scope.CaptureDevices = r[1].data;
     });
-
+    $scope.Start = () => {
+        $http.post("/api/play");
+    }
+    $scope.Stop = () => {
+        $http.post("/api/stop");
+    }
 }]);
