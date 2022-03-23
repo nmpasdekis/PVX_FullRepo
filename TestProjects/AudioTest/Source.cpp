@@ -3,29 +3,30 @@
 #include <PVX_Network.h>
 #include <PVX_File.h>
 #include <PVX_Encode.h>
+#include <PVX_Threading.h>
 
 void CustomViews(PVX::Network::HttpServer& http);
 void SqlServices(PVX::Network::HttpServer& http);
 
 int main() {
+	PVX::Threading::Pauser pauser;
 	PVX::Network::HttpServer http;
 	PVX::Network::TcpServer tcp;
 	tcp.Serve(http);
 
+
 	http.EnableWebToken("myAccessKey");
 
 	http.Routes(L"/api/device/output/names", [&](PVX::Network::HttpResponse& resp) {
-		auto devs = PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
+		resp.Json(PVX::Map(PVX::Audio::Engine::Devices(), [](const std::string& n) {
 			return PVX::Decode::Windows1253(n.c_str());
-		});
-		resp.Json(devs);
+		}));
 	});
 
 	http.Routes(L"/api/device/input/names", [&](PVX::Network::HttpResponse& resp) {
-		auto devs = PVX::Map(PVX::Audio::Engine::CaptureDevices(), [](const std::string& n) {
+		resp.Json(PVX::Map(PVX::Audio::Engine::CaptureDevices(), [](const std::string& n) {
 			return PVX::Decode::Windows1253(n.c_str());
-		});
-		resp.Json(devs);
+		}));
 	});
 
 	http.Routes(L"/api/devices", [&](PVX::Network::HttpResponse& resp) {
@@ -61,7 +62,7 @@ int main() {
 
 
 
-	getchar();
+	pauser.Pause();
 
 
 	//auto song = PVX::AudioVideo::LoadFile("AfterDark.mp3");

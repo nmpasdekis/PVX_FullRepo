@@ -1,8 +1,10 @@
 #ifndef __PVX_THREADING_H__
 #define __PVX_THREADING_H__
 
-#include<functional>
-#include<queue>
+#include <functional>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
 
 namespace PVX {
 	namespace Threading {
@@ -47,6 +49,22 @@ namespace PVX {
 			void * PrivateData;
 			std::queue<std::function<void()>> Tasks;
 			void Worker(int);
+		};
+
+		class Pauser {
+			std::mutex RauserMutex;
+			std::condition_variable cv;
+			bool paused = false;
+		public:
+			inline void Pause() {
+				std::unique_lock<std::mutex> lock{ RauserMutex };
+				paused = true;
+				cv.wait(lock, [this] { return !paused; });
+			}
+			inline void Unpause() {
+				paused = false;
+				cv.notify_one();
+			}
 		};
 	}
 }
