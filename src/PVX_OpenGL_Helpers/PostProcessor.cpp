@@ -1,4 +1,4 @@
-#include "Include/PVX_OpenGL_Helpers.h"
+#include <PVX_OpenGL_Helpers.h>
 #include <PVX_File.h>
 
 #include "PostShaders.inl"

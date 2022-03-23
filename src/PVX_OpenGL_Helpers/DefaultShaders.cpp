@@ -1,7 +1,7 @@
 #include <PVX.inl>
 #include <string>
 #include <sstream>
-#include "Include/PVX_OpenGL_Helpers.h"
+#include <PVX_OpenGL_Helpers.h>
 #include <PVX_OpenGL.h>
 
 #define HasPos		(Format&int(ItemUsage::ItemUsage_Position))
@@ -278,10 +278,9 @@ uniform sampler2D Bump_Tex;
 	auto hNormals = HasNorm;
 	auto hTan = HasTan;
 	auto hUV = HasUV;
+	auto uBump = UserBump;
 
-	auto test = UserBump;
-
-	if(UserBump) ret << R"shdr(
+	if(uBump) ret << R"shdr(
 vec3 TransformNormal(){
 	vec3 norm = normalize(inVert.Normal);
 	vec3 bin = normalize(cross(inVert.Tangent.xyz, norm) * inVert.Tangent.w);
@@ -296,7 +295,7 @@ vec3 TransformNormal(){
 void main(){
 	Position = inVert.Position.xyz;)shdr";
 
-	if (UserBump) {
+	if (uBump) {
 
 		ret << R"shdr(
 	Normal = TransformNormal();)shdr";

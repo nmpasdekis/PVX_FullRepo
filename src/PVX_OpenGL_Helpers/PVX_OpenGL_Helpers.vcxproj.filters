@@ -15,11 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Include\PVX_OpenGL_Helpers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="PVX_OpenGL_Helpers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -40,5 +35,10 @@
     <None Include="PostShaders.inl">
       <Filter>Source Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\PVX_OpenGL_Helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
