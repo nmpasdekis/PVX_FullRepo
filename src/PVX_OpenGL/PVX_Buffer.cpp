@@ -15,7 +15,7 @@ namespace PVX::OpenGL {
 		glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, Count * sizeof(int), Data, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
-	
+
 	VertexBuffer::~VertexBuffer() {
 		if (!Ref&&Id)
 			glDeleteBuffers(1, &Id);
@@ -54,9 +54,9 @@ namespace PVX::OpenGL {
 	}
 
 	Buffer::Buffer() : ptr{ new Buffer_Data(), [](Buffer_Data* dt) { if (dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
-	Buffer::Buffer(const Buffer_Data& dt) : ptr{ new Buffer_Data(dt), [](Buffer_Data* dt) { if(dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
+	Buffer::Buffer(const Buffer_Data& dt) : ptr{ new Buffer_Data(dt), [](Buffer_Data* dt) { if (dt->Id) glDeleteBuffers(1, &(dt->Id)); delete dt; } } {}
 	Buffer::Buffer(BufferUsege Usage) : Buffer() { ptr->Usage = Usage; }
-	Buffer::Buffer(bool IsUniformBlock, BufferUsege Usage) : Buffer(){
+	Buffer::Buffer(bool IsUniformBlock, BufferUsege Usage) : Buffer() {
 		if (!IsUniformBlock) ptr->Type = BufferType::SHADER_STORAGE_BUFFER;
 		ptr->Usage = Usage;
 	}
@@ -67,7 +67,7 @@ namespace PVX::OpenGL {
 		Update(int(Data.size()), Data.data());
 	}
 	void* Buffer::Map(MapAccess access) {
-		return glMapNamedBuffer(ptr->Id, GLenum(access)) ;
+		return glMapNamedBuffer(ptr->Id, GLenum(access));
 	}
 	void Buffer::Unmap() {
 		glUnmapNamedBuffer(ptr->Id);
@@ -88,6 +88,9 @@ namespace PVX::OpenGL {
 			glBindBuffer(GLenum(ptr->Type), 0);
 		}
 	}
+	void Buffer::UpdateSubData(int Offset, void* Data, int Size) {
+		glNamedBufferSubData(ptr->Id, Offset, Size, Data);
+	}
 	Buffer Buffer::MakeImmutableShaderStorage(int Size, void* Data) {
 		Buffer_Data ret{
 			0,
@@ -102,7 +105,7 @@ namespace PVX::OpenGL {
 		glBindBuffer(GLenum(BufferType::SHADER_STORAGE_BUFFER), 0);
 		return { ret };
 	}
-	Buffer Buffer::MakeBuffer(BufferType Type, BufferFlags Flags, size_t SizeInBytes, const void * Data) {
+	Buffer Buffer::MakeBuffer(BufferType Type, BufferFlags Flags, size_t SizeInBytes, const void* Data) {
 		Buffer_Data ret{
 			0,
 			SizeInBytes,
@@ -110,13 +113,16 @@ namespace PVX::OpenGL {
 			BufferUsege::Unspecified,
 			Flags
 		};
-		glGenBuffers(1, &ret.Id);
-		glBindBuffer(GLenum(Type), ret.Id);
-		GL_CHECK(glNamedBufferStorage(ret.Id,  SizeInBytes, Data, GLbitfield(Flags)));
-		glBindBuffer(GLenum(Type), 0);
+		glCreateBuffers(1, &ret.Id);
+		GL_CHECK(glNamedBufferStorage(ret.Id, SizeInBytes, Data, GLbitfield(Flags)));
 		return { ret };
 	}
 	void Buffer::Read(void* Data) {
 		glGetNamedBufferSubData(ptr->Id, 0, ptr->Size, Data);
+	}
+	Buffer::operator VertexBuffer() {
+		VertexBuffer ret;
+		ret.Id = ptr->Id;
+		return ret;
 	}
 }

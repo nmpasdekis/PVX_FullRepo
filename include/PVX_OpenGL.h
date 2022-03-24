@@ -178,7 +178,7 @@ namespace PVX::OpenGL {
 	};
 
 	enum class TextureWrap {
-		CLAMP =  GL_CLAMP,
+		CLAMP = GL_CLAMP,
 		REPEAT = GL_REPEAT,
 		CLAMP_TO_EDGE = GL_CLAMP_TO_EDGE
 	};
@@ -226,7 +226,7 @@ namespace PVX::OpenGL {
 	};
 
 	inline int AttribSize(AttribType a) {
-		switch (a) 	{
+		switch (a) {
 			case PVX::OpenGL::AttribType::BYTE:
 			case PVX::OpenGL::AttribType::UNSIGNED_BYTE:
 				return 1;
@@ -247,7 +247,7 @@ namespace PVX::OpenGL {
 		}
 	}
 	inline int IsInt(AttribType a) {
-		switch (a) 	{
+		switch (a) {
 			case PVX::OpenGL::AttribType::BYTE:
 			case PVX::OpenGL::AttribType::UNSIGNED_BYTE:
 			case PVX::OpenGL::AttribType::SHORT:
@@ -298,12 +298,14 @@ namespace PVX::OpenGL {
 		~Context();
 		Context(HWND hWnd, bool DepthStencil);
 		Context(HWND hWnd, bool DepthStencil, std::function<void(Context& gl)> Function);
-		Context(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void * Data);
+		Context(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void* Data);
 
 		void MakeCurrent() const;
 		void UnMakeCurrent() const;
 		void Present() const;
-		void Stop() { Running = false; };
+		void Stop() {
+			Running = false;
+		};
 		inline HWND Window() { return hWnd; };
 		bool Running = true, Active = true;
 		union {
@@ -350,7 +352,7 @@ namespace PVX::OpenGL {
 
 	protected:
 		void glThread_Func1(HWND hWnd, bool DepthStencil, std::function<void(Context& gl)> Function);
-		void glThread_Func2(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void * Data);
+		void glThread_Func2(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void* Data);
 		std::thread glThread;
 		void Init(HWND hWnd, bool DepthStencil);
 		HWND hWnd;
@@ -393,14 +395,39 @@ namespace PVX::OpenGL {
 		UNIFORM_BUFFER = GL_UNIFORM_BUFFER
 	};
 
-	enum class BufferFlags {
+	enum class BufferFlags : uint32_t {
 		NONE = 0,
 		DYNAMIC_STORAGE_BIT = GL_DYNAMIC_STORAGE_BIT,
 		MAP_READ_BIT = GL_MAP_READ_BIT,
 		MAP_WRITE_BIT = GL_MAP_WRITE_BIT,
 		MAP_PERSISTENT_BIT = GL_MAP_PERSISTENT_BIT,
 		MAP_COHERENT_BIT = GL_MAP_COHERENT_BIT,
-		CLIENT_STORAGE_BIT = GL_CLIENT_STORAGE_BIT
+		CLIENT_STORAGE_BIT = GL_CLIENT_STORAGE_BIT,
+		ALL = 0x03ff
+	};
+	inline BufferFlags operator|(BufferFlags a, BufferFlags b) {
+		return BufferFlags(uint32_t(a) | uint32_t(b));
+	}
+
+
+
+	class VertexBuffer {
+	public:
+		~VertexBuffer();
+		inline VertexBuffer() : Id{ 0 } {};
+		VertexBuffer(const void* Data, int SizeInBytes);
+		inline VertexBuffer(const std::vector<unsigned char>& Data) : VertexBuffer{ Data.data(), int(Data.size()) } {};
+		template<typename T>
+		inline VertexBuffer(const std::vector<T>& Data) : VertexBuffer{ Data.data(), int(Data.size() * sizeof(T)) } {};
+		inline unsigned int Get() const { return Id; }
+	private:
+		void Update(const void* Data, int SizeInBytes);
+		inline void Update(const std::vector<unsigned char>& Data) { Update(Data.data(), int(Data.size())); };
+
+		unsigned int Id;
+		PVX::RefCounter Ref;
+		friend class StreamingVertexShader;
+		friend class Buffer;
 	};
 
 	class Buffer {
@@ -437,11 +464,15 @@ namespace PVX::OpenGL {
 		template<typename T>
 		void Update(const std::vector<T>& Data) { Update(Data.size() * sizeof(T), Data.data()); }
 
+		void UpdateSubData(int Offser, void* Data, int Size);
+
+		operator VertexBuffer();
+
 		inline unsigned int Get() const { return ptr->Id; }
 		inline GLenum GetType() const { return GLenum(ptr->Type); }
 
 		static Buffer MakeImmutableShaderStorage(int Size, void* Data);
-		static Buffer MakeBuffer(BufferType Type, BufferFlags Flags, size_t SizeInBytes, const void* Data=nullptr);
+		static Buffer MakeBuffer(BufferType Type, BufferFlags Flags, size_t SizeInBytes, const void* Data = nullptr);
 		template<typename T>
 		static Buffer MakeBuffer(BufferType Type, BufferFlags Flags, const std::vector<T>& Data) {
 			return MakeBuffer(Type, Flags, Data.size() * sizeof(T), Data.data());
@@ -460,22 +491,6 @@ namespace PVX::OpenGL {
 		}
 	protected:
 		std::shared_ptr<Buffer_Data> ptr;
-	};
-
-	class VertexBuffer {
-	public:
-		~VertexBuffer();
-		VertexBuffer() : Id{ 0 } {};
-		VertexBuffer(const void* Data, int SizeInBytes);
-		inline VertexBuffer(const std::vector<unsigned char>& Data) :VertexBuffer{ Data.data(), int(Data.size()) } {};
-		inline unsigned int Get() const { return Id; }
-	private:
-		void Update(const void* Data, int SizeInBytes);
-		inline void Update(const std::vector<unsigned char>& Data) { Update(Data.data(), int(Data.size())); };
-
-		unsigned int Id;
-		PVX::RefCounter Ref;
-		friend class StreamingVertexShader;
 	};
 
 	class StreamingVertexShader {
@@ -497,7 +512,7 @@ namespace PVX::OpenGL {
 		IndexBuffer(const unsigned int* Data, int Count);
 		inline IndexBuffer(const std::vector<unsigned int>& Data) :IndexBuffer{ Data.data(), int(Data.size()) } {};
 		inline IndexBuffer(const std::vector<int>& Data) :IndexBuffer{ (const unsigned int*)Data.data(), int(Data.size()) } {};
-		
+
 		inline unsigned int Get() const { return Id; }
 	private:
 		void Update(const unsigned int* Data, int Count);
@@ -520,7 +535,7 @@ namespace PVX::OpenGL {
 		~Shader();
 		Shader() = default;
 		Shader(const Shader&) = default;
-		Shader(ShaderType Type): Type{ Type }, Id{ 0 }{};
+		Shader(ShaderType Type) : Type{ Type }, Id{ 0 }{};
 		Shader(ShaderType Type, const std::string& Source);
 		void Source(const std::string& Source);
 		inline void Name(const char* nm) { glObjectLabel(GL_SHADER, Id, -1, nm); }
@@ -536,7 +551,6 @@ namespace PVX::OpenGL {
 
 	class Texture2D {
 	public:
-		~Texture2D();
 		Texture2D();
 		Texture2D(const Texture2D&) = default;
 		//Texture2D(Texture2D&&) = default;
@@ -548,7 +562,7 @@ namespace PVX::OpenGL {
 		Texture2D(int Width, int Height, int Samples, InternalFormat internalFormat);
 
 		void Update(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
-		void Update(int Width, int Height, int InternalFormat, int Format, int Type, void * Data);
+		void Update(int Width, int Height, int InternalFormat, int Format, int Type, void* Data);
 		void Update(void* Data);
 
 		void UpdateAndBind(int Width, int Height, int Channels, int BytesPerChannel, void* Data);
@@ -594,7 +608,7 @@ namespace PVX::OpenGL {
 		inline void Name(const char* nm) { glObjectLabel(GL_TEXTURE, ptr->Id, -1, nm); }
 		inline int GetWidth() const { return ptr->Size.Width; }
 		inline int GetHeight() const { return ptr->Size.Height; }
-		inline GLenum GetTargetType() {	return ptr->Samples>1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D; }
+		inline GLenum GetTargetType() { return ptr->Samples>1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D; }
 		inline const PVX::iVector2D& GetSize() const { return ptr->Size; }
 		void Resize(int Width, int Height);
 	private:
@@ -605,10 +619,43 @@ namespace PVX::OpenGL {
 			InternalFormat InternalFormat = PVX::OpenGL::InternalFormat(0);
 			TextureFormat Format = PVX::OpenGL::TextureFormat(0);
 			TextureType Type = PVX::OpenGL::TextureType(0);
+			inline ~TextureData() {
+				if (Id)
+					glDeleteTextures(1, &Id);
+			}
 		};
 		std::shared_ptr<TextureData> ptr;
 		//Texture2D(const TextureData&);
 		friend class FrameBufferObject;
+	};
+
+	class Texture3D {
+	public:
+		Texture3D();
+		Texture3D(const Texture3D&) = default;
+		Texture3D& operator=(const Texture3D&) = default;
+		inline void Name(const char* nm) { glObjectLabel(GL_TEXTURE, ptr->Id, -1, nm); }
+		void Update(const float* Data);
+		static Texture3D MakeTexture(InternalFormat fmt, int Width, int Height, int Depth);
+		static Texture3D MakeTextureRGB8UB(int Width, int Height, int Depth);
+		static Texture3D MakeTextureRGBA8UB(int Width, int Height, int Depth);
+		static Texture3D MakeTextureRGB16F(int Width, int Height, int Depth);
+		static Texture3D MakeTextureRGBA16F(int Width, int Height, int Depth);
+		static Texture3D MakeTextureRGB32F(int Width, int Height, int Depth);
+		static Texture3D MakeTextureRGBA32F(int Width, int Height, int Depth);
+		inline uint32_t Get() { return ptr->Id; }
+	private:
+		struct TextureData {
+			uint32_t Id = 0;
+			int Samples = 1;
+			PVX::iVector3D Size;
+			InternalFormat InternalFormat = PVX::OpenGL::InternalFormat(0);
+			inline ~TextureData() {
+				if (Id)
+					glDeleteTextures(1, &Id);
+			}
+		};
+		std::shared_ptr<TextureData> ptr;
 	};
 
 	class TextureCube {
@@ -686,7 +733,7 @@ namespace PVX::OpenGL {
 		void Unbind();
 		inline unsigned int Get() const { return Id; }
 		inline void Name(const char* nm) { glObjectLabel(GL_FRAMEBUFFER, Id, -1, nm); }
-		inline const PVX::iVector2D& GetSize() const { return Id? Size: gl.Size; }
+		inline const PVX::iVector2D& GetSize() const { return Id ? Size : gl.Size; }
 	private:
 		PVX::OpenGL::Context& gl;
 		PVX::iVector2D Size{};
@@ -701,16 +748,23 @@ namespace PVX::OpenGL {
 		std::vector<Attribute> Attributes;
 		int Stride;
 	};
+
+	struct Geometry_init2_Attrib {
+		AttribType Type;
+		int Count;
+		int Instance;
+		int SkipBytes = 0;
+	};
 	struct Geometry_init2 {
 		VertexBuffer Buffer;
-		std::vector<std::tuple<AttribType, int, int>> Attributes;
+		std::vector<Geometry_init2_Attrib> Attributes;
 	};
 
 	class Geometry {
 		std::vector<VertexBuffer> VertexBuffers;
 		IndexBuffer Indices;
 		PVX::RefCounter Ref;
-		PrimitiveType Type{ PrimitiveType(0)};
+		PrimitiveType Type{ PrimitiveType(0) };
 		unsigned int Id = 0;
 		int IndexCount = 0;
 		unsigned int Flags = 0;
@@ -720,7 +774,7 @@ namespace PVX::OpenGL {
 		Geometry(Geometry&&) noexcept = default;
 		Geometry& operator=(const Geometry&) = default;
 		~Geometry();
-		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool OldVersion=false);
+		Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool OldVersion = false);
 		Geometry(PrimitiveType Type, const std::vector<int>& Index, const std::initializer_list<Geometry_init2>& Vertex);
 		void Draw() const;
 		void Draw(int Count) const;
@@ -729,6 +783,7 @@ namespace PVX::OpenGL {
 
 		void Bind();
 		void DrawBound();
+		void DrawBoundInstance(int i);
 		static void Unbind();
 	};
 
@@ -738,9 +793,9 @@ namespace PVX::OpenGL {
 		~Program();
 		Program() = default;
 		Program(const std::initializer_list<Shader>& sh);
-		void AddShader(const Shader& sh);
-		void AddShaders(const std::initializer_list<Shader>& sh);
-		void Build();
+		//void AddShader(const Shader& sh);
+		//void AddShaders(const std::initializer_list<Shader>& sh);
+		void Build(const std::initializer_list<Shader>& sh);
 		void Bind() const;
 		void Unbind() const;
 		unsigned int Get() const { return Id; }
@@ -787,10 +842,10 @@ namespace PVX::OpenGL {
 		void BindUniform(int Index, const PVX::Matrix4x4* Value, int Count) const;
 
 		bool SetUniformBlockIndex(const char* Name, int Index) const;
-		bool SetShaderStrorageIndex(const char* Name, int Index) const; 
+		bool SetShaderStrorageIndex(const char* Name, int Index) const;
 		bool SetTextureIndex(const char* Name, int Index) const;
 	private:
-		std::vector<Shader> Shaders;
+		//std::vector<Shader> Shaders;
 		unsigned int Id = 0;
 		PVX::RefCounter Ref;
 		std::vector<std::string> UniformNames;
@@ -845,6 +900,7 @@ namespace PVX::OpenGL {
 	class ComputeProgram {
 		Program p;
 	public:
+		ComputeProgram(const Program& p) : p{ p } {};
 		ComputeProgram(const std::string& Code) : p{ { Shader::ShaderType::ComputeShader, Code } } {};
 		void Execute(const std::initializer_list<Buffer>& Buffers, uint32_t CountX, uint32_t CountY = 1, uint32_t CountZ = 1);
 	};
@@ -853,13 +909,19 @@ namespace PVX::OpenGL {
 	public:
 		Camera(PVX::Matrix4x4* View = nullptr, PVX::Matrix4x4* Projection = nullptr);
 		Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* View = nullptr, PVX::Matrix4x4* Projection = nullptr);
-		Vector3D &Position;
+		Vector3D& Position;
 		Vector3D OrbitCenter;
 		Vector3D Rotation;
 		float Width, Height, OrbitDistance;
-		Vector3D& GetLookVector(Vector3D& Look);
-		Vector3D& GetUpVector(Vector3D& Up);
-		Vector3D& GetRightVector(Vector3D& Right);
+
+		Vector3D& GetLookVector(Vector3D& Look) const;
+		Vector3D& GetUpVector(Vector3D& Up) const;
+		Vector3D& GetRightVector(Vector3D& Right) const;
+
+		Vector3D GetLookVector() const;
+		Vector3D GetUpVector() const;
+		Vector3D GetRightVector() const;
+
 		Matrix4x4& UpdateView();
 		Matrix4x4& UpdateView_Orbit();
 
@@ -914,13 +976,13 @@ inline void glMultMatrix(const PVX::Matrix4x4& mat) {
 #ifdef _DEBUG
 
 static std::map<unsigned int, const char*> glErrors{
-	{GL_INVALID_ENUM, "An unacceptable value is specified for an enumerated argument. The offending function is ignored, having no side effect other than to set the error flag."},
-	{GL_INVALID_VALUE, "A numeric argument is out of range. The offending function is ignored, having no side effect other than to set the error flag."},
-	{GL_INVALID_OPERATION, "The specified operation is not allowed in the current state. The offending function is ignored, having no side effect other than to set the error flag."},
-	{GL_NO_ERROR, "No error has been recorded. The value of this symbolic constant is guaranteed to be zero."},
-	{GL_STACK_OVERFLOW, "This function would cause a stack overflow. The offending function is ignored, having no side effect other than to set the error flag."},
-	{GL_STACK_UNDERFLOW, "This function would cause a stack underflow. The offending function is ignored, having no side effect other than to set the error flag."},
-	{GL_OUT_OF_MEMORY, "There is not enough memory left to execute the function. The state of OpenGL is undefined, except for the state of the error flags, after this error is recorded."}
+	{GL_INVALID_ENUM, "GL_INVALID_ENUM: An unacceptable value is specified for an enumerated argument. The offending function is ignored, having no side effect other than to set the error flag."},
+	{GL_INVALID_VALUE, "GL_INVALID_VALUE: A numeric argument is out of range. The offending function is ignored, having no side effect other than to set the error flag."},
+	{GL_INVALID_OPERATION, "GL_INVALID_OPERATION: The specified operation is not allowed in the current state. The offending function is ignored, having no side effect other than to set the error flag."},
+	{GL_NO_ERROR, "GL_NO_ERROR: No error has been recorded. The value of this symbolic constant is guaranteed to be zero."},
+	{GL_STACK_OVERFLOW, "GL_STACK_OVERFLOW: This function would cause a stack overflow. The offending function is ignored, having no side effect other than to set the error flag."},
+	{GL_STACK_UNDERFLOW, "GL_STACK_UNDERFLOW: This function would cause a stack underflow. The offending function is ignored, having no side effect other than to set the error flag."},
+	{GL_OUT_OF_MEMORY, "GL_OUT_OF_MEMORY: There is not enough memory left to execute the function. The state of OpenGL is undefined, except for the state of the error flags, after this error is recorded."}
 };
 
 #define GL_CHECK(x) \

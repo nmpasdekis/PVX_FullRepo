@@ -43,7 +43,7 @@ namespace PVX {
 				return Pixels[TileX * Strides.NextTileX + TileY * Strides.NextTileY + PixelX * Strides.NextPixelX + PixelY * Strides.NextPixelY];
 			}
 
-			void ForEachPixelInTile(int TileX, int TileY, int TileWidth, int TileHeight, std::function<void(T&Pixel, int x, int y)> fnc) {
+			void ForEachPixelInTile(int TileX, int TileY, int TileWidth, int TileHeight, std::function<void(T& Pixel, int x, int y)> fnc) {
 				CurrentTile(TileX, TileY);
 				for (int y = 0; y < TileHeight; y++) {
 					for (int x = 0; x < TileWidth; x++) {
@@ -76,7 +76,43 @@ namespace PVX {
 			int curDstY = 0;
 
 			for (int i = 0; i< tileCount; i++) {
-				t1.ForEachPixelInTile(curSrcX, curSrcY, TileWidth, TileHeight, [&](PixelType & p, int x, int y) {
+				t1.ForEachPixelInTile(curSrcX, curSrcY, TileWidth, TileHeight, [&](PixelType& p, int x, int y) {
+					t2.Get(x, y) = p;
+				});
+				curSrcX++;
+				if (curSrcX == srcTilesX) {
+					curSrcY++;
+					curSrcX = 0;
+				}
+				curDstX++;
+				if (curDstX == dstTilesX) {
+					curDstY++;
+					curDstX = 0;
+				}
+				t2.CurrentTile(curDstX, curDstY);
+			}
+			return ret;
+		}
+
+		template<typename PixelType>
+		inline std::vector<PixelType> ReTile(const PixelType* Pixels, int Width, int Height, int srcTilesX, int srcTilesY, int dstTilesX, int dstTilesY) {
+			int TileWidth = Width / srcTilesX;
+			int TileHeight = Height / srcTilesY;
+
+			int tileCount = srcTilesX * srcTilesY;
+
+			std::vector<PixelType> ret(TileWidth * dstTilesX * TileHeight * dstTilesY);
+
+			auto t1 = Tiler<PixelType>::FromLayout((PixelType*)Pixels, TileWidth, TileHeight, srcTilesX, srcTilesY);
+			auto t2 = Tiler<PixelType>::FromLayout(ret.data(), TileWidth, TileHeight, dstTilesX, dstTilesY);
+
+			int curSrcX = 0;
+			int curSrcY = 0;
+			int curDstX = 0;
+			int curDstY = 0;
+
+			for (int i = 0; i< tileCount; i++) {
+				t1.ForEachPixelInTile(curSrcX, curSrcY, TileWidth, TileHeight, [&](PixelType& p, int x, int y) {
 					t2.Get(x, y) = p;
 				});
 				curSrcX++;

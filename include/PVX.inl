@@ -39,9 +39,36 @@ namespace PVX {
 		}
 	};
 
+	class RandomFloat {
+		std::mt19937 Engine{ [] {
+			std::mt19937 ret;
+			ret.seed(std::random_device()());
+			return ret;
+		}() };
+		std::uniform_real_distribution<float> Distribution;
+	public:
+		inline float NextPostitive() { return Distribution(Engine); }
+		inline float Next() { return Distribution(Engine) * 2.0f - 1.0f; }
+	};
+
+	class RandomInt {
+		std::mt19937 Engine{ [] {
+			std::mt19937 ret;
+			ret.seed(std::random_device()());
+			return ret;
+		}() };
+		std::uniform_int_distribution<int> Distribution;
+	public:
+		inline int Next() { return Distribution(Engine); }
+		inline int Next(int min, int max) { return (Distribution(Engine)%(max-min+1)) + min; }
+	};
+
+	inline void ForEach(size_t count, std::function<void(size_t)> clb) {
+		for (auto i = 0; i<count; i++)clb(i);
+	}
 
 	template<typename T>
-	inline std::vector<T> ToVector(const T * Array, size_t Count) {
+	inline std::vector<T> ToVector(const T* Array, size_t Count) {
 		std::vector<T> ret;
 		ret.reserve(Count);
 		for (auto i = 0; i<Count; i++)
@@ -51,32 +78,32 @@ namespace PVX {
 	}
 
 	template<typename T, typename T2>
-	inline std::vector<T> Filter(const std::initializer_list<T> & Array, T2 condition) {
+	inline std::vector<T> Filter(const std::initializer_list<T>& Array, T2 condition) {
 		std::vector<T> ret;
 		ret.reserve(Array.size());
-		for (auto & a : Array)
+		for (auto& a : Array)
 			if (condition(a))
 				ret.push_back(a);
 		ret.shrink_to_fit();
 		return std::move(ret);
 	}
 	template<typename T, typename T2>
-	inline std::vector<T> Filter(const std::vector<T> & Array, T2 condition) {
+	inline std::vector<T> Filter(const std::vector<T>& Array, T2 condition) {
 		std::vector<T> ret;
 		ret.reserve(Array.size());
-		for (auto & a : Array)
+		for (auto& a : Array)
 			if (condition(a))
 				ret.push_back(a);
 		ret.shrink_to_fit();
 		return std::move(ret);
 	}
 	template<typename T, typename T2>
-	inline std::pair<std::vector<T>, std::vector<T>> Separate(const std::vector<T> & Array, T2 condition) {
+	inline std::pair<std::vector<T>, std::vector<T>> Separate(const std::vector<T>& Array, T2 condition) {
 		std::vector<T> ret1;
 		std::vector<T> ret2;
 		ret1.reserve(Array.size());
 		ret2.reserve(Array.size());
-		for (auto & a : Array) {
+		for (auto& a : Array) {
 			if (condition(a))
 				ret1.push_back(a);
 			else
@@ -87,7 +114,7 @@ namespace PVX {
 		return std::make_pair(ret1, ret2);
 	}
 	template<typename T>
-	inline long long IndexOf(const std::vector<T> & Array, std::function<bool(decltype(Array[0])& a)> fnc) {
+	inline long long IndexOf(const std::vector<T>& Array, std::function<bool(decltype(Array[0])& a)> fnc) {
 		for (auto i = 1; i < Array.size(); i++) {
 			if (fnc(Array[i]))
 				return (long long)i;
@@ -111,7 +138,7 @@ namespace PVX {
 		}
 		return std::move(ret);
 	}
-	inline std::vector<int> IndexArrayRef(int Count, int & Base) {
+	inline std::vector<int> IndexArrayRef(int Count, int& Base) {
 		std::vector<int> ret(Count);
 		for (auto i = 0; i < Count; i++)
 			ret[i] = Base++;
@@ -129,9 +156,9 @@ namespace PVX {
 	}
 
 	template<typename T1, typename T2>
-	inline auto Map(const T1 & Array, size_t Count, T2 cvt, size_t Start = 0, size_t Size = 0);
+	inline auto Map(const T1& Array, size_t Count, T2 cvt, size_t Start = 0, size_t Size = 0);
 	template<typename T1, typename T2>
-	inline auto Map(const T1 & Array, size_t Count, T2 cvt, size_t Start, size_t Size) {
+	inline auto Map(const T1& Array, size_t Count, T2 cvt, size_t Start, size_t Size) {
 		if (!Size)Size = Count;
 		std::vector<decltype(cvt(Array[0]))> ret(Count);
 		for (auto i = Start; i < Size; i++)
@@ -162,10 +189,10 @@ namespace PVX {
 	}
 
 	template<typename T1, typename T2>
-	inline auto Map(const T1 & Array, T2 cvt, size_t Start, size_t Size = 0);
+	inline auto Map(const T1& Array, T2 cvt, size_t Start, size_t Size = 0);
 
 	template<typename T1, typename T2>
-	inline auto Map(const T1 & Array, T2 cvt, size_t Start, size_t Size) {
+	inline auto Map(const T1& Array, T2 cvt, size_t Start, size_t Size) {
 		if (!Size)Size = Array.size();
 		std::vector<decltype(cvt(Array[0]))> ret;
 		ret.reserve(Array.size());
@@ -175,7 +202,7 @@ namespace PVX {
 	}
 
 	template<typename T, typename T2>
-	void forEach(const std::vector<T> & Array, T2 fnc) {
+	void forEach(const std::vector<T>& Array, T2 fnc) {
 		std::for_each(Array.begin(), Array.end(), fnc);
 	}
 	template<typename T>
@@ -183,14 +210,14 @@ namespace PVX {
 		std::for_each(std::execution::par, Array.begin(), Array.end(), fnc);
 	}
 	template<typename KeyType, typename ValueType>
-	void forEach(const std::map<KeyType, ValueType> & Map, std::function<void(const KeyType&, const ValueType&)> fnc) {
-		std::for_each(Map.begin(), Map.end(), [fnc](const std::pair<KeyType, ValueType>&p) {
+	void forEach(const std::map<KeyType, ValueType>& Map, std::function<void(const KeyType&, const ValueType&)> fnc) {
+		std::for_each(Map.begin(), Map.end(), [fnc](const std::pair<KeyType, ValueType>& p) {
 			fnc(p.first, p.second);
 		});
 	}
 
 	template<typename T1, typename T2>
-	inline auto Map(const std::vector<T1> & Array, T2 fnc) {
+	inline auto Map(const std::vector<T1>& Array, T2 fnc) {
 		std::vector<decltype(fnc(Array[0]))> ret;
 		ret.reserve(Array.size());
 		//std::transform(Array.begin(), Array.end(), std::back_insert_iterator(ret), fnc);
@@ -267,15 +294,15 @@ namespace PVX {
 	inline auto Map(T1 count, T2 fnc) {
 		std::vector<decltype(fnc(0))> ret;
 		ret.reserve(count);
-		for (auto i = 0; i<count; i++) 
+		for (auto i = 0; i<count; i++)
 			ret.push_back(fnc(i));
 		return ret;
 	}
 
 	template<typename T1, typename T2>
-	inline std::vector<T1> Keys(const std::map<T1, T2> & dict) {
+	inline std::vector<T1> Keys(const std::map<T1, T2>& dict) {
 		std::vector<T1> ret;
-		for (auto & kv : dict) {
+		for (auto& kv : dict) {
 			ret.push_back(kv.first);
 		}
 		return std::move(ret);
@@ -283,14 +310,14 @@ namespace PVX {
 	template<typename T>
 	inline std::set<T> ToSet(const std::vector<T>& arr) {
 		std::set<T> ret;
-		for (auto & i : arr)ret.insert(i);
+		for (auto& i : arr)ret.insert(i);
 		return std::move(ret);
 	}
 
 	template<typename T1, typename T2>
-	inline auto ToSet(const T1 & Array, T2 fnc) {
+	inline auto ToSet(const T1& Array, T2 fnc) {
 		std::set<decltype(fnc(Array[0]))> ret;
-		for (auto & i : Array)ret.insert(fnc(i));
+		for (auto& i : Array)ret.insert(fnc(i));
 		return std::move(ret);
 	}
 
@@ -300,15 +327,15 @@ namespace PVX {
 	}
 
 	class RefCounter {
-		int * ref;
+		int* ref;
 	public:
 		inline RefCounter() : ref{ new int[1] } { *ref = 1; }
-		inline RefCounter(RefCounter && r) : ref{ r.ref } { (*ref)++; }
-		inline RefCounter(const RefCounter & r) : ref{ r.ref } { (*ref)++; }
-		inline ~RefCounter() { 
-			if (!--(*ref)) delete ref; 
+		inline RefCounter(RefCounter&& r) : ref{ r.ref } { (*ref)++; }
+		inline RefCounter(const RefCounter& r) : ref{ r.ref } { (*ref)++; }
+		inline ~RefCounter() {
+			if (!--(*ref)) delete ref;
 		}
-		inline RefCounter & operator=(const RefCounter & r) {
+		inline RefCounter& operator=(const RefCounter& r) {
 			if (ref && !--(*ref)) delete ref;
 			ref = r.ref;
 			(*ref)++;
@@ -319,7 +346,7 @@ namespace PVX {
 		inline int operator++() { return (*ref)++; }
 	};
 
-	inline long long IndexOfBinary(const unsigned char * Data, long long DataSize, const unsigned char * Find, long long FindSize, long long Start=0) {
+	inline long long IndexOfBinary(const unsigned char* Data, long long DataSize, const unsigned char* Find, long long FindSize, long long Start = 0) {
 		DataSize -= FindSize;
 		for (long long i = Start; i < DataSize; i++) {
 			if (!memcmp(Data + i, Find, FindSize)) return i;
@@ -362,6 +389,17 @@ namespace PVX {
 	inline ValueType GetOrDefault(const std::map<KeyType, ValueType>& Map, const KeyType& key, const ValueType& def) {
 		if (auto f = Map.find(key); f != Map.end()) return f->second;
 		return def;
+	}
+
+	inline std::vector<uint8_t> Interleave(const std::vector<std::pair<void*, int>>& Items, size_t Count) {
+		int OutStride = PVX::Reduce(Items, 0, [](int acc, const std::pair<void*, int>& it) { return acc + it.second; });
+		std::vector<uint8_t> ret(OutStride * Count);
+		int offset = 0;
+		for (auto& [ptr, Stride] : Items) {
+			Interleave(ret.data() + offset, OutStride, ptr, Stride, Count);
+			offset += Stride;
+		}
+		return ret;
 	}
 }
 

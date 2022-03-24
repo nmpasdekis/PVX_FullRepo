@@ -50,16 +50,16 @@ namespace PVX::OpenGL {
 		if (!Ref&&Id) glDeleteProgram(Id);
 	}
 	Program::Program(const std::initializer_list<Shader>& sh) {
-		AddShaders(sh);
-		Build();
+		//AddShaders(sh);
+		Build(sh);
 	}
-	void Program::AddShader(const Shader& sh) {
-		Shaders.push_back(sh);
-	}
-	void Program::AddShaders(const std::initializer_list<Shader>& sh) {
-		for (auto& s : sh) Shaders.push_back(s);
-	}
-	void Program::Build() {
+	//void Program::AddShader(const Shader& sh) {
+	//	Shaders.push_back(sh);
+	//}
+	//void Program::AddShaders(const std::initializer_list<Shader>& sh) {
+	//	for (auto& s : sh) Shaders.push_back(s);
+	//}
+	void Program::Build(const std::initializer_list<Shader>& Shaders) {
 		if (!Id)Id = glCreateProgram();
 		for (auto& s : Shaders)	glAttachShader(Id, s.Get());
 		glLinkProgram(Id);
@@ -280,7 +280,11 @@ namespace PVX::OpenGL {
 	}
 
 	Geometry::Geometry(PrimitiveType Type, const std::vector<int>& Index, const std::initializer_list<Geometry_init2>& Vertex) :
-		Indices{ Index } 	{
+		Type{ Type },
+		Indices{ Index },
+		IndexCount{ int(Index.size()) }
+
+	{
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
@@ -288,23 +292,29 @@ namespace PVX::OpenGL {
 		for (auto& v : Vertex) {
 			VertexBuffers.push_back(v.Buffer);
 			glBindBuffer(GL_ARRAY_BUFFER, v.Buffer.Get());
-			int Stride = PVX::Reduce(v.Attributes, 0, [](int acc, const std::tuple<AttribType, int, int>& aa) { return acc + std::get<1>(aa) * AttribSize(std::get<0>(aa)); });
+			int Stride = PVX::Reduce(v.Attributes, 0, [](int acc, const Geometry_init2_Attrib& aa) {
+				return acc + aa.Count * AttribSize(aa.Type) + aa.SkipBytes;
+			});
 			int Offset = 0;
-			for (auto [tp, cnt, inst] : v.Attributes) {
+			for (auto& aa : v.Attributes) {
 				glEnableVertexAttribArray(i);
-				if (IsInt(tp))
-					glVertexAttribIPointer(i, cnt, GLenum(tp), Stride, (void*)Offset);
+				if (IsInt(aa.Type))
+					glVertexAttribIPointer(i, aa.Count, GLenum(aa.Type), Stride, (void*)Offset);
 				else
-					glVertexAttribPointer(i, cnt, GLenum(tp), 0, Stride, (void*)Offset);
-				glVertexAttribDivisor(i++, inst);
-				Offset += AttribSize(tp) * cnt;
+					glVertexAttribPointer(i, aa.Count, GLenum(aa.Type), 0, Stride, (void*)Offset);
+				glVertexAttribDivisor(i++, aa.Instance);
+				Offset += AttribSize(aa.Type) * aa.Count + aa.SkipBytes;
 			}
 		}
 		//glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
 	}
 
-	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool old) : IndexCount{ IndexCount }, Type{ Type }, Indices{ Indices } {
+	Geometry::Geometry(PrimitiveType Type, int IndexCount, const IndexBuffer& Indices, const std::initializer_list<Geometry_init>& Buffers, bool old) :
+		IndexCount{ IndexCount },
+		Type{ Type },
+		Indices{ Indices }
+	{
 		glGenVertexArrays(1, &Id);
 		glBindVertexArray(Id);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Indices.Get());
@@ -373,10 +383,14 @@ namespace PVX::OpenGL {
 	void Geometry::DrawBound() {
 		glDrawElements(int(Type), IndexCount, GL_UNSIGNED_INT, 0);
 	}
+
+	void Geometry::DrawBoundInstance(int i) {
+		glDrawElementsInstancedBaseInstance(int(Type), IndexCount, GL_UNSIGNED_INT, 0, 1, i);
+	}
+
 	void Geometry::Unbind() {
 		glBindVertexArray(0);
 	}
-
 
 	void ComputeProgram::Execute(const std::initializer_list<Buffer>& Buffers, uint32_t CountX, uint32_t CountY, uint32_t CountZ) {
 		p.Bind();
@@ -386,6 +400,4 @@ namespace PVX::OpenGL {
 		glDispatchCompute(CountX, CountY, CountZ);
 		p.Unbind();
 	}
-
-
 }

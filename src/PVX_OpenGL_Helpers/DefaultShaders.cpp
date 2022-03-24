@@ -3,6 +3,7 @@
 #include <sstream>
 #include <PVX_OpenGL_Helpers.h>
 #include <PVX_OpenGL.h>
+#include <PVX_File.h>
 
 #define HasPos		(Format&int(ItemUsage::ItemUsage_Position))
 #define HasNorm		(Format&int(ItemUsage::ItemUsage_Normal))
@@ -48,18 +49,31 @@ namespace {
 		}
 	}
 
+//	void GetOutVertex_VertexShader(std::stringstream& ret, unsigned int Format) {
+//		ret << R"(
+//
+//out Vert_t{
+//	vec4 Position;
+//)";
+//		if (HasNorm) ret << "\tvec3 Normal;\n";
+//		if (HasUV) ret << "\tvec2 UV;\n";
+//		if (HasTan) ret << "\tvec4 Tangent;\n";
+//		ret << R"(} outVert;
+//)";
+//	}
+
 	void GetOutVertex_VertexShader(std::stringstream& ret, unsigned int Format) {
 		ret << R"(
 
 out Vert_t{
 	vec4 Position;
-)";
-		if (HasNorm) ret << "\tvec3 Normal;\n";
-		if (HasUV) ret << "\tvec2 UV;\n";
-		if (HasTan) ret << "\tvec4 Tangent;\n";
-		ret << R"(} outVert;
+	vec3 Normal;
+	vec2 UV;
+	vec4 Tangent;
+} outVert;
 )";
 	}
+
 
 	void GetMorphType_VertexShader(std::stringstream& ret, unsigned int Format) {
 		ret << R"(
@@ -164,6 +178,11 @@ void Morph(std::stringstream& ret, unsigned int Format) {
 
 
 std::string PVX::OpenGL::Helpers::Renderer::GetDefaultVertexShader(unsigned int Format) {
+	char FileName[1024];
+	sprintf_s<1024>(FileName, "Shaders\\Defaults\\Vertex%05d.flsl", Format);
+	if (PVX::IO::FileExists(FileName)) {
+		return PVX::IO::ReadText(FileName);
+	}
 	std::stringstream ret;
 	ret << R"(#version 440
 
@@ -212,23 +231,37 @@ void main(){
 	ret<<"}";
 
 	auto str = ret.str();
+	PVX::IO::Write(FileName, str.data(), str.size());
 	return str;
 }
 
 namespace {
+//	void GetInVertex_FragmentShader(std::stringstream& ret, unsigned int Format) {
+//		ret << R"(
+//
+//in Vert_t{
+//	vec4 Position;
+//)";
+//		if (HasNorm) ret << "\tvec3 Normal;\n";
+//		if (HasUV) ret << "\tvec2 UV;\n";
+//		if (HasTan) ret << "\tvec4 Tangent;\n";
+//		ret << R"(} inVert;
+//)";
+//	}
+//}
 	void GetInVertex_FragmentShader(std::stringstream& ret, unsigned int Format) {
 		ret << R"(
 
 in Vert_t{
 	vec4 Position;
-)";
-		if (HasNorm) ret << "\tvec3 Normal;\n";
-		if (HasUV) ret << "\tvec2 UV;\n";
-		if (HasTan) ret << "\tvec4 Tangent;\n";
-		ret << R"(} inVert;
+	vec3 Normal;
+	vec2 UV;
+	vec4 Tangent;
+} inVert;
 )";
 	}
 }
+
 
 #define HasTexColor (Frag&1)
 #define HasTexMat (Frag&2)
@@ -236,19 +269,114 @@ in Vert_t{
 
 #define UserBump (HasTexBump && HasNorm && HasTan && HasUV)
 
-std::string PVX::OpenGL::Helpers::Renderer::GetDefaultFragmentShader(unsigned int Format, unsigned int Frag) { // )shdr"  R"shdr(
-	std::stringstream ret;
+//std::string PVX::OpenGL::Helpers::Renderer::GetDefaultFragmentShader(unsigned int Format, unsigned int Frag) {
+//	char FileName[1024];
+//	sprintf_s<1024>(FileName, "Shaders\\Defaults\\Fragment%05d_%02d.glsl", Format, Frag);
+//	if (PVX::IO::FileExists(FileName)) {
+//		return PVX::IO::ReadText(FileName);
+//	}
+//
+//	std::stringstream ret;
+//
+//	ret << R"shdr(#version 440
+//
+//out vec4 Color;
+//out vec3 Position;
+//out vec3 Normal;
+//out vec2 PBR;)shdr";
+//	
+//	GetInVertex_FragmentShader(ret, Format);
+//	
+//	ret << R"shdr(
+//
+//layout(std140, binding = 0) uniform Camera{
+//	mat4 View;
+//	mat4 Projection;
+//	vec3 CameraPosition;
+//};
+//
+//layout(std140, binding = 2) uniform Material{
+//	vec4 MatColor;
+//	vec4 MatPBR;
+//};)shdr";
+//
+//	if(HasTexColor) ret << R"shdr(
+//
+//uniform sampler2D Color_Tex;)shdr";
+//
+//	if (HasTexMat) ret << R"shdr(
+//uniform sampler2D PBR_Tex;
+//
+//)shdr"; 
+//	if (HasTexBump) ret << R"shdr(
+//uniform sampler2D Bump_Tex;
+//
+//)shdr";
+//
+//	auto hTexBumb = HasTexBump;
+//	auto hNormals = HasNorm;
+//	auto hTan = HasTan;
+//	auto hUV = HasUV;
+//
+//	auto test = UserBump;
+//
+//	if(UserBump) ret << R"shdr(
+//vec3 TransformNormal(){
+//	vec3 norm = normalize(inVert.Normal);
+//	vec3 bin = normalize(cross(inVert.Tangent.xyz, norm) * inVert.Tangent.w);
+//	vec3 tang = cross(norm, bin);
+//	return mat3(tang, bin, norm) * texture(Bump_Tex, inVert.UV).xyz;
+//}
+//
+//)shdr";
+//
+//
+//	ret << R"shdr(
+//void main(){
+//	Position = inVert.Position.xyz;)shdr";
+//
+//	if (UserBump) {
+//		ret << R"shdr(
+//	Normal = TransformNormal();)shdr";
+//	} else {
+//		if (HasNorm) ret << R"shdr(
+//	Normal = normalize(inVert.Normal);)shdr";
+//		else ret << R"shdr(
+//	Normal = vec3(0);)shdr";
+//	}
+//
+//	if (HasTexColor && HasUV) ret << R"shdr(
+//	Color = texture(Color_Tex, inVert.UV) * MatColor;)shdr";
+//	else ret << R"shdr(
+//	Color = MatColor;)shdr";
+//
+//	if (HasTexMat && HasUV) ret << R"shdr(
+//	PBR = MatPBR.xy * texture(PBR_Tex, inVert.UV).xy;)shdr";
+//	else ret << R"shdr(
+//	PBR = MatPBR.xy;)shdr";
+//
+//	ret << R"shdr(
+//})shdr";
+//	auto str = ret.str();
+//	PVX::IO::Write(FileName, str.data(), str.size());
+//	return str;
+//}
 
-	ret << R"shdr(#version 440
+std::string PVX::OpenGL::Helpers::Renderer::MakeFragmentShader(const std::string& Code) {
+	std::string ret1 = R"(#version 440
 
-out vec3 Position;
-out vec4 Color;
-out vec3 Normal;
-out vec2 PBR;)shdr";
-	
-	GetInVertex_FragmentShader(ret, Format);
-	
-	ret << R"shdr(
+layout(location = 0) out vec4 Color;
+layout(location = 1) out vec3 Position;
+layout(location = 2) out vec3 Normal;
+layout(location = 3) out vec2 PBR;
+
+in Vert_t{
+	vec4 Position;
+	vec3 Normal;
+	vec2 UV;
+	vec4 Tangent;
+} inVert;
+
 
 layout(std140, binding = 0) uniform Camera{
 	mat4 View;
@@ -259,66 +387,85 @@ layout(std140, binding = 0) uniform Camera{
 layout(std140, binding = 2) uniform Material{
 	vec4 MatColor;
 	vec4 MatPBR;
-};)shdr";
+};
 
-	if(HasTexColor) ret << R"shdr(
+mat3 pvx_tangentRotation;
 
-uniform sampler2D Color_Tex;)shdr";
-
-	if (HasTexMat) ret << R"shdr(
-uniform sampler2D PBR_Tex;
-
-)shdr"; 
-	if (HasTexBump) ret << R"shdr(
-uniform sampler2D Bump_Tex;
-
-)shdr";
-
-	auto hTexBumb = HasTexBump;
-	auto hNormals = HasNorm;
-	auto hTan = HasTan;
-	auto hUV = HasUV;
-	auto uBump = UserBump;
-
-	if(uBump) ret << R"shdr(
-vec3 TransformNormal(){
-	vec3 norm = normalize(inVert.Normal);
-	vec3 bin = normalize(cross(inVert.Tangent.xyz, norm) * inVert.Tangent.w);
-	vec3 tang = cross(norm, bin);
-	return mat3(tang, bin, norm) * texture(Bump_Tex, inVert.UV).xyz;
+vec3 textureTangent(sampler2D normTex, vec2 UV){
+	return pvx_tangentRotation * normalize(texture(normTex, UV).xyz);
 }
 
-)shdr";
+)";
+	std::string ret2 = R"(
 
 
-	ret << R"shdr(
 void main(){
-	Position = inVert.Position.xyz;)shdr";
+	{
+		vec3 norm = normalize(inVert.Normal);
+		vec3 bin = normalize(cross(inVert.Tangent.xyz, norm) * inVert.Tangent.w);
+		vec3 tang = cross(norm, bin);
+		pvx_tangentRotation = mat3(tang, bin, norm);
+	}
+	Position = inVert.Position.xyz;
+	Fragment();
+})";
+	return ret1 + Code + ret2;
+}
 
-	if (uBump) {
 
-		ret << R"shdr(
-	Normal = TransformNormal();)shdr";
-		
+std::string PVX::OpenGL::Helpers::Renderer::GetDefaultFragmentShader(unsigned int Format, unsigned int Frag) {
+	char FileName[1024];
+	sprintf_s<1024>(FileName, "Shaders\\Defaults\\Fragment%05d_%02d.glsl", Format, Frag);
+	if (PVX::IO::FileExists(FileName)) return PVX::IO::ReadText(FileName);
+
+	auto str = MakeFragmentShader(MakeDefaultFragmentShader(Format, Frag));
+	PVX::IO::Write(FileName, str.data(), str.size());
+	return str;
+}
+
+std::string PVX::OpenGL::Helpers::Renderer::MakeDefaultFragmentShader(unsigned int Format, unsigned int Frag) {
+	std::stringstream ret;
+
+	if (HasTexColor) ret << R"(uniform sampler2D Color_Tex;
+)";
+	else ret << R"(
+)";
+
+	if (HasTexMat) ret << R"(uniform sampler2D PBR_Tex;
+)"; 
+	else ret << R"(
+)";
+
+	if (HasTexBump) ret << R"(uniform sampler2D Bump_Tex;
+)"; 
+	else ret << R"(
+)";
+
+	ret << R"(
+
+void Fragment() {
+)";
+	if (UserBump) {
+		ret << R"(	Normal = textureTangent(Bump_Tex, inVert.UV);
+)";
 	} else {
-		if (HasNorm) ret << R"shdr(
-	Normal = normalize(inVert.Normal);)shdr";
-		else ret << R"shdr(
-	Normal = vec3(0);)shdr";
+		if (HasNorm) ret << R"(	Normal = normalize(inVert.Normal);
+)";
+		else ret << R"(	Normal = vec3(0);
+)";
 	}
 
-	if (HasTexColor && HasUV) ret << R"shdr(
-	Color = texture(Color_Tex, inVert.UV) * MatColor;)shdr";
-	else ret << R"shdr(
-	Color = MatColor;)shdr";
+	if (HasTexColor && HasUV) ret << R"(	Color = texture(Color_Tex, inVert.UV) * MatColor;
+)";
+	else ret << R"(	Color = MatColor;
+)";
 
-	if (HasTexMat && HasUV) ret << R"shdr(
-	PBR = MatPBR.xy * texture(PBR_Tex, inVert.UV).xy;)shdr";
-	else ret << R"shdr(
-	PBR = MatPBR.xy;)shdr";
+	if (HasTexMat && HasUV) ret << R"(	PBR = MatPBR.xy * texture(PBR_Tex, inVert.UV).xy;
+)";
+	else ret << R"(	PBR = MatPBR.xy;
+)";
 
-	ret << R"shdr(
-})shdr";
+	ret << R"(})";
 	auto str = ret.str();
 	return str;
 }

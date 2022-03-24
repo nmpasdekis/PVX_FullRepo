@@ -19,7 +19,7 @@ namespace PVX {
 		} ObjectData;
 
 		struct SimpleMatrial {
-			Vector4D Diffuse = { 0.8f, 0.8f, 0.8f, 1.0f};
+			Vector4D Diffuse = { 0.8f, 0.8f, 0.8f, 1.0f };
 			Vector4D Ambient = { 0.2f, 0.2f, 0.2f, 1.0f };
 			Vector4D Specular = { 0.2f, 0.2f, 0.2f, 1.0f };
 			Vector4D Emission = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -43,7 +43,7 @@ namespace PVX {
 
 		class InterleavedArrayObject {
 		public:
-			InterleavedArrayObject(GLenum Type, int VertexCount, Vector3D * Position, int IndexCount, int * Index, Vector3D * Normal = 0, Vector3D * UV = 0, Vector3D * Color = 0);
+			InterleavedArrayObject(GLenum Type, int VertexCount, Vector3D* Position, int IndexCount, int* Index, Vector3D* Normal = 0, Vector3D* UV = 0, Vector3D* Color = 0);
 			int Stride = 0;
 			int NormalOffset = 0;
 			int ColorOffset = 0;
@@ -95,7 +95,7 @@ namespace PVX {
 
 			operator Geometry();
 
-			BufferObject(const InterleavedArrayObject & ao);
+			BufferObject(const InterleavedArrayObject& ao);
 			std::vector<Attribute> Attributes;
 		protected:
 			friend class Pipeline;
@@ -106,11 +106,11 @@ namespace PVX {
 		public:
 			ObjectBuilder();
 			void Color(const Vector4D& v);
-			void Color(const Vector3D & v);
-			void Vertex(const Vector3D & v);
-			void Normal(const Vector3D & v);
+			void Color(const Vector3D& v);
+			void Vertex(const Vector3D& v);
+			void Normal(const Vector3D& v);
 			void TexCoord(const Vector2D& v);
-			void TexCoord3D(const Vector3D & v);
+			void TexCoord3D(const Vector3D& v);
 
 			void Color(float r, float g, float b, float a);
 			void Color(float r, float g, float b);

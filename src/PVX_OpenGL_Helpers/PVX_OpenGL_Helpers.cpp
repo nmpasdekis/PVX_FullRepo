@@ -4,6 +4,7 @@
 #include <PVX.inl>
 #include <PVX_Image.h>
 #include <PVX_File.h>
+#include <limits>
 
 namespace PVX::OpenGL::Helpers {
 	using namespace PVX;
@@ -112,17 +113,17 @@ namespace PVX::OpenGL::Helpers {
 		}
 	}
 
-	void Transform::Transform_All(const TransformConstant& Const) {
-		Matrix = PVX::mTran(Position) * Const.PostTranslate *
-			PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
-			PVX::mScale(Scale) * Const.PostScale;
-	}
+	//void Transform::Transform_All(const TransformConstant& Const) {
+	//	Matrix = PVX::mTran(Position) * Const.PostTranslate *
+	//		PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
+	//		PVX::mScale(Scale) * Const.PostScale;
+	//}
 
-	void Transform::Transform_Identity(const TransformConstant& Const) {
-		Matrix = PVX::mTran(Position) *
-			PVX::Rotate(Const.RotationOrder, Rotation) *
-			PVX::mScale(Scale);
-	}
+	//void Transform::Transform_Identity(const TransformConstant& Const) {
+	//	Matrix = PVX::mTran(Position) *
+	//		PVX::Rotate(Const.RotationOrder, Rotation) *
+	//		PVX::mScale(Scale);
+	//}
 
 	void Transform::DoNothing(const TransformConstant& Const) {}
 
@@ -135,30 +136,30 @@ namespace PVX::OpenGL::Helpers {
 	}
 
 
-	void Transform::TransformAll(TransformConstant& Const, const TransformConstant* All) const {
-		Const.Result = All[Const.ParentIndex].Result *
-			PVX::mTran(Position) * Const.PostTranslate *
-			PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
-			PVX::mScale(Scale) * Const.PostScale;
-	}
-	void Transform::TransformNoParent(TransformConstant& Const, const TransformConstant* All) const {
-		Const.Result =
-			PVX::mTran(Position) * Const.PostTranslate *
-			PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
-			PVX::mScale(Scale) * Const.PostScale;
-	}
-	void Transform::TransformAll_Identity(TransformConstant& Const, const TransformConstant* All) const {
-		Const.Result = All[Const.ParentIndex].Result *
-			PVX::mTran(Position) *
-			PVX::Rotate(Const.RotationOrder, Rotation) *
-			PVX::mScale(Scale);
-	}
-	void Transform::TransformNoParent_Identity(TransformConstant& Const, const TransformConstant* All) const {
-		Const.Result =
-			PVX::mTran(Position) *
-			PVX::Rotate(Const.RotationOrder, Rotation) *
-			PVX::mScale(Scale);
-	}
+	//void Transform::TransformAll(TransformConstant& Const, const TransformConstant* All) const {
+	//	Const.Result = All[Const.ParentIndex].Result *
+	//		PVX::mTran(Position) * Const.PostTranslate *
+	//		PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
+	//		PVX::mScale(Scale) * Const.PostScale;
+	//}
+	//void Transform::TransformNoParent(TransformConstant& Const, const TransformConstant* All) const {
+	//	Const.Result =
+	//		PVX::mTran(Position) * Const.PostTranslate *
+	//		PVX::Rotate(Const.RotationOrder, Rotation) * Const.PostRotate *
+	//		PVX::mScale(Scale) * Const.PostScale;
+	//}
+	//void Transform::TransformAll_Identity(TransformConstant& Const, const TransformConstant* All) const {
+	//	Const.Result = All[Const.ParentIndex].Result *
+	//		PVX::mTran(Position) *
+	//		PVX::Rotate(Const.RotationOrder, Rotation) *
+	//		PVX::mScale(Scale);
+	//}
+	//void Transform::TransformNoParent_Identity(TransformConstant& Const, const TransformConstant* All) const {
+	//	Const.Result =
+	//		PVX::mTran(Position) *
+	//		PVX::Rotate(Const.RotationOrder, Rotation) *
+	//		PVX::mScale(Scale);
+	//}
 	void Transform::PreTransformed(TransformConstant& Const, const TransformConstant* All) const {
 		Const.Result = All[Const.ParentIndex].Result * Matrix;
 	}
@@ -167,106 +168,93 @@ namespace PVX::OpenGL::Helpers {
 	}
 
 
+	ObjectGL::ObjectGL(Renderer& r) :renderer{ r } {}
+
 	void ObjectGL::UpdateInstances_1() {
-		//for (auto& inst: Instances) {
-#pragma omp parallel for 
-		for(auto i=0;i<Instances.size();i++){
-			auto& inst = Instances[i];
+		if (MorphCount) {
+			int offset = 0;
+			for (auto& p : Parts) {
+				if (p.MorphCount) {
+					float* mPtr = p.MorphControlBuffer.Map<float>();
+
+					for (auto& inst : Instances) {
+						if (inst->Active) {
+							memcpy(mPtr, inst->MorphControls.data() + offset, p.MorphCount * sizeof(float));
+
+							mPtr += p.MorphCount;
+						}
+					}
+
+					p.MorphControlBuffer.Unmap();
+					offset += p.MorphCount;
+				}
+			}
+		}
+
+		for (auto& inst: Instances) {
 			if (!inst->Active) continue;
 			int c = 0;
-			for (auto& tr : inst->Transforms)
-				tr.GetTransform(TransformConstants[c++]);
+			for (auto j = 0; j < inst->TransformCount(); j++) {
+				inst->Transform(j).GetTransform(TransformConstants[c++]);
+			}
 		}
 	}
 	void ObjectGL::UpdateInstances_2() {
-		//for (auto& inst: Instances) {
-#pragma omp parallel for 
-		for (auto i = 0; i<Instances.size(); i++) {
-			auto& inst = Instances[i];
+		for (auto& inst: Instances) {
 			if (!inst->Active) continue;
 			int c = 0;
-			for (auto& tr : inst->Transforms) {
-				tr.Matrix = tr.GetMatrix(inst->Transforms.data(), TransformConstants[c++].ParentIndex);
+			for (auto j = 0; j < inst->TransformCount(); j++) {
+				auto& tr = inst->Transform(j);
+				tr.Matrix = tr.GetMatrix(&inst->Transform(0), TransformConstants[c++].ParentIndex);
 			}
 		}
 	}
 	void ObjectGL::UpdateInstances_3() {
-		for (auto& p: Parts) {
-			p.TransformBufferPtr = p.TransformBuffer.Map<PVX::Matrix4x4>();
-		}
+		DrawCount = 0;
 
-#pragma omp parallel for 
-		for (auto ii = 0; ii<Parts.size(); ii++) {
-			auto& p = Parts[ii];
+		for(auto& p : Parts) {
+			PVX::Matrix4x4 *Ptr = p.TransformBuffer.Map<PVX::Matrix4x4>();
 			size_t index = 0;
 			if (!p.PostTransform.size()) {
 				auto m = p.UseMatrices[0];
-				for (auto& inst: Instances) {
-					if (!inst->Active) continue;
-					p.TransformBufferPtr[index++] = inst->Transforms[m].Matrix;
+				for (auto& o : DrawOrder) {
+					auto& inst = Instances[o.Index];
+					if (!inst->Active || o.CamAngle<0) continue;
+					DrawCount++;
+					Ptr[index++] = inst->Transform(m).Matrix;
 				}
 			} else {
-				for (auto& inst: Instances) {
-					if (!inst->Active) continue;
+				for (auto& o : DrawOrder) {
+					auto& inst = Instances[o.Index];
+					if (!inst->Active || o.CamAngle<0) continue;
+					DrawCount++;
 					int i = 0;
 					for (auto& m : p.UseMatrices) {
-						p.TransformBufferPtr[index++] = inst->Transforms[m].Matrix * p.PostTransform[i++];
+						Ptr[index++] = inst->Transform(m).Matrix * p.PostTransform[i++];
 					}
 				}
 			}
-		}
-		for (auto& p: Parts) {
 			p.TransformBuffer.Unmap();
 		}
 	}
 
-	void ObjectGL::UpdateInstances() {
-		if (!ActiveInstances) return;
-		for (auto& inst: Instances) {
+	void ObjectGL::OrderInstances(const PVX::Vector3D& CamPos, const PVX::Vector3D& CamLook) {
+		size_t i = 0;
+		for (auto& inst : Instances) {
+			auto& o = DrawOrder[i];
+			o.Index = i++;
+			o.CamDist2 = std::numeric_limits<float>::infinity();
+			o.CamAngle = -std::numeric_limits<float>::infinity();
 			if (!inst->Active) continue;
-			int c = 0;
-			for (auto& tr : inst->Transforms)
-				tr.GetTransform(TransformConstants[c++]);
+			auto& pos = inst->Transform(0).Position;
+			auto sub = pos.Vec3 - CamPos;
+			o.CamDist2 = sub.Dot(CamLook);
+			o.CamAngle = sub.Normalized().Dot(CamLook);
 		}
-		for (auto& inst: Instances) {
-			if (!inst->Active) continue;
-			int c = 0;
-			for (auto& tr : inst->Transforms) {
-				tr.Matrix = tr.GetMatrix(inst->Transforms.data(), TransformConstants[c++].ParentIndex);
-			}
-		}
-
-		for (auto& p: Parts) {
-			auto tPtr = p.TransformBuffer.Map<PVX::Matrix4x4>();
-			size_t index = 0;
-			if (!p.PostTransform.size()) {
-				auto m = p.UseMatrices[0];
-				for (auto& inst: Instances) {
-					if (!inst->Active) continue;
-					tPtr[index++] = inst->Transforms[m].Matrix;
-				}
-			}else{
-				for (auto& inst: Instances) {
-					if (!inst->Active) continue;
-					int i = 0;
-					for (auto& m : p.UseMatrices) {
-						tPtr[index++] = inst->Transforms[m].Matrix * p.PostTransform[i++];
-					}
-				}
-			}
-			p.TransformBuffer.Unmap();
-		}
-		if (MorphCount) {
-			for (auto& p: Parts) {
-				if (!p.MorphCount) continue;
-
-				auto mPtr = p.MorphControlBuffer.Map<float>();
-
-
-
-				p.MorphControlBuffer.Unmap();
-			}
-		}
+		PVX::SortInplace(DrawOrder, [](const DrawOrderData& a, const DrawOrderData& b) {
+			return a.CamDist2 < b.CamDist2;
+		});
+		i = 0;
 	}
 
 	//void ObjectGL::UpdateInstances() {
@@ -312,7 +300,7 @@ namespace PVX::OpenGL::Helpers {
 	//	}
 	//}
 
-	void Renderer::UpdateInstances() {
+	void Renderer::UpdateInstances(const PVX::Vector3D& CamPos, const PVX::Vector3D& CamLook) {
 		for (auto& [n, o] : Objects) {
 			o->UpdateInstances_1();
 		}
@@ -320,7 +308,11 @@ namespace PVX::OpenGL::Helpers {
 			o->UpdateInstances_2();
 		}
 		for (auto& [n, o] : Objects) {
-			o->UpdateInstances_3();
+			o->OrderInstances(CamPos, CamLook);
+		}
+		for (auto& [n, o] : Objects) {
+			if(o->InstanceCount)
+				o->UpdateInstances_3();
 		}
 	}
 
@@ -352,7 +344,7 @@ namespace PVX::OpenGL::Helpers {
 					pp.ShaderProgram.BindUniform(pp.BoneCountIndex, int(p.PostTransform.size()));
 					pp.ShaderProgram.BindUniform(pp.MorphCountIndex, int(p.MorphCount));					
 					
-					pp.Mesh.Draw(int(Object.ActiveInstances));
+					pp.Mesh.Draw(int(Object.DrawCount));
 				}
 			}
 		}
@@ -387,14 +379,23 @@ namespace PVX::OpenGL::Helpers {
 		glDisable(GL_BLEND);
 		glUseProgram(0);
 	}
+	inline PVX::OpenGL::Helpers::Transform& InstanceData::Transform(size_t index) {
+		return Object.renderer.Transforms[TransformOffset + index];
+	}
+	inline size_t InstanceData::TransformCount() {
+		return Object.InitialTransform.size();
+	}
 	void InstanceData::Animate(float time) {
 		if (Object.AnimationMaxFrame) {
 			size_t f = (size_t(time * Object.FrameRate)) % Object.AnimationMaxFrame;
+			size_t f2 = (f+1)&Object.AnimationMaxFrame;
+			float inter = time * Object.FrameRate - f;
 			size_t i = 0;
-			for (i = 1; i<Transforms.size(); i++) {
-				auto& t = Transforms[i];
+			for (i = 1; i<TransformCount(); i++) {
+				auto& t = Transform(i);
 				t.Position = Object.Animation[i][f].Position;
-				t.Rotation = Object.Animation[i][f].Rotation;
+				t.Rotate(Object.Animation[i][f].Rotation);
+				//t.Rotation = Object.Animation[i][f].Rotation;
 				t.Scale = Object.Animation[i][f].Scale;
 			}
 			//for (auto& t : Transforms) {
@@ -428,97 +429,139 @@ namespace PVX::OpenGL::Helpers {
 		//ShaderProgram.Unbind();
 	}
 
-	TextPrinter::TextPrinter(ResourceManager& mgr, const std::string& Texture, int xTiles, int yTiles, const PVX::iVector2D& ScreenSize) :
-		rManager{ mgr },
-		ScreenSize{ ScreenSize },
-		Characters{ },
-		Texts(false, BufferUsege::STREAM_DRAW),
-		Shaders{
-			mgr.Programs.Get("TextPrinter", [] {
-				return PVX::OpenGL::Program {
-					{ PVX::OpenGL::Shader::ShaderType::VertexShader, PVX::IO::ReadText("Shaders\\TextVertexShader.glsl") },
-					{ PVX::OpenGL::Shader::ShaderType::FragmentShader, PVX::IO::ReadText("Shaders\\TextFragShader.glsl") }
-				};
-			})
-		},
-		Atlas{ mgr.Textures2D.Get(Texture, [&] {
-			auto data = PVX::ImageData::LoadRaw(Texture.c_str());
-			return PVX::OpenGL::Texture2D::MakeTexture32F(data.Width, data.Height, data.Channels, data.Data.data());
-		}) },
-		xTiles{ xTiles }, yTiles{ yTiles },
-		TileSize{ 1.0f / xTiles, 1.0f / yTiles },
-		geo{
-			mgr.Geometry.Get("TextPrinter", [&]() -> PVX::OpenGL::Geometry {
-				return {
-					PrimitiveType::TRIANGLES,
-					{ 0, 1, 2, 0, 2, 3 },
+
+	//void ParticleEmitter::Spawn(float count) {
+	//	count += Data.RemainingBirthRate;
+	//	while (count > 1.0f && Data.LiveCount < Particles.size()) {
+	//		float Pitch = Data.MinAngle + rndf.Next() * (Data.MaxAngle - Data.MinAngle);
+	//		float Yaw = rndf.Next() * PVX::ToRAD(360.0f);
+	//		float cy = cosf(Yaw);
+	//		float sy = sinf(Yaw);
+	//		float cp = cosf(Pitch);
+	//		float sp = sinf(Pitch);
+	//		PVX::Vector4D Velocity{ 
+	//			(PVX::Vector3D{ sp*sy, cp, cy*sp } *Data.Initial) * 
+	//			Data.Speed * (1.0f + rndf.Next() * Data.SpeedVariancePc), 
+	//			0 
+	//		};
+	//		Particle& p = Particles[Data.LiveCount++];
+	//		p.Position = Data.Position;
+	//		p.Velocity = Velocity;
+	//		p.Life = p.MaxLife = Data.LifeSpan * (1.0f + Data.LifeSpanVariancePc * rndf.Next());
+	//		count -= 1.0f;
+	//	}
+	//	Data.RemainingBirthRate = std::modf(count, &count);
+	//	//RemainingBirthRate -= int(RemainingBirthRate);
+	//}
+
+
+	void ParticleEmitter::Update(float dt, const PVX::Vector3D& CamPosition) {
+		std::lock_guard<std::mutex> lock{ LockUpdate };
+		Data.dt = dt;
+		Data.CamPosition = CamPosition;
+		Data.Random = rndf.Next();
+		DataBuffer.Update(sizeof(ParticleData), &Data);
+		ComputeParticles.Execute({ DataBuffer, pBuffer }, 1);
+		DataBuffer.Read(&Data);
+		//pBuffer.Read(Particles);
+	}
+
+
+	//void ParticleEmitter::Update(float dt) {
+	//	size_t next = 0;
+	//	for (auto i = 0; i<Data.LiveCount; i++) {
+	//		auto& pIn = Particles[i];
+	//		auto& pOut = Particles[next];
+	//		pOut.Life = pIn.Life - dt;
+	//		if (pOut.Life <= 0) continue;
+	//		pOut.MaxLife = pIn.MaxLife;
+	//		pOut.Velocity = pIn.Velocity * (1.0f - (1.0f-Data.Resistance) * dt) + Data.Gravity * dt;
+	//		pOut.Position = pIn.Position + pOut.Velocity * dt;
+	//		next++;
+	//	}
+	//	Data.LiveCount = next;
+	//	Spawn(dt * Data.BirthRate);
+	//}
+
+	void ParticleEmitter::SetDirectionAngle(const PVX::Vector3D& Rot) {
+		Data.Initial = PVX::Rotate_XYZ(Rot);
+	}
+	//void ParticleEmitter::Sort(const PVX::Vector3D& CamPos) {
+	//	//for (int i = 0; i<Data.LiveCount; i++) { 
+	//	//	Particles[i].CamDist2 = (Particles[i].Position.Vec3 - CamPos).Length2(); 
+	//	//}
+	//	std::sort(Particles.begin(), Particles.begin() + Data.LiveCount, [](const auto& a, const auto& b) {
+	//		return b.CamDist2 < a.CamDist2;
+	//	});
+	//}
+
+	ParticleRenderer::ParticleRenderer(ResourceManager& mgr, ParticleEmitter& emitter, PVX::OpenGL::Texture3D& Tex):
+	Shaders{ 
+		mgr.Programs.Get("ParticleEmitter", [] { return PVX::OpenGL::Program{
+			{ PVX::OpenGL::Shader::ShaderType::VertexShader, PVX::IO::ReadText("Shaders\\ParticleVertex.glsl") },
+			{ PVX::OpenGL::Shader::ShaderType::FragmentShader, PVX::IO::ReadText("Shaders\\ParticleFragment.glsl") }
+		}; })
+	},
+	LiveCount{ emitter.Data.LiveCount },
+	geo{
+		mgr.Geometry.Get("Particle", [&]() -> Geometry { return {
+			PrimitiveType::TRIANGLES,
+			{ 0, 1, 2, 0, 2, 3 },
+			{
+				{
+					[&] {
+						constexpr float verts[]{
+							-0.5f, -0.5f, 0.0f, 0.0f,
+							0.5f, -0.5f, 1.0f, 0.0f,
+							0.5f,  0.5f, 1.0f, 1.0f,
+							-0.5f,  0.5f, 0.0f, 1.0f,
+						};
+						return VertexBuffer(verts, sizeof(verts));
+					}(),
 					{
-						{
-							[&] {
-								float h = (Atlas.GetHeight() * xTiles) * 1.0f / (Atlas.GetWidth() * yTiles);
-								CharInstance verts[4]{
-									{ { 0.0f, 0.0f }, { 0.0f, 1.0f - TileSize.Height } },
-									{ { 1.0f, 0.0f }, { TileSize.Width, 1.0f - TileSize.Height } },
-									{ { 1.0f, h }, { TileSize.Width, 1.0f } },
-									{ { 0.0f, h }, { 0.0f, 1.0f } },
-								};
-								return VertexBuffer(verts, sizeof(CharInstance)*4);
-							}(),
-							{
-								{ AttribType::FLOAT, 2, 0 },
-								{ AttribType::FLOAT, 2, 0 },
-							}
-						},
-						{
-							Characters,
-							{
-								{ AttribType::FLOAT, 2, 1 },
-							}
-						}
+						{ AttribType::FLOAT, 2, 0 }, // 0
+						{ AttribType::FLOAT, 2, 0 }, // 1
 					}
-				};
-			})
-		}
-	{
-	}
+				},
+				{
+					emitter.pBuffer,
+					{
+						{ AttribType::FLOAT, 4, 1, 16 },	// 2
+						{ AttribType::FLOAT, 1, 1, 4 },		// 3
+						{ AttribType::FLOAT, 2, 1, 8 },		// 4
+						{ AttribType::FLOAT, 2, 1 },		// 5
+					}
+				}
+			} };
+		})
+	},
+	Texture{ Tex } {}
 
-	void TextPrinter::AddText(const std::string_view& Text, const PVX::Vector2D& pos, float scale, const PVX::Vector4D& Color) {
-		TextBufferData.push_back({ Color, {
-				scale * 2.0f/ ScreenSize.Width, 0, 0, 0,
-				0, scale * 2.0f / ScreenSize.Height, 0, 0,
-				0, 0, 0, 0,
-				(2.0f * pos.x / ScreenSize.Width - 1.0f), (2.0f * pos.y / ScreenSize.Height - 1.0f), 0, 1.0f
-		} });
-		for (auto& t : Text) {
-			Stream.push_back({
-				(t % xTiles)* TileSize.Width,
-				- (t / xTiles) * TileSize.Height
-			});
-		}
-		uint32_t off = 0;
-		if (cmds.size()) off = cmds.back().baseInstance + cmds.back().instanceCount;
-
-		cmds.push_back({ 6, uint32_t(Text.size()), 0, 0, off });
-	}
-
-	void TextPrinter::Render() {
+	void ParticleRenderer::Render() {
+		glDepthMask(false);
 		glEnable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-		Texts.Update(TextBufferData.size() * sizeof(DrawData), TextBufferData.data());
-		Characters.Update(Stream.data(), Stream.size() * sizeof(PVX::Vector2D));
+		glBindTextureUnit(0, Texture.Get());
 		Shaders.Bind();
-		BindBuffer(0, Texts);
-		Atlas.BindToUnit(0);
-		geo.Bind();
-
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, cmds.data(), cmds.size(), 0);
-		geo.Unbind();
-
-		cmds.clear();
-		TextBufferData.clear();
-		Stream.clear();
-
+		geo.Draw(LiveCount);
 		glDisable(GL_BLEND);
+		glDepthMask(true);
 	}
 
+
+	ParticleEmitter::ParticleEmitter(ResourceManager& mgr, int Max) :
+		//Particles{ Max },
+		pBuffer{
+			Buffer::MakeBuffer(BufferType::SHADER_STORAGE_BUFFER, BufferFlags::DYNAMIC_STORAGE_BIT, size_t(Max) * sizeof(Particle))
+		},
+		DataBuffer{
+			Buffer::MakeBuffer(BufferType::SHADER_STORAGE_BUFFER, BufferFlags::DYNAMIC_STORAGE_BIT, sizeof(ParticleData))
+		},
+		ComputeParticles{ mgr.Programs.Get("ParticleCompute", [] {
+			return Program {
+				{ PVX::OpenGL::Shader::ShaderType::ComputeShader, PVX::IO::ReadText("shaders\\ParticleCompute.glsl") }
+			};
+		}) }
+	{
+		GL_CHECK(;);
+	}
 }

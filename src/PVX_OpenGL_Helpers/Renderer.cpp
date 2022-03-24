@@ -8,13 +8,15 @@ namespace PVX::OpenGL::Helpers {
 
 	Renderer::Renderer(ResourceManager& mgr,int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target) : gl{ gl },
 		gBufferFBO(gl, Width, Height),
+		SimpleRenderTarget(gl, Width, Height),
 		GeneralSampler{ PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::REPEAT },
 		PostProcesses{ mgr, gl },
 		rManager{ mgr }
 	{
 		glEnable(GL_MULTISAMPLE);
+		//gBuffer.Albedo = gBufferFBO.AddColorAttachmentRGBA8UB();
+		gBuffer.Albedo = gBufferFBO.AddColorAttachmentRGB16F();
 		gBuffer.Position = gBufferFBO.AddColorAttachmentRGB32F();
-		gBuffer.Albedo = gBufferFBO.AddColorAttachmentRGBA8UB();
 		gBuffer.Normal = gBufferFBO.AddColorAttachmentRGB16F();
 		gBuffer.Material = gBufferFBO.AddColorAttachmentRGB16F();
 		//gBuffer.Material = gBufferFBO.AddColorAttachment(PVX::OpenGL::InternalFormat::RG16F, PVX::OpenGL::TextureFormat::RG, PVX::OpenGL::TextureType::HALF_FLOAT);
@@ -28,6 +30,12 @@ namespace PVX::OpenGL::Helpers {
 		gBuffer.Material.Name("gMaterial");
 		gBuffer.Depth.Name("DepthBuffer");
 
+		SimpleRenderTarget.AddColorAttachment(gBuffer.Albedo);
+		//SimpleRenderTarget.AddColorAttachment(gBuffer.Albedo);
+		SimpleRenderTarget.AddDepthStencilAttachment(gBuffer.Depth);
+		SimpleRenderTarget.Build();
+
+
 		LightBuffer.Update(sizeof(Lights), &Lights);
 
 		//PostProcesses.MakeSimple(Width, Height, gPosition, gAlbedo, gNormal, gMaterial, Target);
@@ -35,22 +43,27 @@ namespace PVX::OpenGL::Helpers {
 		//PostProcesses.MakeSimple(Width, Height, gBuffer, Target);
 	}
 
+	void Renderer::DoPostProcess() {
+		LightBuffer.Update(sizeof(Lights), &Lights);
+		//BindBuffer(0, CameraBuffer);
+		BindBuffer(1, LightBuffer);
+		PostProcesses.Process();
+	}
+
 	void Renderer::SetCameraBuffer(PVX::OpenGL::Buffer& CamBuffer) {
 		CameraBuffer = CamBuffer;
 	}
 
-	void Renderer::Render(std::function<void()> RenderClb) {
+	void Renderer::Render_gBuffer(std::function<void()> RenderClb) {
 		BindBuffer(0, CameraBuffer);
-
 		gBufferFBO.Bind();
 		RenderClb();
+	}
 
-		LightBuffer.Update(sizeof(Lights), &Lights);
-
+	void Renderer::Render_Simple(std::function<void()> RenderClb) {
 		BindBuffer(0, CameraBuffer);
-		BindBuffer(1, LightBuffer);
-
-		PostProcesses.Process();
+		SimpleRenderTarget.Bind();
+		RenderClb();
 	}
 
 	PVX::OpenGL::Texture2D Renderer::LoadTexture2D(const std::wstring& Filename) {
@@ -116,8 +129,12 @@ namespace PVX::OpenGL::Helpers {
 		auto& obj = Objects[oId];
 		Instances[Id] = { oId, obj->InstanceCount++ };
 
-		obj->Instances.push_back(std::make_unique<InstanceData>(*obj, obj->InitialTransform, Active));
+		size_t tOffset = Transforms.size();
+		obj->Instances.push_back(std::make_unique<InstanceData>(Id, *obj, tOffset, Active));
 		obj->Instances.back()->MorphControls.resize(obj->MorphCount);
+		Transforms.resize(Transforms.size() + obj->InitialTransform.size());
+		memcpy(&Transforms[tOffset], obj->InitialTransform.data(), obj->InitialTransform.size() * sizeof(Transform));
+		obj->DrawOrder.push_back({ obj->DrawOrder.size() });
 
 		for (auto& p: obj->Parts) {
 			if (p.MorphCount)
@@ -126,5 +143,9 @@ namespace PVX::OpenGL::Helpers {
 			p.TransformBuffer.Update(obj->InstanceCount * p.UseMatrices.size() * sizeof(PVX::Matrix4x4));
 		}
 		return Id;
+	}
+
+	InstanceData& Renderer::CreateAndGetInstance(int InstanceId, bool Active) {
+		return GetInstance(CreateInstance(InstanceId, Active));
 	}
 }

@@ -89,7 +89,7 @@ void main() {
 	const float roughness = Material.y;
 	const float ao = 1.0;
 
-	if (dot(n0, n0)!=0) {
+	if (dot(n0, n0)>0.01) {
 		vec3 N = normalize(n0);
 		//vec3 WorldPos = texture(PositionTex, UV).xyz;
 		vec3 WorldPos = texelFetch(PositionTex, txc, 0).xyz;
@@ -185,17 +185,12 @@ void main() {
 	vec3 albedo = texelFetch(ColorTex, txc, 0).xyz;
 	vec4 Material = texelFetch(MaterialTex, txc, 0);
 
-	//vec3 n0 = texture(NormalTex, UV).xyz;
-	//vec3 albedo = texture(ColorTex, UV).xyz;
-	//vec4 Material = texture(MaterialTex, UV);
-
 	const float metallic = Material.x;
 	const float roughness = Material.y;
 	const float ao = 1.0;
 
-	if (dot(n0, n0)!=0) {
+	if (dot(n0, n0)>0.01) {
 		vec3 N = normalize(n0);
-		//vec3 WorldPos = texture(PositionTex, UV).xyz;
 		vec3 WorldPos = texelFetch(PositionTex, txc, 0).xyz;
 
 		vec3 V = normalize(CameraPosition.xyz - WorldPos);
@@ -262,7 +257,9 @@ out vec4 outColor;
 
 void main() {
 	vec3 clr = texture(Color, UV).xyz + texture(Bloom, UV).xyz;
-	outColor = vec4(pow(clr / (clr + vec3(1.0)), vec3(1.0/2.2)), 1.0);
+	clr = clr / (clr + vec3(1.0));
+	//clr = vec3(1.0) - exp(-clr * 10.1));
+	outColor = vec4(pow(clr, vec3(1.0/2.2)), 1.0);
 })GLSL";
 
 

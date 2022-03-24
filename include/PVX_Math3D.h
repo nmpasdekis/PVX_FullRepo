@@ -214,16 +214,16 @@ namespace PVX {
 			float unused1;
 		};
 		inline Vector3D operator-() const { return Vector3D{ -x, -y, -z }; }
-		inline float Length() const { return sqrtf(x*x+y*y+z*z); }
-		inline float Length2() const { return (x*x+y*y+z*z); }
+		inline float Length() const { return sqrtf(x*x + y*y + z*z); }
+		inline float Length2() const { return (x*x + y*y + z*z); }
 		inline float Dot(const Vector3D& v) const { return x*v.x + y*v.y + z*v.z; }
 		inline Vector3D& Normalize() { float w = 1.0f / Length(); x *= w; y *= w; z *= w; return *this; }
-		inline const Vector3D& Normalized() const { float w = 1.0f / Length(); return{ x * w, y * w, z * w }; }
+		inline Vector3D Normalized() const { float w = 1.0f / Length(); return{ x * w, y * w, z * w }; }
 		inline Vector3D Cross(const Vector3D& v) const { return { y* v.z - z*v.y, v.x* z - v.z*x, x* v.y - y*v.x }; }
 		inline static Vector3D Normal(float x, float y, float z) { return Vector3D{ x, y, z }.Normalized(); }
 	};
 	__declspec(align(16))
-	union Vector4D {
+		union Vector4D {
 		enum Traits {
 			HasX = true,
 			HasY = true,
@@ -356,7 +356,7 @@ namespace PVX {
 		inline iVector3D operator-() const { return iVector3D{ -x, -y, -z }; }
 	};
 	__declspec(align(16))
-	union iVector4D {
+		union iVector4D {
 		enum Traits {
 			HasX = true,
 			HasY = true,
@@ -423,7 +423,7 @@ namespace PVX {
 		};
 	};
 	__declspec(align(16))
-	union uVector4D {
+		union uVector4D {
 		enum Traits {
 			HasX = true,
 			HasY = true,
@@ -529,7 +529,8 @@ namespace PVX {
 
 #pragma warning(disable:4201)
 	__declspec(align(16))
-	union Matrix4x4 {
+		union Matrix4x4 {
+		Matrix4x4() = default;
 		float m[4][4];
 		struct {
 			float m00, m01, m02, m03,
@@ -546,10 +547,10 @@ namespace PVX {
 
 		inline static constexpr Matrix4x4 Identity() {
 			return {
-				1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f,
-				0.0f, 0.0f, 1.0f, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
+				1.0f, 0, 0, 0,
+				0, 1.0f, 0, 0,
+				0, 0, 1.0f, 0,
+				0, 0, 0, 1.0f
 			};
 		}
 
@@ -632,10 +633,10 @@ namespace PVX {
 			};
 		}
 		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>
-		inline void MatStoreX(const T& vec){
-			m00=(vec).x;
-			m10=(vec).y;
-			m20=(vec).z;
+		inline void MatStoreX(const T& vec) {
+			m00 = (vec).x;
+			m10 = (vec).y;
+			m20 = (vec).z;
 		}
 		template<typename T, typename std::enable_if_t<T::Traits::HasZ, int> = 0>
 		inline void MatStoreY(const T& vec) {
@@ -648,97 +649,6 @@ namespace PVX {
 			m02 = (vec).x;
 			m12 = (vec).y;
 			m22 = (vec).z;
-		}
-
-		inline static Matrix4x4 RotationXYZ(const Vector3D& r) {
-			float cy = cosf(r.Yaw);
-			float sy = sinf(r.Yaw);
-			float cp = cosf(r.Pitch);
-			float sp = sinf(r.Pitch);
-			float cr = cosf(r.Roll);
-			float sr = sinf(r.Roll);
-
-			return {
-				cr*cy, cy*sr, -sy, 0.0f,
-				cr*sp*sy - cp*sr, cp*cr + sp*sr*sy, cy*sp, 0.0f,
-				sp*sr + cp*cr*sy, cp*sr*sy - cr*sp, cp*cy, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-		}
-		inline static Matrix4x4 RotationXZY(const Vector3D& r) {
-			float cy = cosf(r.Yaw);
-			float sy = sinf(r.Yaw);
-			float cp = cosf(r.Pitch);
-			float sp = sinf(r.Pitch);
-			float cr = cosf(r.Roll);
-			float sr = sinf(r.Roll);
-
-			return {
-				cr*cy, sr, -cr*sy, 0.0f,
-				sp*sy - cp*cy*sr, cp*cr, cy*sp + cp*sr*sy, 0.0f,
-				cp*sy + cy*sp*sr, -cr*sp, cp*cy - sp*sr*sy, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-		}
-		inline static Matrix4x4 RotationYXZ(const Vector3D& r) {
-			float cy = cosf(r.Yaw);
-			float sy = sinf(r.Yaw);
-			float cp = cosf(r.Pitch);
-			float sp = sinf(r.Pitch);
-			float cr = cosf(r.Roll);
-			float sr = sinf(r.Roll);
-
-			return {
-				cr*cy - sp*sr*sy, cy*sr + cr*sp*sy, -cp*sy, 0.0f,
-				-cp*sr, cp*cr, sp, 0.0f,
-				cr*sy + cy*sp*sr, sr*sy - cr*cy*sp, cp*cy, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-		}
-		inline static Matrix4x4 RotationYZX(const Vector3D& r) {
-			float cy = cosf(r.Yaw);
-			float sy = sinf(r.Yaw);
-			float cp = cosf(r.Pitch);
-			float sp = sinf(r.Pitch);
-			float cr = cosf(r.Roll);
-			float sr = sinf(r.Roll);
-
-			return {
-				cr*cy, sp*sy + cp*cy*sr, cy*sp*sr - cp*sy, 0.0f,
-				-sr, cp*cr, cr*sp, 0.0f,
-				cr*sy, cp*sr*sy - cy*sp, cp*cy + sp*sr*sy, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-		}
-		inline static Matrix4x4 RotationZXY(const Vector3D& r) {
-			float cy = cosf(r.Yaw);
-			float sy = sinf(r.Yaw);
-			float cp = cosf(r.Pitch);
-			float sp = sinf(r.Pitch);
-			float cr = cosf(r.Roll);
-			float sr = sinf(r.Roll);
-
-			return {
-				cr*cy + sp*sr*sy, cp*sr, cy*sp*sr - cr*sy, 0.0f,
-				cr*sp*sy - cy*sr, cp*cr, sr*sy + cr*cy*sp, 0.0f,
-				cp*sy, -sp, cp*cy, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
-		}
-		inline static Matrix4x4 RotationZYX(const Vector3D& r) {
-			float cy = cosf(r.Yaw);
-			float sy = sinf(r.Yaw);
-			float cp = cosf(r.Pitch);
-			float sp = sinf(r.Pitch);
-			float cr = cosf(r.Roll);
-			float sr = sinf(r.Roll);
-
-			return {
-				cr*cy, cp*sr + cr*sp*sy, sp*sr - cp*cr*sy, 0,
-				-cy*sr, cp*cr - sp*sr*sy, cr*sp + cp*sr*sy, 0,
-				sy, -cy*sp, cp*cy, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			};
 		}
 	};
 	union Matrix3x3 {
@@ -1170,7 +1080,7 @@ namespace PVX {
 	typedef Matrix4x4& (*_RotationFunc2)(Matrix4x4&, Vector3D&);
 
 	inline Matrix4x4& Rotate(RotationOrder Order, Matrix4x4& ypr, Vector3D& r) {
-		constexpr _RotationFunc2 _RotationOrder[] {
+		constexpr _RotationFunc2 _RotationOrder[]{
 			PVX::RotateXYZ,
 			PVX::RotateXZY,
 			PVX::RotateYXZ,
@@ -1296,6 +1206,38 @@ namespace PVX {
 			0, 0, 0, 1.0
 		};
 	}
+
+	inline Matrix4x4 RotateRoll(float Roll) {
+		float cr = cosf(Roll);
+		float sr = sinf(Roll);
+		return {
+			cr, sr, 0, 0,
+			-sr, cr, 0, 0,
+			0, 0, 1.0f, 0,
+			0, 0, 0, 1.0
+		};
+	}
+	inline Matrix4x4 RotateYaw(float Roll) {
+		float cr = cosf(Roll);
+		float sr = sinf(Roll);
+		return {
+			cr, 0, sr, 0,
+			0, 1.0f, 0, 0,
+			-sr, 0, cr, 0,
+			0, 0, 0, 1.0
+		};
+	}
+	inline Matrix4x4 RotatePitch(float Roll) {
+		float cr = cosf(Roll);
+		float sr = sinf(Roll);
+		return {
+			1.0f, 0, 0, 0,
+			0, cr, sr, 0,
+			0, -sr, cr, 0,
+			0, 0, 0, 1.0
+		};
+	}
+
 	inline void RotateYawPitchRoll(Matrix4x4& ypr, const Vector3D& r) {
 		float cy = cosf(r.Yaw);
 		float sy = sinf(r.Yaw);
@@ -1320,6 +1262,22 @@ namespace PVX {
 		ypr.m31 = 0;
 		ypr.m32 = 0;
 		ypr.m33 = 1;
+	}
+
+	inline PVX::Matrix4x4 RotateYawPitch(const Vector3D& r) {
+		float cy = cosf(r.Yaw);
+		float sy = sinf(r.Yaw);
+		float cp = cosf(r.Pitch);
+		float sp = sinf(r.Pitch);
+		return {
+			cy,	sp* sy,	-cp*sy,	0,
+
+			0,	cp,		sp,		0,
+
+			sy,	-cy*sp,	cp* cy,	0,
+
+			0,	0,		0,		1.0f
+		};
 	}
 
 	inline void RotateYawPitch(Matrix4x4& ypr, const Vector3D& r) {
@@ -1462,7 +1420,7 @@ namespace PVX {
 		for (i = 0; i < 4; i++) {
 			for (j = 0; j < 4; j++) {
 				out.m[j][i] = Det3(in, i, j)*idet;
-				*(int*)& out.m[j][i] ^= ((i + j) << 31);
+				*(int*)&out.m[j][i] ^= ((i + j) << 31);
 			}
 		}
 	}
@@ -1771,43 +1729,64 @@ namespace PVX {
 	}
 
 	inline Vector3D operator+(const Vector3D& v1, const Vector3D& v2) {
-		return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
+		return (PVX::Vector4D{
+			_mm_add_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
+		}).Vec3;
+		//return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
 	}
 
 	inline Vector3D operator-(const Vector3D& v1, const Vector3D& v2) {
-		return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+		return (PVX::Vector4D{
+			_mm_sub_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
+		}).Vec3;
+		//return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
 	}
 
 	inline Vector3D operator*(const Vector3D& v1, const Vector3D& v2) {
-		return { v1.x * v2.x, v1.y * v2.y, v1.z * v2.z };
+		return (PVX::Vector4D{
+			_mm_mul_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
+		}).Vec3;
+		//return { v1.x * v2.x, v1.y * v2.y, v1.z * v2.z };
 	}
 
 	inline Vector3D operator/(const Vector3D& v1, const Vector3D& v2) {
-		return { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
+		return (PVX::Vector4D{
+			_mm_div_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
+		}).Vec3;
+		//return { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
 	}
 
 	inline Vector3D operator*(const Vector3D& v1, float f) {
-		Vector3D out = v1;
-		out.x *= f;
-		out.y *= f;
-		out.z *= f;
-		return out;
+		return (PVX::Vector4D{
+			_mm_mul_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set1_ps(f))
+		}).Vec3;
+		//Vector3D out = v1;
+		//out.x *= f;
+		//out.y *= f;
+		//out.z *= f;
+		//return out;
 	}
 
 	inline Vector3D operator*(float f, const Vector3D& v1) {
-		Vector3D out = v1;
-		out.x *= f;
-		out.y *= f;
-		out.z *= f;
-		return out;
+		return (PVX::Vector4D{
+			_mm_mul_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set1_ps(f))
+		}).Vec3;
+		//Vector3D out = v1;
+		//out.x *= f;
+		//out.y *= f;
+		//out.z *= f;
+		//return out;
 	}
 
 	inline Vector3D operator/(const Vector3D& v1, float f) {
-		Vector3D out = v1;
-		out.x /= f;
-		out.y /= f;
-		out.z /= f;
-		return out;
+		return (PVX::Vector4D{
+			_mm_div_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set1_ps(f))
+		}).Vec3;
+		//Vector3D out = v1;
+		//out.x /= f;
+		//out.y /= f;
+		//out.z /= f;
+		//return out;
 	}
 
 	inline Vector3D GramSchmit(const Vector3D& BaseVector, const Vector3D& toBeOrthoCorrected) {
@@ -1862,6 +1841,14 @@ namespace PVX {
 	out.z=v.x*m.m[0][2] + v.y*m.m[1][2] + v.z*m.m[2][2] + m.m[3][2];
 	return out;
 	}*/
+
+	inline PVX::Vector3D operator*(const Matrix4x4& m, const Vector3D& v) {
+		return {
+			m.m00 * v.x + m.m01 * v.y + m.m02 * v.z,
+			m.m10 * v.x + m.m11 * v.y + m.m12 * v.z,
+			m.m20 * v.x + m.m21 * v.y + m.m22 * v.z
+		};
+	}
 
 
 	inline Vector3D operator*(const Vector3D& v, const Matrix4x4& m) {
@@ -2261,31 +2248,31 @@ namespace PVX {
 	inline Matrix4x4 rPitch(float p) {
 		float c = 0, s = 0;
 		sincosf(p, s, c);
-		return { 
+		return {
 			1, 0, 0, 0,
 			0, c, s, 0,
 			0, -s, c, 0,
-			0, 0, 0, 1 
+			0, 0, 0, 1
 		};
 	}
 
 	inline Matrix4x4 rRoll(float r) {
 		float c = 0, s = 0;
 		sincosf(r, &s, &c);
-		return { 
+		return {
 			c, s, 0, 0,
 			-s, c, 0, 0,
 			0, 0, 1, 0,
-			0, 0, 0, 1 
+			0, 0, 0, 1
 		};
 	}
 
 	inline constexpr Matrix4x4 mTran(const Vector3D& p) {
-		return { 
+		return {
 			1, 0, 0, 0,
 			0, 1, 0, 0,
 			0, 0, 1, 0,
-			p.x, p.y, p.z, 1 
+			p.x, p.y, p.z, 1
 		};
 	}
 
@@ -2353,9 +2340,9 @@ namespace PVX {
 		};
 		return q1;
 	}
-	
+
 	inline DualQuaternion operator+(const DualQuaternion& q1, const DualQuaternion& q2) {
-		return{ 
+		return{
 			q1.r_i + q2.r_i, q1.r_j + q2.r_j, q1.r_k + q2.r_k, q1.r_r + q2.r_r,
 			q1.d_i + q2.d_i, q1.d_j + q2.d_j, q1.d_k + q2.d_k, q1.d_r + q2.d_r
 		};
@@ -2387,16 +2374,7 @@ namespace PVX {
 		};
 	}
 	inline DualQuaternion operator*=(DualQuaternion& dq1, const DualQuaternion& dq2) {
-		return dq1 = {
-			dq1.r_i*dq2.r_r + dq1.r_j*dq2.r_k + dq1.r_r*dq2.r_i - dq1.r_k*dq2.r_j,
-			dq1.r_r*dq2.r_j - dq1.r_i*dq2.r_k + dq1.r_j*dq2.r_r + dq1.r_k*dq2.r_i,
-			dq1.r_r*dq2.r_k + dq1.r_i*dq2.r_j - dq1.r_j*dq2.r_i + dq1.r_k*dq2.r_r,
-			dq1.r_r*dq2.r_r - dq1.r_i*dq2.r_i - dq1.r_j*dq2.r_j - dq1.r_k*dq2.r_k,
-			dq1.d_j*dq2.r_k - dq1.d_k*dq2.r_j - dq1.r_k*dq2.d_j + dq1.r_j*dq2.d_k + dq1.d_i*dq2.r_r + dq1.r_r*dq2.d_i + dq1.d_r*dq2.r_i + dq1.r_i*dq2.d_r,
-			dq1.r_k*dq2.d_i - dq1.d_i*dq2.r_k + dq1.d_k*dq2.r_i - dq1.r_i*dq2.d_k + dq1.d_j*dq2.r_r + dq1.r_r*dq2.d_j + dq1.d_r*dq2.r_j + dq1.r_j*dq2.d_r,
-			dq1.d_i*dq2.r_j - dq1.d_j*dq2.r_i - dq1.r_j*dq2.d_i + dq1.r_i*dq2.d_j + dq1.d_k*dq2.r_r + dq1.r_r*dq2.d_k + dq1.d_r*dq2.r_k + dq1.r_k*dq2.d_r,
-			dq1.d_r*dq2.r_r - dq1.r_i*dq2.d_i - dq1.d_j*dq2.r_j - dq1.r_j*dq2.d_j - dq1.d_k*dq2.r_k - dq1.r_k*dq2.d_k - dq1.d_i*dq2.r_i + dq1.r_r*dq2.d_r
-		};
+		return dq1 = dq1 * dq2;
 	}
 
 	inline void toEulerianAngle(const Quaternion& q, Vector3D& Rotation) {
@@ -2797,9 +2775,9 @@ namespace PVX {
 		return ret * ic;
 	}
 
-	inline Matrix3x3& CovarienceMatrix(Matrix3x3& out, Vector3D& Avg, const Vector3D* Vertices, size_t Count) {
+	inline Matrix3x3& CovarienceMatrix(Matrix3x3& out, Vector3D& Avg, const Vector3D* Vertices, int Count) {
 		out = Matrix3x3{ 0 };
-		Avg = Vector3D{ 0, 0, 0 };
+		Avg = Vector3D{ 0,0,0 };
 		for (int i = 0; i < Count; i++) {
 			Avg.x += Vertices[i].x;
 			Avg.y += Vertices[i].y;
@@ -2827,41 +2805,6 @@ namespace PVX {
 		out.m20 = out.m02; /* m20 */	out.m21 = out.m12; /* m21 */	out.m22 = m2.m22 * invCount;
 
 		return out;
-	}
-
-	inline Matrix3x3 CovarienceMatrix(const Vector3D* Vertices, size_t Count) {
-		Matrix3x3 out;
-		Vector3D Avg = Vector3D{ 0, 0, 0 };
-		for (int i = 0; i < Count; i++) {
-			Avg.x += Vertices[i].x;
-			Avg.y += Vertices[i].y;
-			Avg.z += Vertices[i].z;
-		}
-		float invCount = 1.0f / Count;
-		Avg.x *= invCount;
-		Avg.y *= invCount;
-		Avg.z *= invCount;
-
-		Matrix3x3 m2{ 0 };
-		Vector3D m;
-
-		for (int i = 0; i < Count; i++) {
-			m.x = Vertices[i].x - Avg.x;
-			m.y = Vertices[i].y - Avg.y;
-			m.z = Vertices[i].z - Avg.z;
-
-			m2.m00 += m.x * m.x;	m2.m01 += m.x * m.y;	m2.m02 += m.x * m.z;
-			/* m10            */	m2.m11 += m.y * m.y;	m2.m12 += m.y * m.z;
-			/* m20            */	/* m21            */	m2.m22 += m.z * m.z;
-		}
-		out.m00 = m2.m00 * invCount;	out.m01 = m2.m01 * invCount;	out.m02 = m2.m02 * invCount;
-		out.m10 = out.m01; /* m10 */	out.m11 = m2.m11 * invCount;	out.m12 = m2.m12 * invCount;
-		out.m20 = out.m02; /* m20 */	out.m21 = out.m12; /* m21 */	out.m22 = m2.m22 * invCount;
-
-		return out;
-	}
-	inline Matrix3x3 CovarienceMatrix(const std::vector<Vector3D>& vec) {
-		return CovarienceMatrix(vec.data(), vec.size());
 	}
 
 	inline Matrix4x4& GetQuaternionMatrix2(const Quaternion& q, Matrix4x4& Out) {
@@ -2921,28 +2864,28 @@ namespace PVX {
 		return Out;
 	}
 
-	inline const Matrix4x4& GetQuaternionMatrix(const Quaternion& q) {
+	inline Matrix4x4 GetMatrix(const Quaternion& q) {
 		return {
-			1.0f - 2.0f * q.j * q.j - 2.0f * q.k * q.k,
-			2.0f * q.i * q.j + 2.0f * q.k*q.r,
-			2.0f * q.i * q.k - 2.0f * q.j*q.r,
+			1.0f -	2.0f * (q.j * q.j + q.k * q.k),
+					2.0f * (q.i * q.j + q.k * q.r),
+					2.0f * (q.i * q.k - q.j * q.r),
 			0,
 
-			2.0f * q.i * q.j - 2.0f * q.k * q.r,
-			1.0f - 2.0f * q.i * q.i - 2.0f * q.k * q.k,
-			2.0f * q.j * q.k + 2.0f * q.i *q.r,
+					2.0f * (q.i * q.j - q.k * q.r),
+			1.0f -	2.0f * (q.i * q.i + q.k * q.k),
+					2.0f * (q.j * q.k + q.i * q.r),
 			0,
 
-			2.0f * q.i * q.k + 2.0f * q.j * q.r,
-			2.0f * q.j * q.k - 2.0f * q.i * q.r,
-			1.0f - 2.0f * q.i * q.i - 2.0f * q.j * q.j,
+					2.0f * (q.i * q.k + q.j * q.r),
+					2.0f * (q.j * q.k - q.i * q.r),
+			1.0f -	2.0f * (q.i * q.i + q.j * q.j),
 			0,
 
 			0, 0, 0, 1.0f
 		};
 	}
 
-	inline const DualQuaternion& CreateDualQuaternion(const Quaternion& Rotation, const Vector3D& Position) {
+	inline DualQuaternion CreateDualQuaternion(const Quaternion& Rotation, const Vector3D& Position) {
 		return{
 			Rotation.i,
 			Rotation.j,
@@ -2963,9 +2906,7 @@ namespace PVX {
 		return ret;
 	}
 
-
-
-	inline Matrix4x4 GetDualQuaternionMatrix(const DualQuaternion& q) {
+	inline Matrix4x4 GetMatrix(const DualQuaternion& q) {
 		Matrix4x4 ret;
 		GetQuaternionMatrix(q.Real, ret);
 		auto t = (q.Dual * 2.0f) * Conjugate(q.Real);

@@ -13,8 +13,8 @@ namespace PVX::OpenGL {
 		SetPerspective(30.0f, 0.1f, 100.0f);
 	}
 	Camera::Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* view, PVX::Matrix4x4* projection) : Width{ float(Width) }, Height{ float(Height) }, Storage{ 0 }, Position{ Storage.Position.Vec3 }, Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
-		_View = view? view: &Storage.View;
-		_Perspective = projection ? projection: &Storage.Perspective;
+		_View = view ? view : &Storage.View;
+		_Perspective = projection ? projection : &Storage.Perspective;
 		Matrix4x4& View = *_View;
 		View.m00 = View.m11 = View.m22 = View.m33 = 1.0f;
 		SetPerspective(FovDeg, Near, Far);
@@ -35,19 +35,29 @@ namespace PVX::OpenGL {
 		return Perspective;
 	}
 
-	Vector3D& Camera::GetLookVector(Vector3D& Look) {
+	Vector3D Camera::GetLookVector() const {
+		return { -_View->m02, -_View->m12, -_View->m22 };
+	}
+	Vector3D Camera::GetUpVector() const {
+		return { _View->m01, _View->m11, _View->m21 };
+	}
+	Vector3D Camera::GetRightVector() const {
+		return { _View->m00, _View->m10, _View->m20 };
+	}
+
+	Vector3D& Camera::GetLookVector(Vector3D& Look) const {
 		Look.x = -_View->m02;
 		Look.y = -_View->m12;
 		Look.z = -_View->m22;
 		return Look;
 	}
-	Vector3D& Camera::GetUpVector(Vector3D& Up) {
+	Vector3D& Camera::GetUpVector(Vector3D& Up) const {
 		Up.x = _View->m01;
 		Up.y = _View->m11;
 		Up.z = _View->m21;
 		return Up;
 	}
-	Vector3D& Camera::GetRightVector(Vector3D& Right) {
+	Vector3D& Camera::GetRightVector(Vector3D& Right) const {
 		Right.x = _View->m00;
 		Right.y = _View->m10;
 		Right.z = _View->m20;

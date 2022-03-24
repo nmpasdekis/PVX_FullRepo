@@ -6,6 +6,8 @@
 
 namespace PVX::OpenGL::Helpers {
 	int Renderer::LoadObject(const std::string& Filename) {
+		if (PVX::IO::FileExtension(Filename)=="pvx")
+			return LoadObject(PVX::Object3D::Object::Load(Filename));
 		return LoadObject(PVX::Object3D::LoadFbx(Filename));
 	}
 
@@ -27,7 +29,7 @@ namespace PVX::OpenGL::Helpers {
 
 	int Renderer::LoadObject(const Object3D::Object& obj) {
 		int Id = NextObjectId++;
-		ObjectGL& ret = *(Objects[Id] = std::make_unique<ObjectGL>()).get();
+		ObjectGL& ret = *(Objects[Id] = std::make_unique<ObjectGL>(*this)).get();
 		ret.TransformConstants.reserve(obj.Heirarchy.size());
 		ret.Animation.reserve(obj.Heirarchy.size());
 
@@ -35,7 +37,7 @@ namespace PVX::OpenGL::Helpers {
 			ret.TransformConstants.emplace_back(t);
 			auto IsIdentity = t.PostTranslate.IsIdentity()&&t.PostRotate.IsIdentity()&&t.PostScale.IsIdentity();
 			auto HasParent = t.ParentIndex != -1;
-			ret.InitialTransform.emplace_back(t.Position, t.Rotation, t.Scale, HasParent, IsIdentity);
+			ret.InitialTransform.emplace_back(t.Position, t.Rotation, t.Scale, HasParent, IsIdentity, PVX::RotationOrder(t.RotationOrder));
 
 			ret.FrameRate = t.Animation.FrameRate;
 			ret.AnimationMaxFrame = t.Animation.Position.size();
@@ -84,14 +86,13 @@ namespace PVX::OpenGL::Helpers {
 				auto& sp = pp.SubPart.emplace_back();
 				sp.MaterialIndex = MatLookup[Mat];
 
+				unsigned int GeoFlags = PVX::Reduce(SubPart.Attributes, 0, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
+					return acc | unsigned int(attr.Usage);
+				});
+				auto& Mater = ret.Materials[sp.MaterialIndex];
+				unsigned int MatFlags = (Mater.Color_Tex ? 1 : 0) | (Mater.PBR_Tex ? 2 : 0) | (Mater.Normal_Tex ? 4 : 0);
+
 				if (!SubPart.CustomShader) {
-					auto& Mater = ret.Materials[sp.MaterialIndex];
-					unsigned int MatFlags = (Mater.Color_Tex ? 1 : 0) | (Mater.PBR_Tex ? 2 : 0) | (Mater.Normal_Tex ? 4 : 0);
-
-					unsigned int GeoFlags = PVX::Reduce(SubPart.Attributes, 0, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
-						return acc | unsigned int(attr.Usage);
-					});
-
 					std::vector<std::string> Filters;
 					Filters.reserve(SubPart.Attributes.size());
 					Filters.push_back("Position");
@@ -133,5 +134,18 @@ namespace PVX::OpenGL::Helpers {
 			}
 		}
 		return Id;
+	}
+
+	PVX::OpenGL::Texture3D Renderer::LoadTexture3D(const std::string& Filename, int TilesX, int TilesY) {
+		auto img = PVX::ImageData::LoadLinear(Filename.c_str());
+		auto Pixels = PVX::Helpers::ReTile(
+			(const PVX::Vector4D*)img.Data.data(),
+			img.Width, img.Height,
+			TilesX, TilesY,
+			1, TilesX * TilesY);
+
+		auto tx = PVX::OpenGL::Texture3D::MakeTextureRGBA8UB(img.Width/TilesX, img.Height/TilesY, TilesX * TilesY);
+		tx.Update((float*)Pixels.data());
+		return tx;
 	}
 }

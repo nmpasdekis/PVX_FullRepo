@@ -197,29 +197,29 @@ void main() {
 			{ BloomVertical }
 		);
 
-		AddProcess(
-			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_H_GLSL },
-			{ { 0, BloomVertical } },
-			{ BloomHorizontal }
-		);
+		//AddProcess(
+		//	PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_H_GLSL },
+		//	{ { 0, BloomVertical } },
+		//	{ BloomHorizontal }
+		//);
 
-		AddProcess(
-			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_V_GLSL },
-			{ { 0, BloomHorizontal } },
-			{ BloomVertical }
-		);
+		//AddProcess(
+		//	PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_V_GLSL },
+		//	{ { 0, BloomHorizontal } },
+		//	{ BloomVertical }
+		//);
 
-		AddProcess(
-			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_H_GLSL },
-			{ { 0, BloomVertical } },
-			{ BloomHorizontal }
-		);
+		//AddProcess(
+		//	PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_H_GLSL },
+		//	{ { 0, BloomVertical } },
+		//	{ BloomHorizontal }
+		//);
 
-		AddProcess(
-			PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_V_GLSL },
-			{ { 0, BloomHorizontal } },
-			{ BloomVertical }
-		);
+		//AddProcess(
+		//	PVX::OpenGL::Shader{ PVX::OpenGL::Shader::ShaderType::FragmentShader, GAUSSIANBLUR_V_GLSL },
+		//	{ { 0, BloomHorizontal } },
+		//	{ BloomVertical }
+		//);
 
 		if (!Target) {
 			AddProcess(

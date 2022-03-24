@@ -91,6 +91,7 @@
     <ClCompile Include="PostProcessor.cpp" />
     <ClCompile Include="PVX_OpenGL_Helpers.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="TextPrinter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="PostShaders.inl" />

@@ -3,25 +3,21 @@
 #include <array>
 
 namespace PVX::OpenGL {
-	Texture2D::~Texture2D() {
-		if (ptr.use_count() == 1 && ptr->Id)
-			glDeleteTextures(1, &ptr->Id);
-	}
 	Texture2D::Texture2D() : ptr{ new TextureData() } {}
 
 	//Texture2D::Texture2D(const TextureData& dt) : ptr{ new TextureData(dt) } {}
 
-	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel): Texture2D() {
+	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel) : Texture2D() {
 		if (!ptr->Id)glGenTextures(1, &ptr->Id);
 		Update(Width, Height, Channels, BytesPerChannel, nullptr);
 	}
-	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data): Texture2D() {
+	Texture2D::Texture2D(int Width, int Height, int Channels, int BytesPerChannel, void* Data) : Texture2D() {
 		Update(Width, Height, Channels, BytesPerChannel, Data);
 	}
-	Texture2D::Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data): Texture2D() {
+	Texture2D::Texture2D(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) : Texture2D() {
 		Update(Width, Height, InternalFormat, Format, Type, Data);
 	}
-	Texture2D::Texture2D(int Width, int Height, PVX::OpenGL::InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data): Texture2D() {
+	Texture2D::Texture2D(int Width, int Height, PVX::OpenGL::InternalFormat internalFormat, TextureFormat Format, TextureType Type, void* Data) : Texture2D() {
 		Update(Width, Height, (int)internalFormat, (int)Format, (int)Type, Data);
 	}
 	Texture2D::Texture2D(int Width, int Height, int Samples, InternalFormat internalFormat) : Texture2D() {
@@ -43,7 +39,7 @@ namespace PVX::OpenGL {
 		ptr->Type = PVX::OpenGL::TextureType(Type);
 
 		glTexStorage2D(GL_TEXTURE_2D, 1, InternalFormat, Width, Height);
-		if(Data) glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, Format, Type, Data);
+		if (Data) glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Width, Height, Format, Type, Data);
 		//glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
 	}
 	void Texture2D::Update(int Width, int Height, int InternalFormat, int Format, int Type, void* Data) {
@@ -280,8 +276,7 @@ namespace PVX::OpenGL {
 		GL_CHECK(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE));
 		GL_CHECK(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
 	}
-	void TextureCube::Update(int Width, int Height, int TilesX, int TilesY, int InternalFormat, int Format, int Type, void* Data, const std::initializer_list<int>& Tiles) {
-	}
+	void TextureCube::Update(int Width, int Height, int TilesX, int TilesY, int InternalFormat, int Format, int Type, void* Data, const std::initializer_list<int>& Tiles) {}
 
 	template<int pxSize>
 	void UpdateTiles(void* Data, int Width, int Height, int intFormat, int format, int type, int TilesX, int TilesY, const std::initializer_list<int>& Tiles) {
@@ -413,5 +408,46 @@ namespace PVX::OpenGL {
 		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GLenum(ret.ptr->InternalFormat), Width, Height, false);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 		return ret;
+	}
+
+	Texture3D::Texture3D() : ptr{ new TextureData() } {}
+
+	void Texture3D::Update(const float* Data) {
+		GL_CHECK(glTextureSubImage3D(ptr->Id, 0,
+			0, 0, 0,
+			ptr->Size.Width, ptr->Size.Height, ptr->Size.Depth,
+			GLenum(GL_RGBA),
+			GLenum(TextureType::FLOAT),
+			Data
+		));
+	}
+
+	Texture3D Texture3D::MakeTexture(InternalFormat fmt, int Width, int Height, int Depth) {
+		Texture3D ret;
+		ret.ptr->InternalFormat = fmt;
+		ret.ptr->Samples = 1;
+		ret.ptr->Size = { Width, Height, Depth };
+		glCreateTextures(GL_TEXTURE_3D, 1, &ret.ptr->Id);
+		glTextureStorage3D(ret.ptr->Id, 1, GLenum(fmt), Width, Height, Depth);
+		return ret;
+	}
+
+	Texture3D Texture3D::MakeTextureRGB8UB(int Width, int Height, int Depth) {
+		return MakeTexture(InternalFormat::RGB8, Width, Height, Depth);
+	}
+	Texture3D Texture3D::MakeTextureRGBA8UB(int Width, int Height, int Depth) {
+		return MakeTexture(InternalFormat::RGBA8, Width, Height, Depth);
+	}
+	Texture3D Texture3D::MakeTextureRGB16F(int Width, int Height, int Depth) {
+		return MakeTexture(InternalFormat::RGB16F, Width, Height, Depth);
+	}
+	Texture3D Texture3D::MakeTextureRGBA16F(int Width, int Height, int Depth) {
+		return MakeTexture(InternalFormat::RGBA16F, Width, Height, Depth);
+	}
+	Texture3D Texture3D::MakeTextureRGB32F(int Width, int Height, int Depth) {
+		return MakeTexture(InternalFormat::RGB32F, Width, Height, Depth);
+	}
+	Texture3D Texture3D::MakeTextureRGBA32F(int Width, int Height, int Depth) {
+		return MakeTexture(InternalFormat::RGBA32F, Width, Height, Depth);
 	}
 }
