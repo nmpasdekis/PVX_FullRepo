@@ -582,9 +582,14 @@ namespace PVX::OpenGL::Helpers {
 		int NextInstanceId = 1;
 		friend class InstanceData;
 	public:
+		enum class PostProcessDefaults {
+			None,
+			Simple,
+			Bloom
+		};
 		PostProcessor PostProcesses;
 		LightRig<16> Lights;
-		Renderer(ResourceManager& mgr, int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target = nullptr);
+		Renderer(ResourceManager& mgr, int Width, int Height, PVX::OpenGL::Context& gl, PostProcessDefaults PostProcess = PostProcessDefaults::Simple, PVX::OpenGL::FrameBufferObject* Target = nullptr);
 		void SetCameraBuffer(PVX::OpenGL::Buffer& CamBuffer);
 		void Render_gBuffer(std::function<void()> RenderClb);
 		void Render_Simple(std::function<void()> RenderClb);

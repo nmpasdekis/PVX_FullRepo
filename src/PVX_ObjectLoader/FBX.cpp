@@ -691,12 +691,7 @@ namespace PVX::Object3D {
 	int ReadMaterials(PVX::Object3D::Object& Scene, FbxScene* fbxScene) {
 		int mCount = fbxScene->GetMaterialCount();
 		for (int i = 0; i < mCount; i++) {
-			FbxSurfaceMaterial* mat = fbxScene->GetMaterial(i);
-
-
-			
-			//auto metallic = mat->GetSrcObject<float>(0);
-			
+			FbxSurfaceMaterial* mat = fbxScene->GetMaterial(i);			
 
 			auto Name = ToMatName(mat->GetName());
 
@@ -726,6 +721,18 @@ namespace PVX::Object3D {
 			stdMat.Textures.Ambient = GetPropertyTexture(mat, FbxSurfaceMaterial::sAmbient);
 			stdMat.Textures.Emissive = GetPropertyTexture(mat, FbxSurfaceMaterial::sEmissive);
 			stdMat.Textures.Specular = GetPropertyTexture(mat, FbxSurfaceMaterial::sSpecular);
+
+			if (auto pbr = mat->FindProperty("Metalness"); pbr.IsValid()) {
+				stdMat.Metallic = pbr.Get<double>();
+			} else {
+				stdMat.Metallic = 0;
+			}
+
+			if (auto pbr = mat->FindProperty("Roughness"); pbr.IsValid()) {
+				stdMat.Roughness = pbr.Get<double>();
+			} else {
+				stdMat.Roughness = 1.0f - stdMat.SpecularFactor /(stdMat.AmbientFactor + stdMat.DiffuseFactor + stdMat.SpecularFactor + 1e-9);
+			}
 
 			//FbxSurfaceLambert* Lambert = (FbxSurfaceLambert*)mat;
 
@@ -795,17 +802,17 @@ namespace PVX::Object3D {
 
 
 			
-			if (auto pbr = mat->FindProperty("Metallic"); pbr.IsValid()) {
-				stdMat.Metallic = pbr.Get<double>();
-			} else {
-				stdMat.Metallic = 0;
-			}
-			
-			if (auto pbr = mat->FindProperty("Roughness"); pbr.IsValid()) {
-				stdMat.Roughness = pbr.Get<double>();
-			} else {
-				stdMat.Roughness = 1.0f - stdMat.SpecularFactor /(stdMat.AmbientFactor + stdMat.DiffuseFactor + stdMat.SpecularFactor);
-			}
+			//if (auto pbr = mat->FindProperty("Metallic"); pbr.IsValid()) {
+			//	stdMat.Metallic = pbr.Get<double>();
+			//} else {
+			//	stdMat.Metallic = 0;
+			//}
+			//
+			//if (auto pbr = mat->FindProperty("Roughness"); pbr.IsValid()) {
+			//	stdMat.Roughness = pbr.Get<double>();
+			//} else {
+			//	stdMat.Roughness = 1.0f - stdMat.SpecularFactor /(stdMat.AmbientFactor + stdMat.DiffuseFactor + stdMat.SpecularFactor);
+			//}
 		}
 		return 0;
 	}

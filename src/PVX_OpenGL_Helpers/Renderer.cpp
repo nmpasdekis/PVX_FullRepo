@@ -6,7 +6,7 @@
 
 namespace PVX::OpenGL::Helpers {
 
-	Renderer::Renderer(ResourceManager& mgr,int Width, int Height, PVX::OpenGL::Context& gl, PVX::OpenGL::FrameBufferObject* Target) : gl{ gl },
+	Renderer::Renderer(ResourceManager& mgr,int Width, int Height, PVX::OpenGL::Context& gl, PostProcessDefaults PostProcess, PVX::OpenGL::FrameBufferObject* Target) : gl{ gl },
 		gBufferFBO(gl, Width, Height),
 		SimpleRenderTarget(gl, Width, Height),
 		GeneralSampler{ PVX::OpenGL::TextureFilter::LINEAR, PVX::OpenGL::TextureWrap::REPEAT },
@@ -38,8 +38,10 @@ namespace PVX::OpenGL::Helpers {
 
 		LightBuffer.Update(sizeof(Lights), &Lights);
 
-		//PostProcesses.MakeSimple(Width, Height, gPosition, gAlbedo, gNormal, gMaterial, Target);
-		PostProcesses.MakeBloom(Width, Height, gBuffer, Target);
+		if(PostProcess == PostProcessDefaults::Simple)
+			PostProcesses.MakeSimple(Width, Height, gBuffer, Target);
+		else if(PostProcess == PostProcessDefaults::Bloom)
+			PostProcesses.MakeBloom(Width, Height, gBuffer, Target);
 		//PostProcesses.MakeSimple(Width, Height, gBuffer, Target);
 	}
 

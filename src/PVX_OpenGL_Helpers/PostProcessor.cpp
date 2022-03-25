@@ -67,13 +67,13 @@ void main() {
 		}
 
 		PVX::OpenGL::Program p{ VertexShader, FragmentShader };
-		p.Bind();
+		//p.Bind();
 		Processes.push_back({
 			p,
 			fbo,
 			Inputs
 		});
-		p.Unbind();
+		//p.Unbind();
 	}
 
 	void PostProcessor::AddProcess(
