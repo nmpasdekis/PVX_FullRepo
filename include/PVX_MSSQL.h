@@ -21,8 +21,8 @@ namespace PVX {
 			unsigned short		UShort, UShortArray[1];
 			int					Int, IntArray[1];
 			unsigned int		UInt, UIntArray[1];
-			long long			Long, LongArray[1];
-			unsigned long long	ULong, ULongArray[1];
+			int64_t			Long, LongArray[1];
+			uint64_t	ULong, ULongArray[1];
 
 
 			float Float;
@@ -57,7 +57,7 @@ namespace PVX {
 			Parameter(const int& Value);
 			Parameter(const float& Value);
 			Parameter(const double& Value);
-			Parameter(const long long& Value);
+			Parameter(const int64_t& Value);
 			Parameter(const std::string& Value);
 			Parameter(const std::wstring& Value);
 			Parameter(const wchar_t* Value);
@@ -85,7 +85,7 @@ namespace PVX {
 			struct Field {
 				std::wstring	ColumnName;
 				std::vector<unsigned char> Data;
-				long long		Size;
+				int64_t		Size;
 				SQLSMALLINT		DataType;
 				SQLSMALLINT		DecimalDigits;
 				SQLSMALLINT		Nullable;
@@ -156,8 +156,8 @@ namespace PVX {
 			std::wstring stringQuery(const std::wstring& query, const std::vector<ParamTuple>& params = {});
 			std::wstring stringQueryJson(const std::wstring& query, const PVX::JSON::Item& params);
 
-			long long Exist(const std::wstring& Table, const std::vector<ParamTuple>& Values, const std::wstring& Where = L"");
-			long long ExistJson(const std::wstring& Table, const PVX::JSON::Item& Values, const std::wstring& Where = L"");
+			int64_t Exist(const std::wstring& Table, const std::vector<ParamTuple>& Values, const std::wstring& Where = L"");
+			int64_t ExistJson(const std::wstring& Table, const PVX::JSON::Item& Values, const std::wstring& Where = L"");
 
 			SQL_Reader Update(const std::wstring& Table, const std::vector<ParamTuple>& Values, const std::set<std::wstring>& ConditionParams, const std::wstring& Where = L"", const std::vector<std::wstring>& ReturnFields = {});
 			SQL_Reader UpdateJson(const std::wstring& Table, const PVX::JSON::Item& Values, const std::set<std::wstring>& ConditionParams, const std::wstring& Where = L"", const std::vector<std::wstring>& ReturnFields = {});

@@ -10,6 +10,7 @@
 #include<PVX_String.h>
 #include<chrono>
 #include <signal.h>
+#include <PVX.inl>
 
 using namespace std::chrono_literals;
 
@@ -28,14 +29,14 @@ namespace PVX {
 
 			if (auto it = Config.Has(L"Mime"); it)
 				for (auto & [Key, Value] : it->getObject())
-					Mime[Key] = Value.String();
+					Mime[Key] = Value().String();
 
 			if (auto it = Config.Has(L"ContentDir"); it)
 				SetDefaultRoute(ContentServer(it->String()));
 
 			if (auto it = Config.Has(L"ResponseHeader"); it)
 				for (auto & [Name, Value] : it->getObject())
-					DefaultHeader[Name] = Value.String();
+					DefaultHeader[Name] = Value().String();
 		}
 
 		HttpServer::~HttpServer() {
@@ -88,8 +89,8 @@ namespace PVX {
 			Action = action;
 		}
 
-		long long FindEnd(std::vector<uint8_t>& buffer) {
-			for (auto i = 0; i < long long(buffer.size()) - 3; i++) {
+		int64_t FindEnd(std::vector<uint8_t>& buffer) {
+			for (auto i = 0; i < int64_t(buffer.size()) - 3; i++) {
 				if (!memcmp(&buffer[i], "\r\n\r\n", 4)) 
 					return i;
 			}
@@ -114,7 +115,7 @@ namespace PVX {
 			while ((EoH = FindEnd(buffer)) == -1 && (rcvSize = s.Receive(buffer)) > 0);
 
 			if (EoH != -1) {
-				size_t contentLength = 0;
+				uint64_t contentLength = 0;
 				size_t sz = EoH + 4;
 
 				Request.RawHeader.resize(sz);
@@ -123,7 +124,7 @@ namespace PVX {
 
 				Request = Request.RawHeader;
 				
-				if (auto cc = Request.Headers.find("content-length"); cc != Request.Headers.end() && (contentLength = _wtoi(cc->second->c_str()))) {
+				if (auto cc = Request.Headers.find("content-length"); cc != Request.Headers.end() && (contentLength = std::stoll(cc->second))) {
 					Content.reserve(contentLength);
 					if (int more = std::min(contentLength, buffer.size());  more) {
 						Content.resize(more);
@@ -149,7 +150,7 @@ namespace PVX {
 			while ((rcvSize = s.Receive(http.RawHeader)) > 0 &&
 				(EoH = http.RawHeader.find("\r\n\r\n")) == -1);
 			if (EoH != -1) {
-				size_t contentLength = 0;
+				uint64_t contentLength = 0;
 				size_t sz = EoH + 4;
 
 				if (http.RawHeader.size() > sz) {
@@ -161,7 +162,7 @@ namespace PVX {
 				http = http.RawHeader;
 				auto cc = http.Headers.find("content-length");
 				if (cc != http.Headers.end()) {
-					contentLength = _wtoi(cc->second->c_str());
+					contentLength = std::stoll(cc->second);
 					Content.reserve(contentLength);
 
 					while (Content.size() < contentLength && s.Receive(Content) > 0);
@@ -256,7 +257,7 @@ namespace PVX {
 
 		std::wstring HttpServer::MakeSession() {
 			auto now = std::chrono::system_clock::now().time_since_epoch().count();
-			auto sid = (std::wstringstream() << now).str();
+			auto sid = std::to_wstring(now);
 			Sessions.insert(sid);
 			return sid;
 		}

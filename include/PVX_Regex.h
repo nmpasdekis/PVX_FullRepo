@@ -27,12 +27,13 @@ namespace PVX {
 		return regex_match(Text, std::wregex(RegExp));
 	}
 
-	inline decltype(*std::regex_iterator<std::string_view::const_iterator>()) regex_match(const std::string_view& Text, const std::regex& RegExp) {
+	inline auto regex_match(const std::string_view& Text, const std::regex& RegExp) {
 		using iter = std::regex_iterator<std::string_view::const_iterator>;
 		auto ret = iter(Text.cbegin(), Text.cend(), RegExp);
+		using retType = decltype(*ret);
 		if (ret != iter())
 			return *ret;
-		return {};
+		return retType{};
 	}
 
 	inline std::vector<std::smatch> regex_matches(const std::string &Text, const std::regex & RegExp) {
@@ -127,75 +128,62 @@ namespace PVX {
 		return std::regex_replace(Input, std::wregex(regExp, std::regex_constants::optimize), replaceWith);
 	}
 
-
-
-	inline std::string Replace(const std::string& Input, const std::string& regExp, std::function<std::string(const std::smatch&)> replaceWith) {
-		auto matches = regex_matches<std::pair<std::smatch, std::string>>(Input, std::regex(regExp, std::regex_constants::optimize), [&replaceWith, &Input](const std::smatch& m) {
-			return std::make_pair(m, replaceWith(m));
-		});
-
-		std::string ret = Input;
-		for (long long i = matches.size()-1; i>=0; i--) {
-			auto& m = matches[i];
-			ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
-		}
-		return ret;
-	}
-	inline std::wstring Replace(const std::wstring& Input, const std::wstring& regExp, std::function<std::wstring(const std::wsmatch&)> replaceWith) {
-		auto matches = regex_matches<std::pair<std::wsmatch, std::wstring>>(Input, std::wregex(regExp, std::regex_constants::optimize), [&replaceWith](const std::wsmatch& m) {
-			return std::make_pair(m, replaceWith(m));
-		});
-
-		std::wstring ret = Input;
-		for (long long i = matches.size()-1; i>=0; i--) {
-			auto& m = matches[i];
-			ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
-		}
-		return ret;
-	}
-
-
 	inline std::string Replace(const std::string& Input, const std::regex& regExp, std::function<std::string(const std::smatch&)> replaceWith) {
 		auto matches = regex_matches<std::pair<std::smatch, std::string>>(Input, regExp, [&replaceWith, &Input](const std::smatch& m) {
 			return std::make_pair(m, replaceWith(m));
 		});
 
 		std::string ret = Input;
-		for (long long i = matches.size()-1; i>=0; i--) {
+		for (int64_t i = int64_t(matches.size())-1; i>=0; i--) {
 			auto& m = matches[i];
 			ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
 		}
 		return ret;
 	}
 	inline std::wstring Replace(const std::wstring& Input, const std::wregex& regExp, std::function<std::wstring(const std::wsmatch&)> replaceWith) {
-		auto matches = regex_matches<std::wsmatch>(Input, regExp, [&replaceWith](const std::wsmatch& m) {
+		auto matches = regex_matches<std::wsmatch>(Input, regExp, [](const std::wsmatch& m) {
 			return m;
 		});
 
 		std::wstring ret = Input;
-		for (long long i = matches.size()-1; i>=0; i--) {
+		for (int64_t i = int64_t(matches.size())-1; i>=0; i--) {
 			auto& m = matches[i];
 			ret = ret.replace(m.position(), m.str().size(), replaceWith(m));
 		}
 		return ret;
+	}	
+
+	inline std::wstring Replace(const std::wstring& Input, const std::wregex& regExp, std::function<std::wstring(const std::wstring&)> replaceWith) {
+		auto matches = regex_matches<std::pair<size_t, std::wstring>>(Input, regExp, [](const std::wsmatch& m) {
+			return std::make_pair<size_t, std::wstring>(m.position(), m.str());
+		});
+
+		std::wstring ret = Input;
+		for (int64_t i = int64_t(matches.size())-1; i>=0; i--) {
+			auto& m = matches[i];
+			ret = ret.replace(m.first, m.second.size(), replaceWith(m.second));
+		}
+		return ret;
+	}
+	inline std::string Replace(const std::string& Input, const std::regex& regExp, std::function<std::string(const std::string&)> replaceWith) {
+		auto matches = regex_matches<std::pair<size_t, std::string>>(Input, regExp, [](const std::smatch& m) {
+			return std::make_pair<size_t, std::string>(m.position(), m.str());
+		});
+
+		std::string ret = Input;
+		for (int64_t i = int64_t(matches.size())-1; i>=0; i--) {
+			auto& m = matches[i];
+			ret = ret.replace(m.first, m.second.size(), replaceWith(m.second));
+		}
+		return ret;
 	}
 
-	//inline std::wstring Replace(const std::wstring& Input, const std::wregex& regExp, std::function<std::wstring(const std::wsmatch&)> replaceWith) {
-	//	auto matches = regex_matches<std::pair<std::wsmatch, std::wstring>>(Input, regExp, [&replaceWith](const std::wsmatch& m) {
-	//		return std::make_pair(m, replaceWith(m));
-	//	});
-
-	//	std::wstring ret = Input;
-	//	for (long long i = matches.size()-1; i>=0; i--) {
-	//		auto& m = matches[i];
-	//		ret = ret.replace(m.first.position(), m.first.str().size(), m.second);
-	//	}
-	//	return ret;
-	//}
-
-
-
-
+	inline std::string Replace(const std::string& Input, const std::string& regExp, std::function<std::string(const std::smatch&)> replaceWith) {
+		return Replace(Input, std::regex(regExp, std::regex_constants::optimize), replaceWith);
+	}
+	inline std::wstring Replace(const std::wstring& Input, const std::wstring& regExp, std::function<std::wstring(const std::wsmatch&)> replaceWith) {
+		return Replace(Input, std::wregex(regExp, std::regex_constants::optimize), replaceWith);
+	}
 
 	inline int regex_search(const std::wregex& pattern, const std::wstring& Text) {
 		std::wsmatch m;

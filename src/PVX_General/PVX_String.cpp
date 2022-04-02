@@ -1,6 +1,7 @@
 ﻿#include<PVX_String.h>
 #include<sstream>
 #include<PVX_Regex.h>
+#include <PVX_Encode.h>
 #include <PVX.inl>
 #include <stack>
 
@@ -18,7 +19,7 @@ namespace PVX{
 		vector<string> Split(const string & Text, const string & Separator) {
 			vector<string> ret;
 			size_t ssz = Separator.size(), last = 0;
-			long long start = 0;
+			int64_t start = 0;
 			while(-1 != (start = Text.find(Separator, start))) {
 				if(((unsigned int)start) >= last)
 					ret.push_back(Text.substr(last, start - last));
@@ -59,7 +60,7 @@ namespace PVX{
 		vector<wstring> Split(const wstring & Text, const wstring & Separator) {
 			vector<wstring> ret;
 			size_t ssz = Separator.size(), last = 0;
-			long long start = 0;
+			int64_t start = 0;
 			while(-1 != (start = Text.find(Separator, start))) {
 				if(((unsigned int)start) >= last)
 					ret.push_back(Text.substr(last, start - last));
@@ -135,13 +136,13 @@ namespace PVX{
 		}
 
 		string Trim(const string & s) {
-			long long start, end;
+			int64_t start, end;
 			for(start = 0; s[start] && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r'); start++);
 			for(end = s.size() - 1; end >= 0 && (s[end] == ' ' || s[end] == '\t' || s[end] == '\n' || s[end] == '\r'); end--);
 			return s.substr(start, end - start + 1);
 		}
 		wstring Trim(const wstring & s) {
-			long long start, end;
+			int64_t start, end;
 			for(start = 0; s[start] && (s[start] == L' ' || s[start] == L'\t' || s[start] == L'\n' || s[start] == L'\r'); start++);
 			for(end = s.size() - 1; end >= 0 && (s[end] == L' ' || s[end] == L'\t' || s[end] == L'\n' || s[end] == L'\r'); end--);
 			return s.substr(start, end - start + 1);
@@ -152,8 +153,10 @@ namespace PVX{
 			std::string ret(Text);
 			PVX::onMatch(Text, pattern, [&matches, &Text](const std::smatch & m) {
 				matches.push_back(m);
-			}); for (long long i = matches.size() - 1; i >= 0; i--) {
-				ret.replace(matches[i][0].first._Ptr - Text.c_str(), matches[i][0].second._Ptr - matches[i][0].first._Ptr, newWordFnc(matches[i]).c_str());
+			}); 
+			for (int64_t i = matches.size() - 1; i >= 0; i--) {
+				//ret.replace(matches[i][0].first._Ptr - Text.c_str(), matches[i][0].second._Ptr - matches[i][0].first._Ptr, newWordFnc(matches[i]).c_str());
+				ret.replace(matches[i][0].first.operator->() - Text.c_str(), matches[i][0].second.operator->() - matches[i][0].first.operator->(), newWordFnc(matches[i]).c_str());
 			}
 			return ret;
 		}
@@ -166,8 +169,9 @@ namespace PVX{
 			std::wstring ret(Text);
 			PVX::onMatch(Text, pattern, [&matches, &Text](const std::wsmatch& m) {
 				matches.push_back(m);
-			}); for (long long i = matches.size() - 1; i >= 0; i--) {
-				ret.replace(matches[i][0].first._Ptr - Text.c_str(), matches[i][0].second._Ptr - matches[i][0].first._Ptr, newWordFnc(matches[i]).c_str());
+			}); for (int64_t i = matches.size() - 1; i >= 0; i--) {
+				//ret.replace(matches[i][0].first._Ptr - Text.c_str(), matches[i][0].second._Ptr - matches[i][0].first._Ptr, newWordFnc(matches[i]).c_str());
+				ret.replace(matches[i][0].first.operator->() - Text.c_str(), matches[i][0].second.operator->() - matches[i][0].first.operator->(), newWordFnc(matches[i]).c_str());
 			}
 			return ret;
 		}

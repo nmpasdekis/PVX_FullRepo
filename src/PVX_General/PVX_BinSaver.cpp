@@ -1,13 +1,18 @@
 #include <PVX_BinSaver.h>
+#include <PVX_Encode.h>
 
 namespace PVX {
-	BinSaver::BinSaver(const char* Filename, const char* head) {
-		if (fopen_s(&fout, Filename, "wb"))return;
+	BinSaver::BinSaver(const char* Filename, const char* head) : 
+		fout{ Filename, std::ofstream::binary } 
+	{
+		if (!fout.is_open())return;
 		Begin(head);
 	}
 
-	BinSaver::BinSaver(const wchar_t* Filename, const char* head) {
-		if (_wfopen_s(&fout, Filename, L"wb"))return;
+	BinSaver::BinSaver(const wchar_t* Filename, const char* head):
+		fout{ (const char*)PVX::Encode::UTF0(Filename).data(), std::ofstream::binary }
+	{
+		if (!fout.is_open())return;
 		Begin(head);
 	}
 
@@ -15,37 +20,37 @@ namespace PVX {
 	BinSaver::BinSaver(const char* Filename) : BinSaver(Filename, "PVXB") {}
 
 	void BinSaver::Begin(const char* Name) {
-		fwrite(Name, 1, 4, fout);
-		SizePos.push_back(ftell(fout));
-		fwrite(Name, 1, 4, fout);
+		fout.write(Name, 4);
+		SizePos.push_back(fout.tellp());
+		fout.write(Name, 4);
 	}
 
 	size_t BinSaver::write(const void* buffer, size_t size, size_t count) {
-		return fwrite(buffer, size, count, fout);
+		fout.write((const char*)buffer, size * count);
+		return count;
 	}
 
 	size_t BinSaver::write(const std::vector<unsigned char>& Bytes) {
-		return write(&Bytes[0], 1, Bytes.size());
+		fout.write((const char*)Bytes.data(), Bytes.size());
+		return Bytes.size();
 	}
 
 	int BinSaver::OK() {
-		return fout != NULL;
+		return fout.is_open();
 	}
 
 	void BinSaver::End() {
-		long cur = ftell(fout);
-		long pos = SizePos[SizePos.size() - 1];
+		auto cur = fout.tellp();
+		auto pos = SizePos[SizePos.size() - 1];
 		SizePos.pop_back();
-		fseek(fout, pos, SEEK_SET);
+		fout.seekp(pos);
 		pos = cur - pos - 4;
-		fwrite(&pos, 4, 1, fout);
-		fseek(fout, cur, SEEK_SET);
+		fout.write((const char*)&pos, 4);
+		fout.seekp(cur);
 	}
 
 	int BinSaver::Save() {
 		End();
-		fclose(fout);
-		fout = 0;
 		return SizePos.size() == 0;
 	}
 
@@ -53,29 +58,37 @@ namespace PVX {
 		if (fout) Save();
 	}
 
-	BinLoader::BinLoader(FILE* fin, size_t Size, BinLoader* Parent) {
-		this->fin = fin;
+	BinLoader::BinLoader(std::ifstream& Fin, size_t Size, BinLoader* Parent):
+		fin{ Fin }
+	{
 		this->Size = Size;
 		this->Parent = Parent;
 		cur = 0;
 	}
-	BinLoader::BinLoader(const char* fn, const char* header) {
-		fopen_s(&fin, fn, "rb");
+	BinLoader::BinLoader(const char* fn, const char* header):
+		__fin(fn, std::ifstream::binary), fin{ __fin }
+	{
 		BinHeader hd;
-		if (fin) {
-			cur = fread_s(&hd, sizeof(BinHeader), 1, sizeof(BinHeader), fin);
+		if (fin.is_open()) {
+			fin.read((char*)&hd, sizeof(BinHeader));
+			cur = fin.tellg();
 			if (cur == sizeof(BinHeader) && hd.iName == (*(int*)header)) {
 				Size = hd.Size;
 			}
 		}
 		Parent = 0;
 	}
-	BinLoader::BinLoader(const wchar_t* fn, const char* header) {
-		_wfopen_s(&fin, fn, L"rb");
+	BinLoader::BinLoader(const wchar_t* fn, const char* header):
+#ifndef __linux
+		__fin(fn, std::ifstream::binary), fin{ __fin }
+#else
+		__fin((const char*)PVX::Encode::UTF0(fn).data(), std::ifstream::binary), fin{ __fin }
+#endif
+	{
 		BinHeader hd;
-		if (fin) {
-			int sz = sizeof(BinHeader);
-			cur = fread_s(&hd, sizeof(BinHeader), 1, sizeof(BinHeader), fin);
+		if (fin.is_open()) {
+			fin.read((char*)&hd, sizeof(BinHeader));
+			cur = fin.tellg();
 			if (cur == sizeof(BinHeader) && hd.iName == (*(int*)header)) {
 				Size = hd.Size;
 			}
@@ -89,8 +102,7 @@ namespace PVX {
 			Execute();
 		if (Parent) {
 			Parent->cur += Size;
-		} else
-			fin&& fclose(fin);
+		}
 	}
 	void BinLoader::Process(const char* header, std::function<void(BinLoader&)> Loader) {
 		this->Loader[*(unsigned int*)header] = Loader;
@@ -99,10 +111,13 @@ namespace PVX {
 		this->AnyLoader = Loader;
 	}
 	void BinLoader::Read(void* Data, size_t sz) {
-		cur += fread_s(Data, sz, 1, sz, fin);
+		fin.read((char*)Data, sz);
+		cur += fin.gcount();
+		//cur += fread_s(Data, sz, 1, sz, fin);
 	}
 	size_t BinLoader::ReadAll(void* Data) {
-		auto sz = fread_s(Data, Size - cur, 1, Size - cur, fin);
+		fin.read((char*)Data, Size - cur);
+		auto sz = fin.gcount();
 		cur = Size;
 		return sz;
 	}
@@ -114,7 +129,8 @@ namespace PVX {
 	void BinLoader::Execute() {
 		BinHeader hd;
 		while (cur < Size) {
-			cur += fread_s(&hd, sizeof(BinHeader), 1, sizeof(BinHeader), fin);
+			fin.read((char*)&hd, sizeof(BinHeader));
+			cur += fin.gcount();
 			if (Loader.find(hd.iName) != Loader.end()) {
 				BinLoader bl(fin, hd.Size, this);
 				Loader[hd.iName](bl);
@@ -122,13 +138,13 @@ namespace PVX {
 				BinLoader bl(fin, hd.Size, this);
 				AnyLoader(bl, hd.sName);
 			} else {
-				fseek(fin, hd.Size, SEEK_CUR);
+				fin.seekg(cur + hd.Size);
 				cur += hd.Size;
 			}
 		}
 	}
 	int BinLoader::OK() {
-		return fin != 0;
+		return fin.is_open();
 	}
 
 	size_t BinLoader::Remaining(int ItemSize) {

@@ -13,7 +13,7 @@ namespace PVX {
 	namespace String {
 		inline void OnSplit(const std::string& Text, const std::string& Separator, std::function<void(const std::string&)> clb) {
 			size_t ssz = Separator.size(), last = 0;
-			long long start = 0;
+			int64_t start = 0;
 			while (-1 != (start = Text.find(Separator, start))) {
 				if (((unsigned int)start) >= last)
 					clb(Text.substr(last, start - last));
@@ -26,7 +26,7 @@ namespace PVX {
 
 		inline void OnSplit(const std::wstring& Text, const std::wstring& Separator, std::function<void(const std::wstring&)> clb) {
 			size_t ssz = Separator.size(), last = 0;
-			long long start = 0;
+			int64_t start = 0;
 			while (-1 != (start = Text.find(Separator, start))) {
 				if (((unsigned int)start) >= last)
 					clb(Text.substr(last, start - last));
@@ -105,7 +105,7 @@ namespace PVX {
 	namespace StringView {
 		inline void OnSplit(const std::string_view& Text, const std::string_view& Separator, std::function<void(const std::string_view&)> clb) {
 			size_t ssz = Separator.size(), last = 0;
-			long long start = 0;
+			int64_t start = 0;
 			while (-1 != (start = Text.find(Separator, start))) {
 				if (((unsigned int)start) >= last)
 					clb(Text.substr(last, start - last));
@@ -118,7 +118,7 @@ namespace PVX {
 
 		inline void OnSplit(const std::wstring_view& Text, const std::wstring_view& Separator, std::function<void(const std::wstring_view&)> clb) {
 			size_t ssz = Separator.size(), last = 0;
-			long long start = 0;
+			int64_t start = 0;
 			while (-1 != (start = Text.find(Separator, start))) {
 				if (((unsigned int)start) >= last)
 					clb(Text.substr(last, start - last));
@@ -245,7 +245,7 @@ namespace PVX {
 		inline std::vector<std::pair<T, std::string>> Tokenize(const std::string_view& Text, const std::initializer_list<std::tuple<T, std::string_view, int>>& Types) {
 			std::vector<std::tuple<T, std::regex, int>> types;
 			types.reserve(Types.size());
-			for (auto& [TypeId, regex, GroupIndex] : Types) types.push_back({ TypeId, std::regex(regex.cbegin(), regex.cend(), std::regex_constants::optimize | std::regex_constants::syntax_option_type::ECMAScript), GroupIndex });
+			for (auto& [TypeId, regex, GroupIndex] : Types) types.push_back({ TypeId, std::regex(regex.cbegin(), regex.cend(), std::regex_constants::optimize | std::regex_constants::ECMAScript), GroupIndex });
 			std::vector<std::pair<T, std::string>> ret;
 			std::string_view txt = Text;
 			while (txt.size()) {

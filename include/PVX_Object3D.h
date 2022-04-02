@@ -100,7 +100,7 @@ namespace PVX::Object3D {
 	};
 
 	struct Transform {
-		long long						ParentIndex;
+		int64_t						ParentIndex;
 		Matrix4x4						PostTranslate;
 		Matrix4x4						PostRotate;
 		Matrix4x4						PostScale;

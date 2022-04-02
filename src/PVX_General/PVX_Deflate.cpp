@@ -2,6 +2,8 @@
 #include "zlib.h"
 #include <vector>
 #include <PVX_Deflate.h>
+#include <memory>
+#include <cstring>
 
 /*
 #define Z_NO_COMPRESSION         0
@@ -47,10 +49,10 @@ namespace PVX {
 					ret = deflate(&strm, flush);    /* no bad return value */
 					assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
 
-					if (have = CHUNK - strm.avail_out) {
+					if ((have = CHUNK - strm.avail_out)) {
 						auto sz = dest.size();
 						dest.resize(sz + have);
-						memcpy(&dest[sz], out, have);
+						std::memcpy(&dest[sz], out, have);
 					}
 				} while (strm.avail_out == 0);
 				assert(strm.avail_in == 0);     /* all input will be used */
@@ -117,7 +119,7 @@ namespace PVX {
 						return ret;
 					}
 
-					if (have = CHUNK - strm.avail_out) {
+					if ((have = CHUNK - strm.avail_out)) {
 						auto sz = dest.size();
 						dest.resize(sz + have);
 						memcpy(&dest[sz], out, have);

@@ -2,6 +2,7 @@
 #include <PVX_Encode.h>
 #include <PVX_File.h>
 #include <PVX_json.h>
+#include <PVX.inl>
 
 
 PVX_DataBuilder & PVX_DataBuilder::operator<<(const std::wstring & str){
@@ -32,14 +33,11 @@ PVX_DataBuilder & PVX_DataBuilder::operator<<(const unsigned char * RawString) {
 	return *this;
 }
 
-PVX_DataBuilder & PVX_DataBuilder::operator<<(long long Number) {
-	char RawString[128];
-	_i64toa_s(Number, RawString, 128, 10);
-	int len;
-	for (len = 0; RawString[len]; len++);
+PVX_DataBuilder & PVX_DataBuilder::operator<<(int64_t Number) {
+	auto num = std::to_string(Number);
 	size_t start = Data.size();
-	Data.resize(start + len);
-	memcpy(&Data[start], RawString, len);
+	Data.resize(start + num.size());
+	memcpy(&Data[start], num.c_str(), num.size());
 	return *this;
 }
 

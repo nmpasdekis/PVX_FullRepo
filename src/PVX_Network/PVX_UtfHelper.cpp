@@ -20,6 +20,10 @@ UtfHelper & PVX::Network::UtfHelper::operator=(const std::wstring & v) {
 	Text = v;
 	return *this;
 }
+UtfHelper& PVX::Network::UtfHelper::operator=(const wchar_t* v) {
+	Text = std::wstring(v);
+	return *this;
+}
 std::wstring * PVX::Network::UtfHelper::operator->() {
 	return &Text;
 }

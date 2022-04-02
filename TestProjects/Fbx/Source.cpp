@@ -54,10 +54,11 @@ int main() {
 
 	PVX::OpenGL::Camera Camera(1280, 720, 60.0f, 0.001f, 1000.0f);
 	//Camera.OrbitCenter.y = 3.0f;
-	Camera.OrbitDistance = 100.0f;
+	Camera.OrbitDistance = 5.0f;
 
 	PVX::OpenGL::Context glContext(win.Handle(), false, [&Camera](PVX::OpenGL::Context& gl) {
 		//wglSwapInterval(1);
+		//glClearColor(0.5, 0.5, 0.5, 1.0);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		PVX::OpenGL::Helpers::ResourceManager Memory;
 		PVX::OpenGL::Helpers::Renderer Engine(Memory, gl.Width, gl.Height, gl);
@@ -71,8 +72,8 @@ int main() {
 		CameraBuffer.Name("CameraBuffer");
 		Engine.SetCameraBuffer(CameraBuffer);
 
-		auto objId = Engine.LoadObject("D:\\Work\\fbx\\1\\HoffmanHigh.fbx");
-		//auto objId = Engine.LoadObject("box.fbx");
+		//auto objId = Engine.LoadObject("D:\\Work\\fbx\\1\\HoffmanHigh2.fbx");
+		auto objId = Engine.LoadObject("box.fbx");
 		auto instId = Engine.CreateInstance(objId);
 
 		while (gl.Running) {

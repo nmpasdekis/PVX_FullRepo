@@ -5,6 +5,7 @@
 #include <PVX_Regex.h>
 
 namespace PVX::Network {
+	using namespace std::string_literals;
 	HttpRequest::HttpRequest() {}
 	HttpRequest::HttpRequest(const std::string & s) {
 		SetHeader(s);
@@ -32,7 +33,7 @@ namespace PVX::Network {
 			auto Ranges = ranges.substr(ranges.find(L'=') + 1);
 			return PVX::Map(PVX::String::Split_No_Empties(Ranges, L","), [](const std::wstring & part) {
 				auto r = PVX::String::Split_No_Empties_Trimed(part, L"-");
-				return HttpRequest::RequestRange{ (size_t)_wtoi64(r[0].c_str()), r.size() > 1 ? (size_t)_wtoi64(r[1].c_str()) : -2 };
+				return HttpRequest::RequestRange{ (size_t)std::stoll(r[0]), r.size() > 1 ? (size_t)std::stoll(r[1]) : -2 };
 			});
 		}
 		return std::vector<HttpRequest::RequestRange>();
@@ -110,7 +111,7 @@ namespace PVX::Network {
 			if (Match.size() > 3 && Match[1].matched&&Match[3].matched) {
 				Vars[Match[1].str()] = PVX::Decode::Uri(Match[3].str());
 			} else if (Match.size() > 1 && Match[1].matched) {
-				Vars[Match[1]] = L"true";
+				Vars[Match[1]] = L"true"s;
 			}
 			Start = Match[0].second;
 		}
@@ -169,7 +170,7 @@ namespace PVX::Network {
 		auto b = PVX::Encode::UTF(L"--" + bound);
 		auto bsz = b.size();
 
-		long long Start = 0, End = 0;
+		size_t Start = 0, End = 0;
 		const unsigned char * dt = RawContent.data();
 		auto sz = RawContent.size();
 		while (End < sz) {
@@ -210,8 +211,8 @@ namespace PVX::Network {
 	std::wstring HttpRequest::operator[](const std::wstring& Name) {
 		return Variables[Name]();
 	}
-	long long HttpRequest::operator()(const std::wstring& Name) {
-		return _wtoi64(Variables[Name]().c_str());
+	int64_t HttpRequest::operator()(const std::wstring& Name) {
+		return std::stoll(Variables[Name]());
 	}
 
 	std::map<std::wstring, std::wstring> HttpRequest::GetVariableMap() const {

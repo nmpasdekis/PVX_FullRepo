@@ -494,6 +494,15 @@ namespace PVX {
 			if (sz)Encode::UTF(&ret[0], Text.c_str());
 			return ret;
 		}
+		std::string UtfString(const wstring& Text) {
+			auto sz = UTF_Length(Text.c_str());
+			std::string ret;
+			if (sz) {
+				ret.resize(sz);
+				Encode::UTF((uint8_t*)ret.data(), Text.c_str());
+			}
+			return ret;
+		}
 		void UTF(std::vector<unsigned char> & utf, const wstring & Text) {
 			auto sz = UTF_Length(Text.c_str());
 			utf.clear();
@@ -554,11 +563,11 @@ namespace PVX {
 		}
 
 		constexpr auto Windows1253_Greek_unordered_map = []() {
-			std::array<wchar_t, 65536> unordered_map{ 0 };
-			for (int i = 0; i < 65536; i++) unordered_map[i] = '?';
+			std::array<wchar_t, 65536> map{ 0 };
+			for (int i = 0; i < 65536; i++) map[i] = '?';
 			for (int i = 0; i < 256; i++)
-				unordered_map[Windows1253_lut[i]] = i;
-			return unordered_map;
+				map[Windows1253_lut[i]] = i;
+			return map;
 		}();
 
 		std::string Windows1253_Greek(const std::wstring & data) {
@@ -609,7 +618,7 @@ namespace PVX {
 			}
 			tmp.v32 = 0;
 			for (int i=0; inCur<sz; inCur++,i++) {
-				tmp.v32 |= (b64Url2decLut[unsigned char(Base64[inCur])] << (18 - i * 6));
+				tmp.v32 |= (b64Url2decLut[int8_t(Base64[inCur])] << (18 - i * 6));
 			}
 			for (int i = 0; outCur<outsize; outCur++, i++) {
 				ret[outCur] = tmp.a4[2-i];
@@ -647,7 +656,7 @@ namespace PVX {
 			}
 			tmp.v32 = 0;
 			for (int i = 0; inCur<sz; inCur++, i++) {
-				tmp.v32 |= (b64Url2decLut[unsigned char(Base64[inCur])] << (18 - i * 6));
+				tmp.v32 |= (b64Url2decLut[int8_t(Base64[inCur])] << (18 - i * 6));
 			}
 			for (int i = 0; outCur<outsize; outCur++, i++) {
 				ret[outCur] = tmp.a4[2-i];
@@ -818,11 +827,12 @@ namespace PVX {
 					tmp[c++] = s[i];
 				else {
 					i++;
-					tmp[c++] = (unordered_map[s[i]] << 4) + unordered_map[s[i++ + 1]];
+					tmp[c++] = (unordered_map[s[i]] << 4) + unordered_map[s[i + 1]];
+					i++;
 				}
 			}
 			ret = UTF(tmp, c);
-			delete tmp;
+			delete[] tmp;
 			return ret;
 		}
 
@@ -843,11 +853,12 @@ namespace PVX {
 					tmp[c++] = s[i];
 				else {
 					i++;
-					tmp[c++] = unsigned char((unordered_map[s[i]] << 4) + unordered_map[s[i++ + 1]]);
+					tmp[c++] = int8_t((unordered_map[s[i]] << 4) + unordered_map[s[i + 1]]);
+					i++;
 				}
 			}
 			ret = UTF(tmp, c);
-			delete tmp;
+			delete[] tmp;
 			return ret;
 		}
 
@@ -859,11 +870,6 @@ namespace PVX {
 			for (int i = 0; i < len; i++)
 				r[i] = s[i];
 			return ret;
-		}
-		wstring UTF(const vector<unsigned char> & Utf) {
-			const unsigned char * utf = Utf.data();
-			auto sz = Utf.size();
-			return UTF(utf, sz);
 		}
 		wstring UTF(const unsigned char * Utf, size_t sz) {
 			if (!sz)return L"";

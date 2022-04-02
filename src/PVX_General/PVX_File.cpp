@@ -1,4 +1,5 @@
-#include<Windows.h>
+#define _CRT_SECURE_NO_WARNINGS
+
 #include<vector>
 #include<string>
 #include<PVX_File.h>
@@ -11,15 +12,77 @@
 #include <PVX.inl>
 #include<mutex>
 
+#ifdef __linux
+#include <stdlib.h>
+inline std::wstring toWide(const std::string& s) {
+	std::wstring ret;
+	ret.resize(s.size()*2);
+	ret.resize(mbstowcs(ret.data(), s.data(), s.size()));
+	return ret;
+}
+inline std::string fromWide(const std::wstring& s) {
+	std::string ret;
+	ret.resize(s.size()*4);
+	ret.resize(wcstombs(ret.data(), s.data(), s.size()));
+	return ret;
+}
+#endif
+
+
 namespace PVX_Helpers {
 	int indexOf(const char * s, char c, int start = 0);
 }
 
 namespace PVX {
 	namespace IO {
+		namespace fs = std::filesystem;
+
+		void ChangeTracker::GetLastTime() {
+			LastTime = fs::directory_entry(Filename).last_write_time();
+		}
+		ChangeTracker::ChangeTracker(const std::wstring& Filename) :
+			Filename{ Filename },
+			LastTime{ fs::directory_entry(Filename).last_write_time() } {}
+		ChangeTracker::operator bool() {
+			auto lt = LastTime;
+			GetLastTime();
+			return lt != LastTime;
+		}
+		ChangeTracker::operator std::wstring() {
+			return Filename;
+		}
+		ChangeEventer::ChangeEventer() {
+			Running = 1;
+			Tracker = std::thread([this]() {
+				while (Running) {
+					{
+						std::unique_lock<std::mutex> lock{ Locker };
+						for (auto& t : Files)
+							if (t.File) t.Do();
+					}
+					std::this_thread::sleep_for(std::chrono::milliseconds(333));
+				}
+			});
+		}
+		ChangeEventer::~ChangeEventer() {
+			Running = 0;
+			Tracker.join();
+		}
+		void ChangeEventer::Track(const std::wstring& Filename, std::function<void()> clb) {
+			std::unique_lock<std::mutex> lock{ Locker };
+			Files.push_back({ Filename, clb });
+			if ((bool)Files.back().File)	clb();
+		}
+
+		void MakeDirectory(const std::wstring& Directory) {
+			fs::create_directories(Directory);
+		}
+		void MakeDirectory(const std::string& Directory) {
+			fs::create_directories(Directory);
+		}
+
 		std::wstring ReadUtf(const std::wstring& Filename) {
 			auto bin = ReadBinary(Filename.c_str());
-			
 			return PVX::Decode::UTF(bin);
 		}
 		size_t FileSize(FILE * fin) {
@@ -30,81 +93,59 @@ namespace PVX {
 			return ret;
 		}
 		size_t FileSize(const std::string & filename) {
-			FILE * fin;
-			if (fopen_s(&fin, filename.c_str(), "rb")) return 0;
-			auto ret = FileSize(fin);
-			fclose(fin);
-			return ret;
+			return fs::directory_entry(filename).file_size();
 		}
 		size_t FileSize(const std::wstring & filename) {
-			FILE * fin;
-			if (_wfopen_s(&fin, filename.c_str(), L"rb")) return 0;
-			auto ret = FileSize(fin);
-			fclose(fin);
-			return ret;
+			return fs::directory_entry(filename).file_size();
 		}
 		std::string FindFileFullPath(const std::string& Filename) {
-			if (Filename.size()) {
-				if (Filename.find(":\\")!=std::string::npos) return Filename;
-				auto fn = [&] {
-					if (Filename[0]=='\\')
-						return Filename.substr(1);
-					return Filename;
-				}();
-				if (FileExists(fn)) return CurrentPath()+ "\\" + fn;
-				size_t buffSize;
-				getenv_s(&buffSize, nullptr, 0, "PATH");
-				if (buffSize > 1) {
-					std::string var;
-					var.resize(buffSize-1);
-					getenv_s(&buffSize, &var[0], buffSize, "PATH");
-					size_t dbg = 0;
-					auto paths = PVX::Map(PVX::String::Split_No_Empties_Trimed(var, ";"), [&](const std::string& s) {
-						dbg++;
-						if (s.back()!='\\')
-							return s+"\\";
-						return s;
-					});
-					for (auto& p : paths) {
-						std::string ret = p+fn;
-						if (FileExists(ret))
-							return ret;
-					}
-				}
+			namespace fs = std::filesystem;
+			auto p = fs::path{ Filename };
+			if (p.is_absolute()) return Filename;
+			auto cp = fs::current_path().string();
+			cp.push_back(fs::path::preferred_separator);
+			cp += Filename;
+			if (FileExists(cp)) return cp;
+			std::string_view var = getenv("PATH");
+			while (var.size()) {
+				auto x = var.find(';'); if (x==std::string_view::npos) x = var.size();
+				auto pp = std::string(var.substr(0, x));
+				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
+				pp += Filename;
+				if (FileExists(pp))
+					return pp;
+				var.remove_prefix(x+1);
 			}
-			return std::string();
+			return "";
 		}
+
+
 		std::wstring FindFileFullPath(const std::wstring& Filename) {
-			if (Filename.size()) {
-				if (Filename.find(L":\\")!=std::string::npos) return Filename;
-				auto fn = [&] {
-					if (Filename[0]==L'\\')
-						return Filename.substr(1);
-					return Filename;
-				}();
-				if (FileExists(fn)) return wCurrentPath() + L"\\" + fn;
-				size_t buffSize;
-				_wgetenv_s(&buffSize, nullptr, 0, L"PATH");
-				if (buffSize > 1) {
-					std::wstring var;
-					var.resize(buffSize-1);
-					_wgetenv_s(&buffSize, &var[0], buffSize, L"PATH");
-					size_t dbg = 0;
-					auto paths = PVX::Map(PVX::String::Split_No_Empties_Trimed(var, L";"), [&](const std::wstring& s) {
-						dbg++;
-						if (s.back()!=L'\\')
-							return s + L"\\";
-						return s;
-					});
-					for (auto& p : paths) {
-						std::wstring ret = p+fn;
-						if (FileExists(ret))
-							return ret;
-					}
-				}
+			namespace fs = std::filesystem;
+			auto p = fs::path{ Filename };
+			if (p.is_absolute()) return Filename;
+			auto cp = fs::current_path().wstring();
+			cp.push_back(fs::path::preferred_separator);
+			cp += Filename;
+			if (FileExists(cp)) return cp;
+#ifdef __linux
+			std::wstring PATH = [] { auto tmp = getenv("PATH");	return PVX::Decode::UTF((uint8_t*)tmp, std::strlen(tmp)); }();
+			std::wstring_view var = PATH;
+#else
+			std::wstring_view var = _wgetenv(L"PATH");
+#endif
+			while (var.size()) {
+				auto x = var.find(';'); if (x==std::wstring_view::npos) x = var.size();
+				auto pp = std::wstring(var.substr(0, x));
+				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
+				pp += Filename;
+				if (FileExists(pp))
+					return pp;
+				var.remove_prefix(x+1);
 			}
-			return std::wstring();
+			return L"";
 		}
+
 		std::string FilePathPart(const std::string& Filename) {
 			auto p = PVX::String::Split(FindFileFullPath(Filename), "\\");
 			p.pop_back();
@@ -224,7 +265,7 @@ namespace PVX {
 		}
 		size_t ReadBinary(const wchar_t * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
 			FILE * file;
-			if(_wfopen_s(&file, Filename, L"rb")) return 0;
+			if (_wfopen_s(&file, Filename, L"rb")) return 0;
 			Data.clear();
 			Data.resize(length);
 			fseek(file, offset, SEEK_SET);
@@ -242,7 +283,11 @@ namespace PVX {
 			return txt;
 		}
 		std::string ReadText(const wchar_t* Filename) {
+#ifndef __linux
 			std::ifstream inp(Filename);
+#else
+			std::ifstream inp((const char*)PVX::Encode::UTF0(Filename).data());
+#endif
 			if (inp.fail())return "";
 			std::string txt(std::istreambuf_iterator<char>(inp), (std::istreambuf_iterator<char>()));
 			inp.close();
@@ -271,312 +316,9 @@ namespace PVX {
 			return PVX::String::Join(spl, L".");
 		}
 
-		std::vector<std::string> Dir(const std::string & Expression) {
-			std::vector<std::string> ret;
-			WIN32_FIND_DATAA ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
 
-			hFind = FindFirstFileA(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-						ret.push_back(ffd.cFileName);
-					}
-				} while(FindNextFileA(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-		std::vector<std::wstring> Dir(const std::wstring & Expression) {
-			std::vector<std::wstring> ret;
-			WIN32_FIND_DATAW ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
 
-			hFind = FindFirstFileW(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-						ret.push_back(ffd.cFileName);
-					}
-				} while(FindNextFileW(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
 
-		std::vector<std::string> SubDir(const std::string & Expression) {
-			std::vector<std::string> ret;
-			WIN32_FIND_DATAA ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			hFind = FindFirstFileA(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY && (ffd.cFileName[0] != '.' || ffd.cFileName[1])) {
-						ret.push_back(ffd.cFileName);
-					}
-				} while(FindNextFileA(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-		std::vector<std::wstring> SubDir(const std::wstring & Expression) {
-			std::vector<std::wstring> ret;
-			WIN32_FIND_DATAW ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			hFind = FindFirstFileW(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY && (ffd.cFileName[0] != L'.' || ffd.cFileName[1])) {
-						ret.push_back(ffd.cFileName);
-					}
-				} while(FindNextFileW(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-
-		std::vector<std::string> DirFull(const std::string & Expression) {
-			std::vector<std::string> ret;
-			WIN32_FIND_DATAA ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			int index = -1;
-			for(int i = 0; i < Expression.size(); i++) {
-				if(Expression[i] == '\\' || Expression[i] == '/')
-					index = i;
-			}
-
-			std::string d = "";
-			if(index != -1)
-				d = Expression.substr(0, index + 1);
-
-			hFind = FindFirstFileA(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-						std::string fl = d;
-						fl += ffd.cFileName;
-						ret.push_back(fl);
-					}
-				} while(FindNextFileA(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-		std::vector<std::wstring> DirFull(const std::wstring & Expression) {
-			std::vector<std::wstring> ret;
-			WIN32_FIND_DATAW ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			int index = -1;
-			for(int i = 0; i < Expression.size(); i++) {
-				if(Expression[i] == L'\\' || Expression[i] == L'/')
-					index = i;
-			}
-
-			std::wstring d = L"";
-			if(index != -1)
-				d = Expression.substr(0, index + 1);
-
-			hFind = FindFirstFileW(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-						std::wstring fl = d;
-						fl += ffd.cFileName;
-						ret.push_back(fl);
-					}
-				} while(FindNextFileW(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-
-		std::vector<std::string> SubDirFull(const std::string & Expression) {
-			std::vector<std::string> ret;
-			WIN32_FIND_DATAA ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			int index = -1;
-			for(int i = 0; i < Expression.size(); i++) {
-				if(Expression[i] == '\\' || Expression[i] == '/')
-					index = i;
-			}
-
-			std::string d = "";
-			if(index != -1)
-				d = Expression.substr(0, index + 1);
-
-			hFind = FindFirstFileA(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY && (ffd.cFileName[0] != '.' || ffd.cFileName[1])) {
-						std::string fl = d;
-						fl += ffd.cFileName;
-						ret.push_back(fl);
-					}
-				} while(FindNextFileA(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-		std::vector<std::wstring> SubDirFull(const std::wstring & Expression) {
-			std::vector<std::wstring> ret;
-			WIN32_FIND_DATAW ffd;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			int index = -1;
-			for(int i = 0; i < Expression.size(); i++) {
-				if(Expression[i] == L'\\' || Expression[i] == L'/')
-					index = i;
-			}
-
-			std::wstring d = L"";
-			if(index != -1)
-				d = Expression.substr(0, index + 1);
-
-			hFind = FindFirstFileW(Expression.data(), &ffd);
-			if(hFind != INVALID_HANDLE_VALUE) {
-				do {
-					if(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY && (ffd.cFileName[0] != L'.' || ffd.cFileName[1])) {
-						std::wstring fl = d;
-						fl += ffd.cFileName;
-						ret.push_back(fl);
-					}
-				} while(FindNextFileW(hFind, &ffd) != 0);
-			}
-			return ret;
-		}
-
-		int FileExists(const std::wstring & file) {
-			WIN32_FIND_DATAW FindFileData;
-			HANDLE handle = FindFirstFileW(file.c_str(), &FindFileData);
-			if (handle != INVALID_HANDLE_VALUE) {
-				FindClose(handle);
-				return 1;
-			}
-			return 0;
-		}
-		int FileExists(const std::string & file) {
-			WIN32_FIND_DATAA FindFileData;
-			HANDLE handle = FindFirstFileA(file.c_str(), &FindFileData);
-			if (handle != INVALID_HANDLE_VALUE) {
-				FindClose(handle);
-				return 1;
-			}
-			return 0;
-		}
-
-		void MakeDirectory(const std::wstring & Directory) {
-			auto path = PVX::String::Split_No_Empties(PVX::Replace(Directory, L"/", L"\\"), L"\\");
-			size_t i;
-			std::wstring cur;
-			for (i = 0; i < path.size(); i++) {
-				cur += path[i];
-				if (!FileExists(cur))
-					CreateDirectoryW(cur.c_str(), NULL);
-				cur += L"\\";
-			}
-		}
-		void MakeDirectory(const std::string & Directory) {
-			auto path = PVX::String::Split_No_Empties(PVX::Replace(Directory, "/", "\\"), "\\");
-			size_t i;
-			std::string cur;
-			for (i = 0; i < path.size(); i++) {
-				cur += path[i];
-				if (!FileExists(cur))
-					CreateDirectoryA(cur.c_str(), NULL);
-				cur += "\\";
-			}
-		}
-
-		std::string OpenFileDialog(HWND Parent, const char * Filter, const char * Filename) {
-			std::string fltr = Filter;
-			fltr += '\0';
-			for(auto & f : fltr) if(f == '|')f = 0;
-			OPENFILENAMEA ofn{ 0 };
-			ofn.lStructSize = sizeof(OPENFILENAMEA);
-			ofn.hwndOwner = Parent;
-			ofn.lpstrFile = new char[MAX_PATH];
-			if(Filename)
-				strcpy_s(ofn.lpstrFile, MAX_PATH - 1, Filename);
-			else
-				ofn.lpstrFile[0] = 0;
-			ofn.nMaxFile = MAX_PATH;
-			ofn.lpstrFilter = fltr.c_str();
-			ofn.nFilterIndex = 0;
-			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-			std::string ret;
-			if(GetOpenFileNameA(&ofn)) {
-				ret = ofn.lpstrFile;
-			}
-			delete ofn.lpstrFile;
-			return ret;
-		}
-		std::wstring OpenFileDialog(HWND Parent, const wchar_t * Filter, const wchar_t * Filename) {
-			std::wstring fltr = Filter;
-			fltr += L'\0';
-			for (auto & f : fltr) if (f == '|')f = 0;
-			OPENFILENAMEW ofn{ 0 };
-			ofn.lStructSize = sizeof(OPENFILENAMEW);
-			ofn.hwndOwner = Parent;
-			ofn.lpstrFile = new wchar_t[MAX_PATH];
-			if (Filename)
-				lstrcpyW(ofn.lpstrFile, Filename);
-			else
-				ofn.lpstrFile[0] = 0;
-			ofn.nMaxFile = MAX_PATH;
-			ofn.lpstrFilter = fltr.c_str();
-			ofn.nFilterIndex = 0;
-			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-			std::wstring ret;
-			if (GetOpenFileNameW(&ofn)) {
-				ret = ofn.lpstrFile;
-			}
-			delete ofn.lpstrFile;
-			return ret;
-		}
-		std::string SaveFileDialog(HWND Parent, const char * Filter, const char * Filename) {
-			std::string fltr = Filter;
-			fltr += '\0';
-			for(auto & f : fltr) if(f == '|')f = 0;
-			OPENFILENAMEA ofn{ 0 };
-			ofn.lStructSize = sizeof(OPENFILENAMEA);
-			ofn.hwndOwner = Parent;
-			ofn.lpstrFile = new char[MAX_PATH];
-			if(Filename)
-				strcpy_s(ofn.lpstrFile, MAX_PATH - 1, Filename);
-			else
-				ofn.lpstrFile[0] = 0;
-			ofn.nMaxFile = MAX_PATH;
-			ofn.lpstrFilter = fltr.c_str();
-			ofn.nFilterIndex = 0;
-			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-			std::string ret;
-			if(GetSaveFileNameA(&ofn)) {
-				ret = ofn.lpstrFile;
-			}
-			delete ofn.lpstrFile;
-			return ret;
-		}
-		std::wstring SaveFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename) {
-			std::wstring fltr = Filter;
-			fltr += L'\0';
-			for (auto& f : fltr) if (f == '|')f = 0;
-			OPENFILENAMEW ofn{ 0 };
-			ofn.lStructSize = sizeof(OPENFILENAMEW);
-			ofn.hwndOwner = Parent;
-			ofn.lpstrFile = new wchar_t[MAX_PATH];
-			if (Filename)
-				lstrcpyW(ofn.lpstrFile, Filename);
-			else
-				ofn.lpstrFile[0] = 0;
-			ofn.nMaxFile = MAX_PATH;
-			ofn.lpstrFilter = fltr.c_str();
-			ofn.nFilterIndex = 0;
-			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-			std::wstring ret;
-			if (GetSaveFileNameW(&ofn)) {
-				ret = ofn.lpstrFile;
-			}
-			delete ofn.lpstrFile;
-			return ret;
-		}
 		JSON::Item LoadJson(const char * Filename) {
 			return JSON::parse(PVX::IO::ReadBinary(Filename));
 		}
@@ -585,22 +327,6 @@ namespace PVX {
 		}
 		int Write(const std::wstring& Filename, const PVX::JSON::Item& Json) {
 			return Write(Filename, PVX::Encode::UTF(PVX::JSON::stringify(Json)));
-		}
-		std::wstring wCurrentPath() {
-			wchar_t Path[MAX_PATH + 1];
-			GetCurrentDirectoryW(MAX_PATH, Path);
-			return Path;
-		}
-		std::string CurrentPath() {
-			char Path[MAX_PATH + 1];
-			GetCurrentDirectoryA(MAX_PATH, Path);
-			return Path;
-		}
-		void CurrentPath(const std::string path) {
-			SetCurrentDirectoryA(path.c_str());
-		}
-		void CurrentPath(const std::wstring path) {
-			SetCurrentDirectoryW(path.c_str());
 		}
 
 		std::vector<std::string> FileExtensions(const std::string & f) {
@@ -645,7 +371,7 @@ namespace PVX {
 			_wfopen_s(&fin, Filename, L"rb");
 		}
 		size_t Text::ReadLine() {
-			long long i;
+			int64_t i;
 			std::vector<unsigned char> Data;
 			do {
 				if(BufferSize == BufferPosition) {
@@ -756,44 +482,95 @@ namespace PVX {
 			}
 			return ret;
 		}
-		void ChangeTracker::GetLastTime() {
-			hFile = CreateFileW(Filename.c_str(), GENERIC_READ, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
-			GetFileTime(hFile, 0, (LPFILETIME)&LastTime, 0);
-			CloseHandle(hFile);
+
+		std::vector<std::string> Dir(const std::string& filter) {
+			std::vector<std::string> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory()) {
+				auto fn = entry.path().string();
+				size_t start = fn.size();
+				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
+				ret.push_back(fn.substr(start));
+			}
+			return ret;
 		}
-		ChangeTracker::ChangeTracker(const std::wstring & Filename) : Filename{ Filename }, LastTime{ 0 } {
-			//GetLastTime();
+		std::vector<std::string> DirFull(const std::string& filter) {
+			std::vector<std::string> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory())
+				ret.push_back(entry.path().string());
+			return ret;
 		}
-		ChangeTracker::operator bool() {
-			auto lt = LastTime;
-			GetLastTime();
-			return lt != LastTime;
+		std::vector<std::string> SubDir(const std::string& filter) {
+			std::vector<std::string> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory()) {
+				auto fn = entry.path().string();
+				size_t start = fn.size();
+				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
+				ret.push_back(fn.substr(start));
+			}
+			return ret;
 		}
-		ChangeTracker::operator std::wstring() {
-			return Filename;
+		std::vector<std::string> SubDirFull(const std::string& filter) {
+			std::vector<std::string> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory())
+				ret.push_back(entry.path().string());
+			return ret;
 		}
-		ChangeEventer::ChangeEventer() {
-			Running = 1;
-			Tracker = std::thread([this]() {
-				while (Running) {
-					{
-						std::unique_lock<std::mutex> lock{ Locker };
-						for (auto & t : Files)
-							if (t.File) t.Do();
-					}
-					std::this_thread::sleep_for(std::chrono::milliseconds(333));
-				}
-			});
+
+		std::vector<std::wstring> Dir(const std::wstring& filter) {
+			std::vector<std::wstring> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory()) {
+				auto fn = entry.path().wstring();
+				size_t start = fn.size();
+				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
+				ret.push_back(fn.substr(start));
+			}
+			return ret;
 		}
-		ChangeEventer::~ChangeEventer() {
-			Running = 0;
-			Tracker.join();
+		std::vector<std::wstring> DirFull(const std::wstring& filter) {
+			std::vector<std::wstring> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory()) {
+				ret.push_back(entry.path().wstring());
+			}
+			return ret;
 		}
-		void ChangeEventer::Track(const std::wstring & Filename, std::function<void()> clb) {
-			std::unique_lock<std::mutex> lock{ Locker };
-			Files.push_back({ Filename, clb });
-			if((bool)Files.back().File)	clb();
+		std::vector<std::wstring> SubDir(const std::wstring& filter) {
+			std::vector<std::wstring> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory()) {
+				auto fn = entry.path().wstring();
+				size_t start = fn.size();
+				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
+				ret.push_back(fn.substr(start));
+			}
+			return ret;
 		}
+		std::vector<std::wstring> SubDirFull(const std::wstring& filter) {
+			std::vector<std::wstring> ret;
+			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory())
+				ret.push_back(entry.path().wstring());
+			return ret;
+		}
+
+
+		int FileExists(const std::wstring& file) {
+			return fs::exists(file.c_str());
+		}
+		int FileExists(const std::string& file) {
+			return fs::exists(file.c_str());
+		}
+
+		std::wstring wCurrentPath() {
+			return fs::current_path().wstring();
+		}
+		std::string CurrentPath() {
+			return fs::current_path().string();
+		}
+		void CurrentPath(const std::string path) {
+			fs::current_path(path);
+		}
+		void CurrentPath(const std::wstring path) {
+			fs::current_path(path);
+		}
+
 	}
 	BinWriter::BinWriter(const std::string_view& Filename) :fout{0} {
 		fopen_s(&fout, Filename.data(), "wb");

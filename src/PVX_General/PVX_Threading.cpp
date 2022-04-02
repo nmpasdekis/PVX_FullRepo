@@ -1,8 +1,8 @@
 #include<PVX_Threading.h>
+#include<thread>
 #include<mutex>
 #include<condition_variable>
 #include<atomic>
-#include<Windows.h>
 
 namespace PVX {
 	namespace Threading {

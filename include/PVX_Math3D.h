@@ -1,6 +1,12 @@
 #pragma once
+
+//#define PVX_NO_INTRINSICS
+
+#ifndef PVX_NO_INTRINSICS
 #include <xmmintrin.h>
 #include <intrin.h>
+#endif
+
 #include <cmath>
 #include <utility>
 #include <functional>
@@ -14,7 +20,7 @@ namespace PVX {
 	constexpr float ToDEGREES(float x) { return ((float)(x*180.0/PI)); }
 	constexpr double ToDEGREES(double x) { return x*180.0/PI; }
 
-	constexpr float Q_rsqrt(float y) {
+	inline float Q_rsqrt(float y) {
 		float x2 = y * 0.5f;
 		constexpr float threeHalfs = 1.5f;
 		uint32_t i = 0x5f3759df - ((*(uint32_t*)&y) >> 1);
@@ -23,7 +29,7 @@ namespace PVX {
 		return y;
 	}
 
-	constexpr float Q_rsqrt2(float y) {
+	inline float Q_rsqrt2(float y) {
 		float x2 = y * 0.5f;
 		constexpr float threeHalfs = 1.5f;
 		uint32_t i = 0x5f3759df - ((*(uint32_t*)&y) >> 1);
@@ -32,7 +38,7 @@ namespace PVX {
 		y *= threeHalfs - x2 * y * y;
 		return y;
 	}
-	constexpr float Q_rsqrt4(float y) {
+	inline float Q_rsqrt4(float y) {
 		float x2 = y * 0.5f;
 		constexpr float threeHalfs = 1.5f;
 		uint32_t i = 0x5f3759df - ((*(uint32_t*)&y) >> 1);
@@ -235,9 +241,21 @@ namespace PVX {
 		//Vector4D() : x{ 0 }, y{ 0 }, z{ 0 }, w{ 0 } {}
 		//inline Vector4D(float x, float y, float z, float w) : x{ x }, y{ y }, z{ z }, w{ w } {}
 		//inline Vector4D(const Vector3D& vec, float W = 1.0f): x{ vec.x }, y{ vec.y }, z{ vec.z }, w{ W } {}
+#ifndef PVX_NO_INTRINSICS
 		inline Vector4D(float X, float Y, float Z, float W) : xmm{ _mm_set_ps(W, Z, Y, X) } {}
 		inline Vector4D(const Vector3D& vec, float W = 1.0f) : xmm{ _mm_set_ps(W, vec.z, vec.y, vec.x) } {}
 		inline Vector4D(float v) : xmm{ _mm_set1_ps(v) } {}
+		__m128 xmm;
+		inline operator __m128() const {
+			return _mm_load_ps(Array);
+		}
+		inline Vector4D(const __m128 v) {
+			_mm_store_ps(Array, v);
+		}
+#else
+		inline Vector4D(float X, float Y, float Z, float W) :x{ X }, y{ Y }, z{ Z }, w{ W }{}
+		inline Vector4D(const Vector3D& vec, float W = 1.0f) :x{ vec.x }, y{ vec.y }, z{ vec.z }, w{ W }{}
+#endif
 		struct {
 			float x, y, z, w;
 		};
@@ -252,32 +270,43 @@ namespace PVX {
 		struct {
 			float Width, Height, Depth, Imagination;
 		};
-		__m128 xmm;
 		inline Vector4D operator-() const { return Vector4D{ -x, -y, -z, -w }; }
 		inline Vector4D operator*(const Vector4D& v) const { return Vector4D{ v.x*x, v.y*y, v.z * z, v.w * w }; }
 		inline float Length() const { return sqrtf(x*x+y*y+z*z+w*w); }
 		inline float Length2() const { return (x*x+y*y+z*z+w*w); }
 		inline float Dot(const Vector4D& v) const { return x*v.x + y*v.y+z*v.z+w*v.w; }
 		inline Vector4D& Normalize() { float i = 1.0f / Length(); x *= i; y *= i; z *= i; w *= i; return *this; }
-		inline const Vector4D& Normalized() const { float i = 1.0f / Length(); return{ x * i, y * i, z * i, w * i }; }
-		inline operator __m128() const {
-			return _mm_load_ps(Array);
-		}
-		inline Vector4D(const __m128 v) {
-			_mm_store_ps(Array, v);
-		}
+		inline const Vector4D Normalized() const { float i = 1.0f / Length(); return{ x * i, y * i, z * i, w * i }; }
 	};
 
 	inline Vector4D operator+(const Vector4D& v1, const Vector4D& v2) {
+#ifndef PVX_NO_INTRINSICS
 		return _mm_add_ps(v1, v2);
+#else 
+		return{
+			v1.x + v2.x,
+			v1.y + v2.y,
+			v1.z + v2.z,
+			v1.w + v2.w,
+		};
+#endif
 	}
 	inline Vector4D operator*(const Vector4D& c, float f) {
+#ifndef PVX_NO_INTRINSICS
 		Vector4D out;
 		__m128 tf = _mm_load_ps1(&f);
 		__m128 tc = _mm_loadu_ps(&c.r);
 		__m128 to = _mm_mul_ps(tf, tc);
 		_mm_storeu_ps(&out.r, to);
 		return out;
+#else
+		return {
+			c.x* f,
+			c.y* f,
+			c.z* f,
+			c.w* f
+		};
+#endif
 	}
 	inline Vector4D& operator*=(Vector4D& v1, float f) {
 		v1.x *= f;
@@ -474,7 +503,7 @@ namespace PVX {
 			float w = 1.0f / sqrtf(i*i + j*j + k * k + r * r);
 			return { i * w, j * w, k * w, r * w };
 		}
-		inline const Quaternion& Conjugated() const {
+		inline const Quaternion Conjugated() const {
 			return { -i, -j, -k, r };
 		}
 	};
@@ -512,7 +541,7 @@ namespace PVX {
 				Dual.Vec.w * l
 			};
 		}
-		inline const DualQuaternion& Conjugated() {
+		inline const DualQuaternion Conjugated() {
 			return{ -r_i, -r_j, -r_k, r_r, -d_i, -d_j, -d_k, d_r };
 		}
 		//inline Matrix4x4 Matrix() const {
@@ -863,31 +892,31 @@ namespace PVX {
 		)
 
 	inline float MatrixDet4(const Matrix4x4& m) {
-		char Comb[24][5] = {
-				{ 0, 1, 2, 3, 1 },
-				{ 1, 0, 2, 3, -1 },
-				{ 0, 2, 1, 3, -1 },
-				{ 2, 0, 1, 3, 1 },
-				{ 1, 2, 0, 3, 1 },
-				{ 2, 1, 0, 3, -1 },
-				{ 0, 1, 3, 2, -1 },
-				{ 1, 0, 3, 2, 1 },
-				{ 0, 3, 1, 2, 1 },
-				{ 3, 0, 1, 2, -1 },
-				{ 1, 3, 0, 2, -1 },
-				{ 3, 1, 0, 2, 1 },
-				{ 0, 2, 3, 1, 1 },
-				{ 2, 0, 3, 1, -1 },
-				{ 0, 3, 2, 1, -1 },
-				{ 3, 0, 2, 1, 1 },
-				{ 2, 3, 0, 1, 1 },
-				{ 3, 2, 0, 1, -1 },
-				{ 1, 2, 3, 0, -1 },
-				{ 2, 1, 3, 0, 1 },
-				{ 1, 3, 2, 0, 1 },
-				{ 3, 1, 2, 0, -1 },
-				{ 2, 3, 1, 0, -1 },
-				{ 3, 2, 1, 0, 1 },
+		const int8_t Comb[24][5] = {
+			{ 0, 1, 2, 3, 1 },
+			{ 1, 0, 2, 3, -1 },
+			{ 0, 2, 1, 3, -1 },
+			{ 2, 0, 1, 3, 1 },
+			{ 1, 2, 0, 3, 1 },
+			{ 2, 1, 0, 3, -1 },
+			{ 0, 1, 3, 2, -1 },
+			{ 1, 0, 3, 2, 1 },
+			{ 0, 3, 1, 2, 1 },
+			{ 3, 0, 1, 2, -1 },
+			{ 1, 3, 0, 2, -1 },
+			{ 3, 1, 0, 2, 1 },
+			{ 0, 2, 3, 1, 1 },
+			{ 2, 0, 3, 1, -1 },
+			{ 0, 3, 2, 1, -1 },
+			{ 3, 0, 2, 1, 1 },
+			{ 2, 3, 0, 1, 1 },
+			{ 3, 2, 0, 1, -1 },
+			{ 1, 2, 3, 0, -1 },
+			{ 2, 1, 3, 0, 1 },
+			{ 1, 3, 2, 0, 1 },
+			{ 3, 1, 2, 0, -1 },
+			{ 2, 3, 1, 0, -1 },
+			{ 3, 2, 1, 0, 1 },
 		};
 		float sum = 0, mul;
 		int i, j;
@@ -1375,31 +1404,31 @@ namespace PVX {
 	}
 
 	inline float Det3(const Matrix4x4& m, int r, int c) {
-		char Comb[24][5] = {
-				{ 0, 1, 2, 3, 1 },
-				{ 1, 0, 2, 3, -1 },
-				{ 0, 2, 1, 3, -1 },
-				{ 2, 0, 1, 3, 1 },
-				{ 1, 2, 0, 3, 1 },
-				{ 2, 1, 0, 3, -1 },
-				{ 0, 1, 3, 2, -1 },
-				{ 1, 0, 3, 2, 1 },
-				{ 0, 3, 1, 2, 1 },
-				{ 3, 0, 1, 2, -1 },
-				{ 1, 3, 0, 2, -1 },
-				{ 3, 1, 0, 2, 1 },
-				{ 0, 2, 3, 1, 1 },
-				{ 2, 0, 3, 1, -1 },
-				{ 0, 3, 2, 1, -1 },
-				{ 3, 0, 2, 1, 1 },
-				{ 2, 3, 0, 1, 1 },
-				{ 3, 2, 0, 1, -1 },
-				{ 1, 2, 3, 0, -1 },
-				{ 2, 1, 3, 0, 1 },
-				{ 1, 3, 2, 0, 1 },
-				{ 3, 1, 2, 0, -1 },
-				{ 2, 3, 1, 0, -1 },
-				{ 3, 2, 1, 0, 1 },
+		const int8_t Comb[24][5] = {
+			{ 0, 1, 2, 3, 1 },
+			{ 1, 0, 2, 3, -1 },
+			{ 0, 2, 1, 3, -1 },
+			{ 2, 0, 1, 3, 1 },
+			{ 1, 2, 0, 3, 1 },
+			{ 2, 1, 0, 3, -1 },
+			{ 0, 1, 3, 2, -1 },
+			{ 1, 0, 3, 2, 1 },
+			{ 0, 3, 1, 2, 1 },
+			{ 3, 0, 1, 2, -1 },
+			{ 1, 3, 0, 2, -1 },
+			{ 3, 1, 0, 2, 1 },
+			{ 0, 2, 3, 1, 1 },
+			{ 2, 0, 3, 1, -1 },
+			{ 0, 3, 2, 1, -1 },
+			{ 3, 0, 2, 1, 1 },
+			{ 2, 3, 0, 1, 1 },
+			{ 3, 2, 0, 1, -1 },
+			{ 1, 2, 3, 0, -1 },
+			{ 2, 1, 3, 0, 1 },
+			{ 1, 3, 2, 0, 1 },
+			{ 3, 1, 2, 0, -1 },
+			{ 2, 3, 1, 0, -1 },
+			{ 3, 2, 1, 0, 1 },
 		};
 		char Map[4][3] = { { 1, 2, 3 }, { 0, 2, 3 }, { 0, 1, 3 }, { 0, 1, 2 } };
 		float sum = 0, mul;
@@ -1729,59 +1758,73 @@ namespace PVX {
 	}
 
 	inline Vector3D operator+(const Vector3D& v1, const Vector3D& v2) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_add_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
 		}).Vec3;
-		//return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
+#else
+		return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
+#endif
 	}
 
 	inline Vector3D operator-(const Vector3D& v1, const Vector3D& v2) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_sub_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
 		}).Vec3;
-		//return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+#else
+		return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+#endif
 	}
 
 	inline Vector3D operator*(const Vector3D& v1, const Vector3D& v2) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_mul_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
 		}).Vec3;
-		//return { v1.x * v2.x, v1.y * v2.y, v1.z * v2.z };
+#else
+		return { v1.x * v2.x, v1.y * v2.y, v1.z * v2.z };
+#endif
 	}
 
 	inline Vector3D operator/(const Vector3D& v1, const Vector3D& v2) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_div_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set_ps(0, v2.z, v2.y, v2.x))
 		}).Vec3;
-		//return { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
+#else
+		return { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
+#endif
 	}
 
 	inline Vector3D operator*(const Vector3D& v1, float f) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_mul_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set1_ps(f))
 		}).Vec3;
-		//Vector3D out = v1;
-		//out.x *= f;
-		//out.y *= f;
-		//out.z *= f;
-		//return out;
+#else
+		return { v1.x * f, v1.y * f, v1.z * f };
+#endif
 	}
 
 	inline Vector3D operator*(float f, const Vector3D& v1) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_mul_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set1_ps(f))
 		}).Vec3;
-		//Vector3D out = v1;
-		//out.x *= f;
-		//out.y *= f;
-		//out.z *= f;
-		//return out;
+#else
+		return { v1.x * f, v1.y * f, v1.z * f };
+#endif
 	}
 
 	inline Vector3D operator/(const Vector3D& v1, float f) {
+#ifndef PVX_NO_INTRINSICS
 		return (PVX::Vector4D{
 			_mm_div_ps(_mm_set_ps(0, v1.z, v1.y, v1.x), _mm_set1_ps(f))
 		}).Vec3;
+#else
+		return { v1.x / f, v1.y / f, v1.z / f };
+#endif
 		//Vector3D out = v1;
 		//out.x /= f;
 		//out.y /= f;
@@ -1810,7 +1853,7 @@ namespace PVX {
 			Out.i = (m.m21 - m.m12) / S;
 			Out.j = (m.m02 - m.m20) / S;
 			Out.k = (m.m10 - m.m01) / S;
-		} else if ((m.m00 > m.m11)&(m.m00 > m.m22)) {
+		} else if ((m.m00 > m.m11)&&(m.m00 > m.m22)) {
 			float S = sqrt(1.0f + m.m00 - m.m11 - m.m22) * 2.0f; // S=4*Out.i 
 			Out.r = (m.m21 - m.m12) / S;
 			Out.i = 0.25f * S;
@@ -1852,6 +1895,7 @@ namespace PVX {
 
 
 	inline Vector3D operator*(const Vector3D& v, const Matrix4x4& m) {
+#ifndef PVX_NO_INTRINSICS
 		float out[4];
 		__m128 to, t;
 		__m128 vc = _mm_load_ps1(&v.x);
@@ -1873,6 +1917,13 @@ namespace PVX {
 
 		_mm_storeu_ps(out, to);
 		return *(Vector3D*)out;
+#else
+		return{
+			v.x*m.m00 + v.y*m.m10 + v.z*m.m20 + m.m30,
+			v.x*m.m01 + v.y*m.m11 + v.z*m.m21 + m.m31,
+			v.x*m.m02 + v.y*m.m12 + v.z*m.m22 + m.m32
+		};
+#endif
 	}
 
 	inline Vector2D operator*(const Vector2D& v, const Matrix4x4& m) {
@@ -1969,6 +2020,7 @@ namespace PVX {
 	//	return ret;
 	//}
 
+#ifndef PVX_NO_INTRINSICS
 	inline __m256 twolincomb_AVX_8(__m256 A01, const PVX::Matrix4x4& B) {
 		__m256 result;
 		result = _mm256_mul_ps(_mm256_shuffle_ps(A01, A01, 0x00), _mm256_broadcast_ps((__m128*)B.Vec0.Array));
@@ -1996,6 +2048,7 @@ namespace PVX {
 		matmult_AVX_8(ret, m2, m1);
 		return ret;
 	}
+#endif
 
 	//inline Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) {
 	//	return Matrix4x4{

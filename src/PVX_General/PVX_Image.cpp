@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include <PVX_Image.h>
 #include <map>
 #include <PVX_File.h>
@@ -635,7 +637,7 @@ namespace PVX {
 		if (Channels == 4) {
 			PVX::Vector4D* p = (PVX::Vector4D*) Data.data();
 			for (auto i = 0; i<pCount; i++) {
-				p[i] = { (p[i].Vec3 * mul + bias).Normalized(), p[i].w };
+				p[i] = PVX::Vector4D{ (p[i].Vec3 * mul + bias).Normalized(), p[i].w };
 			}
 		} else {
 			PVX::Vector3D* p = (PVX::Vector3D*) Data.data();

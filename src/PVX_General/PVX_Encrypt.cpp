@@ -2,7 +2,7 @@
 
 namespace PVX::Encrypt {
 	using u32 = unsigned int;
-	using u64 = unsigned long long;
+	using u64 = uint64_t;
 
 	inline u32 leftrotate(u32 v, int i) {
 		return (v << i) | (v >> (32-i));

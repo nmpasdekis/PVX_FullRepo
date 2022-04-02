@@ -18,7 +18,7 @@
 #include <shared_mutex>
 #include <atomic>
 
-typedef unsigned long long SOCKET_type;
+typedef uint64_t SOCKET_type;
 
 // C:\Users\PerVertEX\Google Drive\C++ Projects 2016\Libraries64\OpenSSL\bin64
 
@@ -130,7 +130,8 @@ namespace PVX {
 			UtfHelper(const wchar_t *);
 			UtfHelper(const std::vector<unsigned char> &);
 			UtfHelper(const std::string &);
-			UtfHelper & operator=(const std::wstring &);
+			UtfHelper& operator=(const std::wstring&);
+			UtfHelper& operator=(const wchar_t*);
 			std::wstring * operator->();
 			std::wstring & operator()();
 			operator std::wstring&();
@@ -174,7 +175,7 @@ namespace PVX {
 			std::vector<MultipartFromPart> Multipart;
 			std::vector<unsigned char> GetMultiFormData(const MultipartFromPart& part);
 			std::wstring operator[](const std::wstring& Name);
-			long long operator()(const std::wstring & Name);
+			int64_t operator()(const std::wstring & Name);
 			TcpSocket Socket;
 			std::map<std::wstring, std::wstring> GetVariableMap() const;
 			void BasicAuthentication(std::function<void(const std::wstring& Username, const std::wstring& Password)> clb);
@@ -460,7 +461,7 @@ namespace PVX {
 		public:
 			class HttpResponse {
 			protected:
-				HttpClient::HttpResponse();
+				HttpResponse();
 				friend class HttpClient;
 				std::vector<unsigned char> Data;
 				std::wstring Protocol;

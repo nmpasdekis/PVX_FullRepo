@@ -3,8 +3,20 @@
 #include <PVX_Encrypt.h>
 #include <PVX_File.h>
 #include <sstream>
+#include <PVX.inl>
 
 namespace PVX::Network {
+#ifdef __linux
+	inline struct tm* localtime_s(struct tm* buf, const time_t* timer) {
+		*buf = *localtime(timer);
+		return buf;
+	}
+	//inline struct tm* localtime_r(struct tm* buf, const time_t* timer) {
+	//	*buf = *localtime(timer);
+	//	return buf;
+	//}
+#endif
+
 	UtfHelper & HttpResponse::operator[](const std::wstring & Name) {
 		std::wstring name = Name;
 		for (auto & c : name) if (c >= 'A'&&c <= 'Z') { c += 'a' - 'A'; }
@@ -53,6 +65,7 @@ namespace PVX::Network {
 		FILE * fin;
 		Content.GetDataVector().reserve(BufferSize);
 		unsigned char * Data = Content.GetData();
+
 		if (_wfopen_s(&fin, Filename.c_str(), L"rb"))return 404;
 
 
@@ -84,6 +97,7 @@ namespace PVX::Network {
 	}
 
 	int HttpResponse::SingleRangeFile(size_t Offset, size_t Size, const std::wstring & Filename, int FragmentSize) {
+		using namespace std::string_literals;
 		StatusCode = 206;
 		Headers[L"content-type"] = PVX::Encode::ToString(Server->GetMime(PVX::IO::FileExtension(Filename)));
 		using namespace PVX::IO;
@@ -92,6 +106,7 @@ namespace PVX::Network {
 		FILE * fin;
 		Content.GetDataVector().reserve(FragmentSize);
 		unsigned char * Data = Content.GetData();
+
 		if (_wfopen_s(&fin, Filename.c_str(), L"rb")) {
 			StatusCode = 404;
 			return 1;
@@ -104,7 +119,8 @@ namespace PVX::Network {
 
 		if (Size + Offset > fsz) Size = fsz - Offset;
 
-		Headers[L"content-range"] = (std::wstringstream() << L"bytes " << Offset << L"-" << (Size + Offset - 1) << L"/" << fsz).str();
+		//Headers[L"content-range"] = (std::wstringstream() << L"bytes " << Offset << L"-" << (Size + Offset - 1) << L"/" << fsz).str();
+		Headers[L"content-range"] = L"bytes "s + std::to_wstring(Offset) + L"-"s + std::to_wstring(Size + Offset - 1) + L"/"s + std::to_wstring(fsz);
 		Headers[L"ETag"] = Filename;
 
 		fseek(fin, Offset, SEEK_SET);
@@ -274,9 +290,7 @@ namespace PVX::Network {
 		Headers[L"date"] = GetDate();
 
 		if (ContentLength) {
-			wchar_t tmp[128];
-			_ui64tow_s(ContentLength, tmp, 128, 10);
-			Headers[L"content-length"] = tmp;
+			Headers[L"content-length"] = std::to_wstring(ContentLength);
 		}
 
 		for (auto & [Name, Value] : Headers) Response << Name << ": " << (std::wstring)Value << "\r\n";

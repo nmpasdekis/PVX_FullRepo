@@ -202,6 +202,7 @@ namespace PVX::XML {
 					out << L" " << Name << L"=\"" << Value << L"\"";
 				out << L">";
 				break;
+			default: break;
 		}
 	}
 
@@ -256,6 +257,7 @@ namespace PVX::XML {
 			case Element::ElementType::CDATA:
 				ret[L"Value"] = xml.Text;
 				break;
+			default: break;
 		}
 		return ret;
 	}
@@ -275,18 +277,18 @@ namespace PVX::XML {
 	Element FromJson(const PVX::JSON::Item& xml) {
 		Element ret;
 		ret.Type = GetType(xml);
-		if (auto &Value = *xml.Has(L"Value"); &Value) {
-			ret.Text = Value.GetString();
+		if (auto Value = xml.Has(L"Value"); Value) {
+			ret.Text = Value->GetString();
 		} else {
 			ret.Text = xml.Get(L"Name").GetString();
 			ret.Name = PVX::String::ToLower(ret.Text);
-			if (auto &attributes = *xml.Has(L"_Attributes"); &attributes) {
-				attributes.eachInObject([&](auto Name, auto Value) {
+			if (auto attributes = xml.Has(L"_Attributes"); attributes) {
+				attributes->eachInObject([&](auto Name, auto Value) {
 					ret._Attributes[Name] = Value.GetString();
 				});
 			}
-			if (auto & children = *xml.Has(L"Children"); &children) {
-				children.each([&](const auto& Child) {
+			if (auto children = xml.Has(L"Children"); children) {
+				children->each([&](const auto& Child) {
 					ret._Child.push_back(FromJson(Child));
 				});
 			}

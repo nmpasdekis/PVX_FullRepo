@@ -2,13 +2,24 @@
 #define NOMINMAX
 
 #include <functional>
-//#include <cmath>
 
+#ifndef __linux
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
 #pragma comment (lib, "Ws2_32.lib")
-#pragma comment(lib, "fwpuclnt.lib")
+#pragma comment (lib, "fwpuclnt.lib")
+#else
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+using SOCKET = int;
+#define closesocket close
+#define INVALID_SOCKET  (SOCKET)(~0)
+#define SOCKET_ERROR            (-1)
+#endif
 
 #include <PVX_Network.h>
 
@@ -17,7 +28,9 @@ namespace {
 	using ReceiveCLB = int (*)(void* sock, void*, size_t sz);
 	using ReleaseCLB = void (*)(void*);
 
+#ifdef _WINDOWS
 	static WSAData Windows_Socket_Data;
+#endif
 	struct Callbacks {
 		SendCLB Send;
 		ReceiveCLB Recv;
@@ -72,7 +85,9 @@ namespace {
 	class __initSockets {
 	public:
 		__initSockets() {
+#ifndef __linux
 			WSAStartup(MAKEWORD(2, 2), &Windows_Socket_Data);
+#endif
 			StandartActions.Send = [](void* sock, const void* Data, size_t Size) {
 				return send(((socketData*)sock)->Socket, (const char*)Data, (int)Size, 0);
 			};
@@ -81,7 +96,9 @@ namespace {
 			};
 			StandartActions.Release = StandartRelease;
 		}
+#ifndef __linux
 		~__initSockets() { WSACleanup(); }
+#endif
 	} ___initSockets;
 
 
@@ -269,7 +286,7 @@ namespace PVX::Network {
 		ServingThread = std::make_unique<std::thread>([this, Event, Transform] {
 			while (Running) {
 				sockaddr info;
-				int len = sizeof(sockaddr);
+				socklen_t len = sizeof(sockaddr);
 				auto ss = accept((SOCKET)ServingSocket, &info, &len);
 				if (ss != -1) {
 					{

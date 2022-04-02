@@ -333,7 +333,7 @@ namespace PVX::Network {
 
 		auto Out = PVX::Encrypt::SHA1_Algorithm().Update(msg)();
 
-		return PVX::Encode::Base64(Out);
+		return PVX::Encode::Base64(Out.data(), Out.size());
 	}
 	std::function<void(HttpRequest&, HttpResponse&)> WebSocketServer::GetHandler() {
 		return [this](HttpRequest& req, HttpResponse& resp) {

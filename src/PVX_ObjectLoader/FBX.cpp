@@ -1066,7 +1066,7 @@ namespace PVX::Object3D {
 		return hier;
 	}
 
-	static void LoadNode(FbxNode* Node, Object& scene, long long ParentIndex) {
+	static void LoadNode(FbxNode* Node, Object& scene, int64_t ParentIndex) {
 		auto h = ReadTransform(Node);
 		h.ParentIndex = ParentIndex;
 		ParentIndex = scene.Heirarchy.size();
@@ -1085,7 +1085,7 @@ namespace PVX::Object3D {
 		}
 	}
 
-	//void MakeTransform(FbxLoad& tree, std::vector<Transform>& Hier, long long ParentIndex) {
+	//void MakeTransform(FbxLoad& tree, std::vector<Transform>& Hier, int64_t ParentIndex) {
 	//	tree.TransformItem.ParentIndex = ParentIndex;
 	//	tree.TransformItem.Name = tree.Name;
 	//	ParentIndex = Hier.size();

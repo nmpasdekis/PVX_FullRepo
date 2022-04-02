@@ -1,7 +1,10 @@
 #ifndef __PVX_FILE_H__
 #define __PVX_FILE_H__
 
+#ifndef __linux
 #include<Windows.h>
+#endif
+
 #include<vector>
 #include<string>
 #include<PVX_json.h>
@@ -9,20 +12,21 @@
 #include<functional>
 #include<mutex>
 #include<fstream>
-#include <PVX_Encode.h>
+#include <filesystem>
+#include<PVX_Encode.h>
 
 namespace PVX {
 	namespace IO {
 		class ChangeTracker {
-			HANDLE hFile;
-			unsigned long long LastTime;
 			std::wstring Filename;
+			std::filesystem::file_time_type LastTime;
 			void GetLastTime();
 		public:
 			ChangeTracker(const std::wstring& Filename);
 			operator bool();
 			operator std::wstring();
 		};
+
 		class ChangeEventer {
 			struct Events {
 				ChangeTracker File;
@@ -37,7 +41,6 @@ namespace PVX {
 			~ChangeEventer();
 			void Track(const std::wstring& Filename, std::function<void()> clb);
 		};
-
 		class Text {
 			unsigned char buffer[512];
 			size_t BufferPosition, BufferSize;
@@ -106,7 +109,7 @@ namespace PVX {
 		};
 
 		inline void ReadLines(const std::string& Filename, std::function<void(const std::string&)> clb) {
-			std::ifstream fin(Filename);
+			std::ifstream fin(Filename.c_str());
 			if (fin.fail())return;
 			std::string line;
 			while (!fin.eof()) {
@@ -116,7 +119,11 @@ namespace PVX {
 		}
 
 		inline void ReadLines(const std::wstring& Filename, std::function<void(const std::string&)> clb) {
-			std::ifstream fin(Filename);
+#ifndef __linux
+			std::ifstream fin(Filename.c_str());
+#else
+			std::ifstream fin((char*)PVX::Encode::UTF0(Filename.c_str()).data());
+#endif
 			if (fin.fail())return;
 			std::string line;
 			while (!fin.eof()) {
@@ -126,7 +133,7 @@ namespace PVX {
 		}
 
 		inline void ReadLinesUTF(const std::string& Filename, std::function<void(const std::wstring&)> clb) {
-			std::ifstream fin(Filename);
+			std::ifstream fin(Filename.c_str());
 			if (fin.fail())return;
 			std::string line;
 			while (!fin.eof()) {
@@ -136,7 +143,11 @@ namespace PVX {
 		}
 
 		inline void ReadLinesUTF(const std::wstring& Filename, std::function<void(const std::wstring&)> clb) {
-			std::ifstream fin(Filename);
+#ifndef __linux
+			std::ifstream fin(Filename.c_str());
+#else
+			std::ifstream fin((char*)PVX::Encode::UTF0(Filename.c_str()).data());
+#endif
 			if (fin.fail())return;
 			std::string line;
 			while (!fin.eof()) {
@@ -185,10 +196,6 @@ namespace PVX {
 		void MakeDirectory(const std::string& Directory);
 		void MakeDirectory(const std::wstring& Directory);
 
-		std::string OpenFileDialog(HWND Parent, const char* Filter, const char* Filename = 0);
-		std::wstring OpenFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename = 0);
-		std::string SaveFileDialog(HWND Parent, const char* Filter, const char* Filename = 0);
-		std::wstring SaveFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename = 0);
 		JSON::Item LoadJson(const char* Filename);
 		JSON::Item LoadJson(const wchar_t* Filename);
 		std::wstring wCurrentPath();
@@ -209,6 +216,14 @@ namespace PVX {
 
 		std::string ReplaceExtension(const std::string& Filename, const std::string& NewExtension);
 		std::wstring ReplaceExtension(const std::wstring& Filename, const std::wstring& NewExtension);
+
+
+#ifdef _WINDOWS
+		std::string OpenFileDialog(HWND Parent, const char* Filter, const char* Filename = 0);
+		std::wstring OpenFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename = 0);
+		std::string SaveFileDialog(HWND Parent, const char* Filter, const char* Filename = 0);
+		std::wstring SaveFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename = 0);
+#endif
 	};
 	class BinWriter {
 		FILE* fout;

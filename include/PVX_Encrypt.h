@@ -26,8 +26,8 @@ namespace PVX::Encrypt {
 		unsigned int h2 = 0x98BADCFE;
 		unsigned int h3 = 0x10325476;
 		unsigned int h4 = 0xC3D2E1F0;
-		unsigned long long BitCount = 0;
-		unsigned long long More = 0;
+		uint64_t BitCount = 0;
+		uint64_t More = 0;
 		unsigned char tmp[128]{ 0 };
 	protected:
 		void ProcessBlock(void* Block);
@@ -50,8 +50,8 @@ namespace PVX::Encrypt {
 		unsigned int h5 = 0x9b05688c;
 		unsigned int h6 = 0x1f83d9ab;
 		unsigned int h7 = 0x5be0cd19;
-		unsigned long long BitCount = 0;
-		unsigned long long More = 0;
+		uint64_t BitCount = 0;
+		uint64_t More = 0;
 		unsigned char tmp[128]{ 0 };
 	protected:
 		void ProcessBlock(void* Block);
@@ -66,16 +66,16 @@ namespace PVX::Encrypt {
 	};
 	class SHA512_Algorithm {
 	private:
-		unsigned long long h0 = 0x6a09e667f3bcc908;
-		unsigned long long h1 = 0xbb67ae8584caa73b;
-		unsigned long long h2 = 0x3c6ef372fe94f82b;
-		unsigned long long h3 = 0xa54ff53a5f1d36f1;
-		unsigned long long h4 = 0x510e527fade682d1;
-		unsigned long long h5 = 0x9b05688c2b3e6c1f;
-		unsigned long long h6 = 0x1f83d9abfb41bd6b;
-		unsigned long long h7 = 0x5be0cd19137e2179;
-		unsigned long long BitCount = 0;
-		unsigned long long More = 0;
+		uint64_t h0 = 0x6a09e667f3bcc908;
+		uint64_t h1 = 0xbb67ae8584caa73b;
+		uint64_t h2 = 0x3c6ef372fe94f82b;
+		uint64_t h3 = 0xa54ff53a5f1d36f1;
+		uint64_t h4 = 0x510e527fade682d1;
+		uint64_t h5 = 0x9b05688c2b3e6c1f;
+		uint64_t h6 = 0x1f83d9abfb41bd6b;
+		uint64_t h7 = 0x5be0cd19137e2179;
+		uint64_t BitCount = 0;
+		uint64_t More = 0;
 		unsigned char tmp[256]{ 0 };
 	protected:
 		void ProcessBlock(void* Block);

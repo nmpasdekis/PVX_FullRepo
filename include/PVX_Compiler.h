@@ -25,7 +25,7 @@ namespace PVX::Script {
 		inline void Release() {
 			switch (tp) {
 				case Type::Boolean: delete ((bool*)Data);	break;
-				case Type::Integer: delete ((long long*)Data); break;
+				case Type::Integer: delete ((int64_t*)Data); break;
 				case Type::Float: delete ((double*)Data); break;
 				case Type::String: delete ((std::wstring*)Data); break;
 				case Type::Object: delete ((std::unordered_map<std::wstring, Variant>*)Data); break;
@@ -37,8 +37,8 @@ namespace PVX::Script {
 	public:
 		~Variant() { Release(); }
 		Variant() = default;
-		Variant(const int v) :tp{ Type::Integer }, Data{ new long long { v } } {}
-		Variant(const long long v) :tp{ Type::Integer }, Data{ new long long { v } } {}
+		Variant(const int v) :tp{ Type::Integer }, Data{ new int64_t { v } } {}
+		Variant(const int64_t v) :tp{ Type::Integer }, Data{ new int64_t { v } } {}
 		Variant(const float v) :tp{ Type::Float }, Data{ new double { v } } {}
 		Variant(const double v) :tp{ Type::Float }, Data{ new double { v } } {}
 		Variant(const bool v) :tp{ Type::Boolean }, Data{ new bool { v } } {}
@@ -46,25 +46,25 @@ namespace PVX::Script {
 		Variant(const std::wstring& v) :tp{ Type::String }, Data{ new std::wstring { v } } {}
 		Variant(const std::unordered_map<std::wstring, Variant>& v) :tp{ Type::Object }, Data{ new std::unordered_map<std::wstring, Variant>{ v } } {}
 		Variant(const std::vector<Variant>& v) :tp{ Type::Array }, Data{ new std::vector<Variant> { v } } {}
-		Variant(const nullptr_t v) :tp{ Type::Null }, Data{ nullptr } {}
+		Variant(const std::nullptr_t v) :tp{ Type::Null }, Data{ nullptr } {}
 
-		inline Variant& operator=(const int v) { Release(); tp = Type::Integer; Data = new long long{ v }; return *this; };
-		inline Variant& operator=(const long long v) { Release(); tp = Type::Integer; Data = new long long{ v }; return *this; };
+		inline Variant& operator=(const int v) { Release(); tp = Type::Integer; Data = new int64_t{ v }; return *this; };
+		inline Variant& operator=(const int64_t v) { Release(); tp = Type::Integer; Data = new int64_t{ v }; return *this; };
 		inline Variant& operator=(const double v) { Release(); tp = Type::Float; Data = new double{ v }; return *this; };
 		inline Variant& operator=(const float v) { Release(); tp = Type::Float; Data = new double{ v }; return *this; };
 		inline Variant& operator=(const bool v) { Release(); tp = Type::Boolean; Data = new bool{ v }; return *this; };
 		inline Variant& operator=(const std::wstring v) { Release(); tp = Type::String; Data = new std::wstring{ v }; return *this; };
 		inline Variant& operator=(const std::unordered_map<std::wstring, Variant>& v) { Release(); tp = Type::Integer; Data = new std::unordered_map<std::wstring, Variant>{ v }; return *this; };
 		inline Variant& operator=(const std::vector<Variant>& v) { Release(); tp = Type::Integer; Data = new std::vector<Variant>{ v }; return *this; };
-		inline Variant& operator=(const nullptr_t v) { Release(); tp = Type::Integer; Data =nullptr; return *this; };
+		inline Variant& operator=(const std::nullptr_t v) { Release(); tp = Type::Integer; Data =nullptr; return *this; };
 
 		template<typename T> T& Get() { return *(T*)Data; }
 		template<typename T> T& Get() const { return *(T*)Data; }
 		inline Type GetType() { return tp; }
-		inline long long ToInteger() const {
+		inline int64_t ToInteger() const {
 			switch (tp) {
 				case Type::Boolean: return (*(bool*)Data);
-				case Type::Integer: return (*(long long*)Data);
+				case Type::Integer: return (*(int64_t*)Data);
 				case Type::Float: return (*(double*)Data);
 				case Type::String: return std::stoi((*(std::wstring*)Data).c_str());
 				default: return 0;
@@ -73,7 +73,7 @@ namespace PVX::Script {
 		inline double ToFloat() const {
 			switch (tp) {
 				case Type::Boolean: return (*(bool*)Data);
-				case Type::Integer: return (*(long long*)Data);
+				case Type::Integer: return (*(int64_t*)Data);
 				case Type::Float: return (*(double*)Data);
 				case Type::String: return std::stod((*(std::wstring*)Data).c_str());
 				default: return 0;
@@ -82,7 +82,7 @@ namespace PVX::Script {
 		inline std::wstring ToString() const {
 			switch (tp) {
 				case Type::Boolean: return ((*(bool*)Data)) ? L"true" : L"false";
-				case Type::Integer: return std::to_wstring(*(long long*)Data);
+				case Type::Integer: return std::to_wstring(*(int64_t*)Data);
 				case Type::Float: return std::to_wstring(*(double*)Data);
 				case Type::String: return (*(std::wstring*)Data);
 				default: return L"";
@@ -91,7 +91,7 @@ namespace PVX::Script {
 		inline bool ToBoolean() const {
 			switch (tp) {
 				case Type::Boolean: return (*(bool*)Data);
-				case Type::Integer: return (*(long long*)Data);
+				case Type::Integer: return (*(int64_t*)Data);
 				case Type::Float: return (*(double*)Data);
 				case Type::String: return (*(std::wstring*)Data)==L"true";
 				default: return 0;
@@ -103,7 +103,7 @@ namespace PVX::Script {
 				case Type::Boolean:
 					switch (v.tp) {
 						case Type::Boolean: return Variant(ToInteger() + v.ToInteger());
-						case Type::Integer: return Variant(Get<long long>() + v.Get<long long>());
+						case Type::Integer: return Variant(Get<int64_t>() + v.Get<int64_t>());
 						case Type::Float: return Variant(ToInteger() + v.Get<double>());
 						case Type::String: return Variant(ToString() + v.Get<std::wstring>());
 						default: return nullptr;
@@ -111,8 +111,8 @@ namespace PVX::Script {
 				case Type::Integer:
 					switch (v.tp) {
 						case Type::Boolean:
-						case Type::Integer: return Variant(Get<long long>() + v.Get<long long>());
-						case Type::Float: return Variant(Get<long long>() + v.Get<double>());
+						case Type::Integer: return Variant(Get<int64_t>() + v.Get<int64_t>());
+						case Type::Float: return Variant(Get<int64_t>() + v.Get<double>());
 						case Type::String: return Variant(ToString() + v.Get<std::wstring>());
 						default: return nullptr;
 					}

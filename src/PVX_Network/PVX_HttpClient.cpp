@@ -1,5 +1,6 @@
 #include <PVX_Network.h>
 #include <PVX_Encode.h>
+#include <string>
 #include <sstream>
 #include <PVX_String.h>
 #include <PVX.inl>
@@ -175,10 +176,8 @@ namespace PVX {
 		HttpClient::HttpResponse HttpClient::Post(const std::vector<unsigned char> & Data) {
 			HttpClient::HttpResponse ret;
 			TcpSocket Socket;
-			wchar_t buff[128];
 			if (Data.size()) {
-				_ui64tow_s(Data.size(), buff, 128, 10);
-				headers["content-length"] = buff;
+				headers["content-length"] = std::to_wstring(Data.size());
 			}
 			auto Header = MakeHeader("POST");
 
@@ -347,11 +346,12 @@ namespace PVX {
 		std::wstring HttpClient::MakeHeader(const char * Verb) {
 			using namespace PVX::Encode;
 			std::wstringstream ret;
-
-			ret << ToString((std::stringstream() << 
-				Verb << " " << path << " HTTP/1.1\r\n" <<
-				"Host: " << domain << "\r\n").str());
-
+			{
+				std::stringstream tmp;
+				tmp << Verb << " " << path << " HTTP/1.1\r\n" <<
+					"Host: " << domain << "\r\n";
+				ret << ToString(tmp.str());
+			}
 			for (auto & h : headers) {
 				ret << ToString(h.first) << L": " << h.second() << L"\r\n";
 			}
@@ -392,7 +392,7 @@ namespace PVX {
 				if (onReceiveHeader != nullptr) onReceiveHeader(Header);
 				auto Lines = Split_No_Empties_Trimed(Header, L"\r\n");
 				Proto = Lines[0].substr(0, Lines[0].find(L'/'));
-				Status = _wtoi(Lines[0].substr(Lines[0].find(L' ')).c_str());
+				Status = std::stoi(Lines[0].substr(Lines[0].find(L' ')));
 
 				Headers.resize(Lines.size() - 1);
 
@@ -402,7 +402,7 @@ namespace PVX {
 					return std::make_pair(ar[0], ar[1]);
 				});
 			}
-			size_t ContentLenght = 0;
+			uint64_t ContentLenght = 0;
 			int IsChunked = 0;
 			int IsDeflated = 0;
 
@@ -414,7 +414,7 @@ namespace PVX {
 					if (h2.find(L"chunked") != std::wstring::npos) 
 						IsChunked = 1;
 				} else if (Name == L"content-length") {
-					ContentLenght = _wtoi64(Value.c_str());
+					ContentLenght = std::stoll(Value);
 				} else if (Name == L"set-cookie") {
 					auto c = Split_No_Empties_Trimed(Value, L";");
 					auto cookie = Split_Trimed(c[0], L"=");

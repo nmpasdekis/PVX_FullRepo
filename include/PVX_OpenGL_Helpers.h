@@ -108,7 +108,7 @@ namespace PVX::OpenGL::Helpers {
 		PVX::Matrix4x4	PostScale;
 		PVX::Matrix4x4	Result;
 
-		long long			ParentIndex;
+		int64_t			ParentIndex;
 		PVX::RotationOrder	RotationOrder;
 
 		inline TransformConstant(const PVX::Object3D::Transform& t) :

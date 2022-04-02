@@ -419,7 +419,7 @@ namespace PVX::Windows {
 
 	void Eventer::GetRawInput(std::function<void(const RAWINPUT&)> lmd) {
 		UINT dwSize = 1024;
-		using QWORD = unsigned long long;
+		using QWORD = uint64_t;
 		std::vector<unsigned char> RawInput(1024);
 		auto res = GetRawInputBuffer(0, &dwSize, sizeof(RAWINPUTHEADER));
 		if (!res && dwSize) {

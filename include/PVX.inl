@@ -1,17 +1,20 @@
 #ifndef __PVX_INL__
 #define __PVX_INL__
 
-#include<vector>
-#include<map>
-#include<functional>
-#include<random>
+#include <vector>
+#include <map>
+#include <functional>
+#include <random>
 #include <initializer_list>
 #include <set>
 #include <algorithm>
 #include <future>
-#include <execution>
 #include <type_traits>
+#include <numeric>
 
+#ifdef _USE_PARALLEL_
+#include <execution>
+#endif
 
 #ifdef __PVX_InitialValue__
 #define __InitialValue1__(x) x
@@ -26,6 +29,24 @@
 #define __InitialValue512__(x) __InitialValue256__(x), __InitialValue256__(x)
 #define __InitialValue1024__(x) __InitialValue512__(x), __InitialValue512__(x)
 #endif
+
+#ifdef __linux
+#define fread_s(data, buf, size, count, file) fread(data, size, count, file)
+#define memcpy_s(dest, dstSize, src, byteCount) memcpy(dest, src, byteCount)
+
+inline bool _wfopen_s(FILE** fl, const wchar_t* filename, const wchar_t* mode) {
+	char md[5];
+	int i;
+	for (i = 0; mode[i]; i++) md[i] = char(mode[i]); md[i] = 0;
+	*fl = fopen((const char*)PVX::Encode::UTF0(filename).data(), md);
+	return *fl == nullptr;
+}
+inline bool fopen_s(FILE** fl, const char* filename, const char* mode) {
+	*fl = fopen(filename, mode);
+	return *fl == nullptr;
+}
+#endif
+
 
 namespace PVX {
 	class Timer {
@@ -114,10 +135,10 @@ namespace PVX {
 		return std::make_pair(ret1, ret2);
 	}
 	template<typename T>
-	inline long long IndexOf(const std::vector<T>& Array, std::function<bool(decltype(Array[0])& a)> fnc) {
+	inline int64_t IndexOf(const std::vector<T>& Array, std::function<bool(decltype(Array[0])& a)> fnc) {
 		for (auto i = 1; i < Array.size(); i++) {
 			if (fnc(Array[i]))
-				return (long long)i;
+				return (int64_t)i;
 		}
 		return -1;
 	}
@@ -205,10 +226,12 @@ namespace PVX {
 	void forEach(const std::vector<T>& Array, T2 fnc) {
 		std::for_each(Array.begin(), Array.end(), fnc);
 	}
+#ifdef _USE_PARALLEL_
 	template<typename T>
 	void forEach_Parallel(const std::vector<T>& Array, std::function<void(T&)> fnc) {
 		std::for_each(std::execution::par, Array.begin(), Array.end(), fnc);
 	}
+#endif
 	template<typename KeyType, typename ValueType>
 	void forEach(const std::map<KeyType, ValueType>& Map, std::function<void(const KeyType&, const ValueType&)> fnc) {
 		std::for_each(Map.begin(), Map.end(), [fnc](const std::pair<KeyType, ValueType>& p) {
@@ -231,7 +254,7 @@ namespace PVX {
 	//	for (auto& x: Array) ret.emplace_back(clb(x));
 	//	return std::move(ret);
 	//}
-
+#ifdef _USE_PARALLEL_
 	template<typename T1, typename T2>
 	inline auto Map_Parallel2(const std::vector<T1>& Array, T2 fnc) {
 		using returnType = decltype(fnc(Array[0]));
@@ -243,6 +266,7 @@ namespace PVX {
 		});
 		return ret;
 	}
+#endif
 
 	template<typename T>
 	bool All(const T& Container, std::function<bool(const decltype(Container[0])&)> pred) {
@@ -323,13 +347,13 @@ namespace PVX {
 
 	template<typename Container, typename result, typename Operation>
 	inline result Reduce(const Container& Array, const result& Default, Operation Op) {
-		return std::reduce(Array.begin(), Array.end(), Default, Op);
+		return std::accumulate(Array.begin(), Array.end(), Default, Op);
 	}
 
 	class RefCounter {
 		int* ref;
 	public:
-		inline RefCounter() : ref{ new int[1] } { *ref = 1; }
+		inline RefCounter() : ref{ new int(1) } {}
 		inline RefCounter(RefCounter&& r) : ref{ r.ref } { (*ref)++; }
 		inline RefCounter(const RefCounter& r) : ref{ r.ref } { (*ref)++; }
 		inline ~RefCounter() {
@@ -346,9 +370,9 @@ namespace PVX {
 		inline int operator++() { return (*ref)++; }
 	};
 
-	inline long long IndexOfBinary(const unsigned char* Data, long long DataSize, const unsigned char* Find, long long FindSize, long long Start = 0) {
+	inline int64_t IndexOfBinary(const unsigned char* Data, int64_t DataSize, const unsigned char* Find, int64_t FindSize, int64_t Start = 0) {
 		DataSize -= FindSize;
-		for (long long i = Start; i < DataSize; i++) {
+		for (int64_t i = Start; i < DataSize; i++) {
 			if (!memcmp(Data + i, Find, FindSize)) return i;
 		}
 		return -1;
@@ -392,7 +416,9 @@ namespace PVX {
 	}
 
 	inline std::vector<uint8_t> Interleave(const std::vector<std::pair<void*, int>>& Items, size_t Count) {
-		int OutStride = PVX::Reduce(Items, 0, [](int acc, const std::pair<void*, int>& it) { return acc + it.second; });
+		int OutStride = PVX::Reduce(Items, 0, [](auto acc, const auto& it) { 
+			return acc + it.second; 
+		});
 		std::vector<uint8_t> ret(OutStride * Count);
 		int offset = 0;
 		for (auto& [ptr, Stride] : Items) {

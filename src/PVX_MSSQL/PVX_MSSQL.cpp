@@ -242,7 +242,7 @@ namespace PVX {
 			if (r.Read() && !r.IsNullOrEmpty(0)) return r[0].WCharArray;
 			return L"[]";
 		}
-		long long SQL::Exist(const std::wstring & Table, const std::vector<ParamTuple>& Values, const std::wstring& Where) {
+		int64_t SQL::Exist(const std::wstring & Table, const std::vector<ParamTuple>& Values, const std::wstring& Where) {
 			std::wstring q = L"SELECT count(*) 'Count'\nFROM " + Table;
 			if (Where.size()) q += L"\nWHERE " + Where;
 			else q += L"\nWHERE " + PVX::String::Join(Values, L" AND ", [](const ParamTuple& p) { return L"[" + p.Name + L"] = @" + p.Name; });
@@ -301,7 +301,7 @@ namespace PVX {
 			return JsonInsert(Table, ToParams(Params), ReturnFields);
 		}
 
-		long long SQL::ExistJson(const std::wstring & Table, const PVX::JSON::Item & Values, const std::wstring & Where) {
+		int64_t SQL::ExistJson(const std::wstring & Table, const PVX::JSON::Item & Values, const std::wstring & Where) {
 			return Exist(Table, ToParams(Values), Where);
 		}
 
@@ -628,7 +628,7 @@ namespace PVX {
 			//SQLRETURN err;
 			//SQLLEN	indPtr;
 
-			long long	FieldSize, ssType;
+			int64_t	FieldSize, ssType;
 
 			for (SQLSMALLINT i = 1; i <= sNumResults; i++) {
 				SQLDescribeColA(hStmt, i, ColumnName, 1024, &NameLength, &DataType, &ColumnSize, &DecimalDigits, &Nullable);
@@ -656,7 +656,7 @@ namespace PVX {
 		}
 		Parameter::Parameter(const int & Value) : Data(8) {
 			IsBig = 0;
-			*(long long*)&Data[0] = Value;
+			*(int64_t*)&Data[0] = Value;
 			cType = SQL_C_SBIGINT;
 			Type = SQL_BIGINT;
 			ColumnSize = BufferSize = len = Data.size();
@@ -675,9 +675,9 @@ namespace PVX {
 			Type = SQL_FLOAT;
 			ColumnSize = BufferSize = len = Data.size();
 		}
-		Parameter::Parameter(const long long & Value) : Data(8) {
+		Parameter::Parameter(const int64_t & Value) : Data(8) {
 			IsBig = 0;
-			*(long long*)&Data[0] = Value;
+			*(int64_t*)&Data[0] = Value;
 			cType = SQL_C_SBIGINT;
 			Type = SQL_BIGINT;
 			ColumnSize = BufferSize = len = Data.size();

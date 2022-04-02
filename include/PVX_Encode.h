@@ -6,6 +6,7 @@
 #include<array>
 #include<type_traits>
 #include<string_view>
+#include<cstring>
 
 namespace PVX{
 	namespace Encode{
@@ -21,9 +22,10 @@ namespace PVX{
 		std::string Base64Url(const void* data, size_t size, bool NoPadding = false);
 		template<typename T>
 		inline std::string Base64Url(const T& data, bool NoPadding = false) { return Base64Url(data.data(), data.size(), NoPadding); }
-		inline std::string Base64Url(const char* data, bool NoPadding = false) { return Base64Url(data, strlen(data), NoPadding); }
+		inline std::string Base64Url(const char* data, bool NoPadding = false) { return Base64Url(data, std::strlen(data), NoPadding); }
 		std::vector<unsigned char> UTF0(const std::wstring & Text);
 		std::vector<unsigned char> UTF(const std::wstring & Text);
+		std::string UtfString(const std::wstring& Text);
 		void UTF(std::vector<unsigned char> & utf, const std::wstring & Text);
 		size_t UTF(unsigned char * Data, const wchar_t * Str);
 		size_t UTF_Length(const wchar_t * Str);
@@ -51,7 +53,10 @@ namespace PVX{
 		std::vector<unsigned char> Base64Url(const std::wstring& base64);
 
 		std::wstring UTF(const unsigned char * utf, size_t sz);
-		std::wstring UTF(const std::vector<unsigned char> & Utf);
+		inline std::wstring UTF(const char* utf, size_t sz) { return UTF((const uint8_t*)utf, sz); }
+		inline std::wstring UTF(const std::vector<unsigned char>& Utf) { return UTF(Utf.data(), Utf.size()); }
+		inline std::wstring UTF(const std::string & Utf) { return UTF((const uint8_t*)Utf.data(), Utf.size()); }
+		
 		wchar_t * pUTF(const unsigned char * utf);
 		std::wstring Windows1253(const std::vector<unsigned char> & s);
 		std::wstring Windows1253(const char * s);

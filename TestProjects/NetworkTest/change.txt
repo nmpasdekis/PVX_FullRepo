@@ -1,0 +1,14 @@
+Nikos
+
+resp.Json(LR"({
+	"Message":"Hello",
+	"Message2": [
+		"Hello",
+		"Hello2", 
+		123, 
+		321.555, 
+		false,
+		true,
+		null
+	]
+})"_json);

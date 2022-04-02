@@ -6,12 +6,14 @@
 #include<stdio.h>
 #include<map>
 #include<functional>
+#include<fstream>
 #include<PVX_Math3D.h>
 
 namespace PVX {
 	class BinSaver {
-		std::vector<long> SizePos;
-		FILE* fout;
+		std::vector<std::streampos> SizePos;
+		//FILE* fout;
+		std::ofstream fout;
 	public:
 		BinSaver(const char* Filename, const char* head);
 		BinSaver(const wchar_t* Filename, const char* head);
@@ -23,20 +25,6 @@ namespace PVX {
 		int Save();
 		size_t write(const void* buffer, size_t size, size_t count);
 		size_t write(const std::vector<unsigned char>& Bytes);
-		//size_t write(short val);
-		//size_t write(unsigned short val);
-		//size_t write(unsigned int val);
-		//size_t write(int val);
-		//size_t write(float val);
-		//size_t write(double val);
-		//size_t write(unsigned long long val);
-		//size_t write(const PVX::Vector2D& val);
-		//size_t write(const PVX::Vector3D& val);
-		//size_t write(const PVX::Vector4D& val);
-		//size_t write(const PVX::Matrix2x2& val);
-		//size_t write(const PVX::Matrix3x3& val);
-		//size_t write(const PVX::Matrix4x4& val);
-		//size_t write(const PVX::Matrix3x4& val);
 
 		template<typename T>
 		size_t write(const T& val, size_t Count = 1) {
@@ -100,13 +88,15 @@ namespace PVX {
 
 	class BinLoader {
 	private:
-		FILE* fin = nullptr;
+		//FILE* fin = nullptr;
+		std::ifstream __fin;
+		std::ifstream& fin;
 		size_t cur = 0;
 		size_t Size = 0;
 		BinLoader* Parent = nullptr;
 		std::map<unsigned int, std::function<void(BinLoader& bin)>> Loader;
 		std::function<void(BinLoader& bin, const char*)> AnyLoader = nullptr;
-		BinLoader(FILE* fin, size_t Size, BinLoader* Parent);
+		BinLoader(std::ifstream& fin, size_t Size, BinLoader* Parent);
 	public:
 		BinLoader(const char* fn, const char* header);
 		BinLoader(const wchar_t* fn, const char* header);
@@ -141,20 +131,20 @@ namespace PVX {
 		std::vector<unsigned char> ReadAll();
 		std::string RemainingAsString();
 		std::wstring RemainingAsWideString();
-		short Short();
-		unsigned short UShort();
-		unsigned int UInt();
-		int Int();
-		float Float();
-		double Double();
-		unsigned long long QuadWord();
-		PVX::Vector2D Vec2();
-		PVX::Vector3D Vec3();
-		PVX::Vector4D Vec4();
-		PVX::Matrix2x2 Mat2();
-		PVX::Matrix3x3 Mat3();
-		PVX::Matrix4x4 Mat4();
-		PVX::Matrix3x4 Mat3x4();
+		//short Short();
+		//unsigned short UShort();
+		//unsigned int UInt();
+		//int Int();
+		//float Float();
+		//double Double();
+		//uint64_t QuadWord();
+		//PVX::Vector2D Vec2();
+		//PVX::Vector3D Vec3();
+		//PVX::Vector4D Vec4();
+		//PVX::Matrix2x2 Mat2();
+		//PVX::Matrix3x3 Mat3();
+		//PVX::Matrix4x4 Mat4();
+		//PVX::Matrix3x4 Mat3x4();
 		void Execute();
 		int OK();
 		size_t Remaining(int ItemSize = 1);
