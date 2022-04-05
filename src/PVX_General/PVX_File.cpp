@@ -328,6 +328,9 @@ namespace PVX {
 		int Write(const std::wstring& Filename, const PVX::JSON::Item& Json) {
 			return Write(Filename, PVX::Encode::UTF(PVX::JSON::stringify(Json)));
 		}
+		int Write(const std::string& Filename, const PVX::JSON::Item& Json) {
+			return Write(Filename, PVX::Encode::UTF(PVX::JSON::stringify(Json)));
+		}
 
 		std::vector<std::string> FileExtensions(const std::string & f) {
 			size_t dot = f.size();

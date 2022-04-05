@@ -11,6 +11,7 @@
 #include <future>
 #include <type_traits>
 #include <numeric>
+#include <memory>
 
 #ifdef _USE_PARALLEL_
 #include <execution>
@@ -31,6 +32,7 @@
 #endif
 
 #ifdef __linux
+#include <PVX_Encode.h>
 #define fread_s(data, buf, size, count, file) fread(data, size, count, file)
 #define memcpy_s(dest, dstSize, src, byteCount) memcpy(dest, src, byteCount)
 
@@ -38,7 +40,8 @@ inline bool _wfopen_s(FILE** fl, const wchar_t* filename, const wchar_t* mode) {
 	char md[5];
 	int i;
 	for (i = 0; mode[i]; i++) md[i] = char(mode[i]); md[i] = 0;
-	*fl = fopen((const char*)PVX::Encode::UTF0(filename).data(), md);
+	auto fn = PVX::Encode::UtfString(filename);
+	*fl = fopen(fn.c_str(), md);
 	return *fl == nullptr;
 }
 inline bool fopen_s(FILE** fl, const char* filename, const char* mode) {
@@ -373,7 +376,7 @@ namespace PVX {
 	inline int64_t IndexOfBinary(const unsigned char* Data, int64_t DataSize, const unsigned char* Find, int64_t FindSize, int64_t Start = 0) {
 		DataSize -= FindSize;
 		for (int64_t i = Start; i < DataSize; i++) {
-			if (!memcmp(Data + i, Find, FindSize)) return i;
+			if (!std::memcmp(Data + i, Find, FindSize)) return i;
 		}
 		return -1;
 	}
@@ -383,7 +386,7 @@ namespace PVX {
 		unsigned char* Dst = (unsigned char*)dst;
 		const unsigned char* Src = (const unsigned char*)src;
 		for (int i = 0; i < Count; i++) {
-			memcpy(Dst, Src, min);
+			std::memcpy(Dst, Src, min);
 			Dst += dstStride;
 			Src += srcStride;
 		}

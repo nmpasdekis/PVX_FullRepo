@@ -189,7 +189,7 @@ namespace PVX::Encrypt {
 				memcpy(ret.data() + curSize, U.data(), Hash::OutputSize);
 			}
 		}
-		if constexpr ((KeyLen / 8) % Hash::OutputSize) {
+		if constexpr (((KeyLen / 8) % Hash::OutputSize) != 0) {
 			auto U = PBKDF2_F<Hash, Iterations, saltSize / 8>(password, Salt, i);
 			memcpy(ret.data() + curSize, U.data(), (KeyLen / 8) % Hash::OutputSize);
 		}

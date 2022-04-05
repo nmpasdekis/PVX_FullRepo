@@ -7,9 +7,9 @@
 namespace PVX::Network {
 	using namespace std::string_literals;
 	HttpRequest::HttpRequest() {}
-	HttpRequest::HttpRequest(const std::string & s) {
-		SetHeader(s);
-	}
+	//HttpRequest::HttpRequest(const std::string & s) {
+	//	SetHeader(s);
+	//}
 	HttpRequest & HttpRequest::operator=(const std::string & s) {
 		Headers.clear();
 		SetHeader(s);

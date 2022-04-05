@@ -12,10 +12,9 @@
 namespace PVX {
 	namespace String {
 		inline void OnSplit(const std::string& Text, const std::string& Separator, std::function<void(const std::string&)> clb) {
-			size_t ssz = Separator.size(), last = 0;
-			int64_t start = 0;
-			while (-1 != (start = Text.find(Separator, start))) {
-				if (((unsigned int)start) >= last)
+			size_t ssz = Separator.size(), last = 0, start = 0;
+			while (std::string::npos != (start = Text.find(Separator, start))) {
+				if (start >= last)
 					clb(Text.substr(last, start - last));
 				start += ssz;
 				last = start;
@@ -25,10 +24,9 @@ namespace PVX {
 		}
 
 		inline void OnSplit(const std::wstring& Text, const std::wstring& Separator, std::function<void(const std::wstring&)> clb) {
-			size_t ssz = Separator.size(), last = 0;
-			int64_t start = 0;
-			while (-1 != (start = Text.find(Separator, start))) {
-				if (((unsigned int)start) >= last)
+			size_t ssz = Separator.size(), last = 0, start = 0;
+			while (std::wstring::npos != (start = Text.find(Separator, start))) {
+				if (start >= last)
 					clb(Text.substr(last, start - last));
 				start += ssz;
 				last = start;

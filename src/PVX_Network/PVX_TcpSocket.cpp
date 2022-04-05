@@ -149,8 +149,8 @@ namespace PVX::Network {
 		return Offset;
 	}
 
-	int TcpSocket::Receive(void* Data, size_t Size) {
-		return ((socketData*)SocketData.get())->Actions->Recv(SocketData.get(), Data, Size);
+	int64_t TcpSocket::Receive(void* Data, size_t Size) {
+		return int64_t(((socketData*)SocketData.get())->Actions->Recv(SocketData.get(), Data, Size));
 	}
 
 	int TcpSocket::ReceiveAsync(void* data, size_t Size) {
@@ -199,8 +199,8 @@ namespace PVX::Network {
 			ret.resize(cur + 1024);
 		}
 	}
-	int TcpSocket::Receive(std::vector<uint8_t>& Data) {
-		int rsz;
+	int64_t TcpSocket::Receive(std::vector<uint8_t>& Data) {
+		int64_t rsz;
 		size_t cur = Data.size();
 		Data.resize(cur + 1024);
 		for (;;) {
@@ -214,14 +214,14 @@ namespace PVX::Network {
 			}
 			if (rsz < 1024) {
 				Data.resize(cur + rsz);
-				return Data.size();
+				return int64_t(Data.size());
 			}
 			cur += 1024;
 			Data.resize(cur + 1024);
 		}
 	}
-	int TcpSocket::Receive(std::string& Data) {
-		int rsz;
+	int64_t TcpSocket::Receive(std::string& Data) {
+		int64_t rsz;
 		size_t cur = Data.size();
 		Data.resize(cur + 1024);
 		for (;;) {
@@ -235,7 +235,7 @@ namespace PVX::Network {
 			}
 			if (rsz < 1024) {
 				Data.resize(cur + rsz);
-				return Data.size();
+				return int64_t(Data.size());
 			}
 			cur += 1024;
 			Data.resize(cur + 1024);
@@ -256,7 +256,7 @@ namespace PVX::Network {
 
 	TcpServer::TcpServer(const char* Port, int ThreadCount) :
 		ServingSocket{ (uint32_t*)CreateListenSocket(Port) } {
-		Running = true;
+		Running = ServingSocket != nullptr;
 		if (ThreadCount<=0)ThreadCount = std::max(1, (int)std::thread::hardware_concurrency() - 1);
 		for (auto i = 0; i<ThreadCount; i++) {
 			Workers.push_back(std::thread([this] {
@@ -278,38 +278,40 @@ namespace PVX::Network {
 		}
 	}
 	TcpServer::~TcpServer() {
+		Running = false;
 		closesocket((SOCKET)ServingSocket);
 		Stop();
 	}
 	void TcpServer::Serve(std::function<void(TcpSocket)> Event, std::function<void(TcpSocket&)> Transform) {
-		Running = true;
-		ServingThread = std::make_unique<std::thread>([this, Event, Transform] {
-			while (Running) {
-				sockaddr info;
-				socklen_t len = sizeof(sockaddr);
-				auto ss = accept((SOCKET)ServingSocket, &info, &len);
-				if (ss != -1) {
-					{
-						std::lock_guard<std::mutex> slock{ SocketGuard };
-						OpenSockets.insert((uint32_t*)ss);
+		if ((Running = ServingSocket != nullptr)) {
+			ServingThread = std::make_unique<std::thread>([this, Event, Transform] {
+				while (Running) {
+					sockaddr info;
+					socklen_t len = sizeof(sockaddr);
+					auto ss = accept((SOCKET)ServingSocket, &info, &len);
+					if (ss != -1) {
+						{
+							std::lock_guard<std::mutex> slock{ SocketGuard };
+							OpenSockets.insert((uint32_t*)ss);
+						}
+						std::lock_guard<std::mutex> lock{ TaskMutex };
+						{
+							Tasks.push([ss, info, Event, Transform, this] {
+								TcpSocket mySocket{ (uint32_t*)ss, (void*)&info };
+								if (Transform) Transform(mySocket);
+								Event(mySocket);
+								{
+									std::lock_guard<std::mutex> slock{ SocketGuard };
+									OpenSockets.erase((uint32_t*)ss);
+								}
+							});
+						}
+						TaskAdded.notify_one();
 					}
-					std::lock_guard<std::mutex> lock{ TaskMutex };
-					{
-						Tasks.push([ss, info, Event, Transform, this] {
-							TcpSocket mySocket{ (uint32_t*)ss, (void*)&info };
-							if (Transform) Transform(mySocket);
-							Event(mySocket);
-							{
-								std::lock_guard<std::mutex> slock{ SocketGuard };
-								OpenSockets.erase((uint32_t*)ss);
-							}
-						});
-					}
-					TaskAdded.notify_one();
 				}
-			}
-			for (auto& t : Workers) t.join();
-		});
+				for (auto& t : Workers) t.join();
+			});
+		}
 	}
 	void TcpServer::Stop() {
 		Running = false;

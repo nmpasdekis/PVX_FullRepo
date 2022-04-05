@@ -255,10 +255,10 @@ namespace PVX {
 
 
 		HttpClient::HttpClient(const std::string& url): HttpClient() {
-			urlHelper( DomainHelper( PVX::Encode::encodeURI(url) ) );
+			urlHelper(PVX::Encode::UriEncode(url));
 		}
 		HttpClient::HttpClient(const std::wstring& url): HttpClient() {
-			urlHelper(DomainHelper(PVX::Encode::encodeURI(url)));
+			urlHelper(PVX::Encode::UriEncode(PVX::Encode::UTF(url)));
 		}
 
 
@@ -293,10 +293,10 @@ namespace PVX {
 		}
 
 		void HttpClient::Url(const std::string& Src) {
-			urlHelper(PVX::Encode::encodeURI(Src));
+			urlHelper(PVX::Encode::UriEncode(Src));
 		}
 		void HttpClient::Url(const std::wstring& Src) {
-			urlHelper(PVX::Encode::encodeURI(Src));
+			urlHelper(PVX::Encode::UriEncode(PVX::Encode::UTF(Src)));
 		}
 		
 		HttpClient & HttpClient::OnReceiveHeader(std::function<void(const std::wstring&)> fnc) {

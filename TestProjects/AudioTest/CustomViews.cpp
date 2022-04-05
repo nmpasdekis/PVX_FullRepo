@@ -7,11 +7,12 @@ using namespace PVX::Network;
 std::unordered_map<std::wstring, std::vector<uint8_t>> CustomViewCache;
 
 PVX::JSON::Item GetViewList() {
-	auto files = PVX::IO::Dir(L"www\\customViews\\*.json");
+	auto files = PVX::IO::Dir(L"www\\customViews");
 	PVX::JSON::Item ret = PVX::JSON::EmptyObject();
 	for (auto& fn : files) {
 		auto it = PVX::IO::LoadJson((L"www\\customViews\\" + fn).c_str());
-		ret[fn.substr(0, fn.size()-5)] = it["Category"];
+		auto& r = ret[fn.substr(0, fn.size()-5)];
+		r = it["Category"];
 		CustomViewCache[fn.substr(0, fn.size()-5)] = PVX::Encode::UTF(JSON::stringify(it));
 	}
 	return ret;

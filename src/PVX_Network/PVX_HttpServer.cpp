@@ -6,11 +6,12 @@
 #include<PVX_Encrypt.h>
 #include<regex>
 #include<map>
-#include <PVX_Deflate.h>
+#include<PVX_Deflate.h>
 #include<PVX_String.h>
 #include<chrono>
-#include <signal.h>
-#include <PVX.inl>
+#include<signal.h>
+#include<PVX.inl>
+#include<memory>
 
 using namespace std::chrono_literals;
 
@@ -91,7 +92,7 @@ namespace PVX {
 
 		int64_t FindEnd(std::vector<uint8_t>& buffer) {
 			for (auto i = 0; i < int64_t(buffer.size()) - 3; i++) {
-				if (!memcmp(&buffer[i], "\r\n\r\n", 4)) 
+				if (!std::memcmp(&buffer[i], "\r\n\r\n", 4)) 
 					return i;
 			}
 			return -1;
@@ -112,14 +113,14 @@ namespace PVX {
 			Request.Socket = s;
 			int rcvSize;
 			int EoH = -1;
-			while ((EoH = FindEnd(buffer)) == -1 && (rcvSize = s.Receive(buffer)) > 0);
+			while ((rcvSize = s.Receive(buffer)) > 0 && (EoH = FindEnd(buffer)) == -1);
 
 			if (EoH != -1) {
-				uint64_t contentLength = 0;
+				size_t contentLength = 0;
 				size_t sz = EoH + 4;
 
 				Request.RawHeader.resize(sz);
-				memcpy(Request.RawHeader.data(), buffer.data(), sz);
+				std::memcpy(Request.RawHeader.data(), buffer.data(), sz);
 				RemoveFront(buffer, sz);
 
 				Request = Request.RawHeader;
@@ -128,13 +129,13 @@ namespace PVX {
 					Content.reserve(contentLength);
 					if (int more = std::min(contentLength, buffer.size());  more) {
 						Content.resize(more);
-						memcpy(Content.data(), buffer.data(), more);
+						std::memcpy(Content.data(), buffer.data(), more);
 						RemoveFront(buffer, more);
 					}
 					while (Content.size() < contentLength && s.Receive(Content) > 0);
 					if (Content.size() > contentLength) {
 						buffer.resize(Content.size() - contentLength);
-						memcpy(buffer.data(), &Content[contentLength], Content.size() - contentLength);
+						std::memcpy(buffer.data(), &Content[contentLength], Content.size() - contentLength);
 						Content.resize(contentLength);
 					}
 				}
@@ -150,12 +151,12 @@ namespace PVX {
 			while ((rcvSize = s.Receive(http.RawHeader)) > 0 &&
 				(EoH = http.RawHeader.find("\r\n\r\n")) == -1);
 			if (EoH != -1) {
-				uint64_t contentLength = 0;
+				size_t contentLength = 0;
 				size_t sz = EoH + 4;
 
 				if (http.RawHeader.size() > sz) {
 					Content.resize(http.RawHeader.size() - sz);
-					memcpy(&Content[0], &http.RawHeader[EoH + 4], Content.size());
+					std::memcpy(&Content[0], &http.RawHeader[EoH + 4], Content.size());
 				}
 				http.RawHeader.resize(sz);
 
@@ -229,10 +230,17 @@ namespace PVX {
 		}
 
 		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::wstring & ContentPath) {
-			std::wstring cPath = PVX::IO::wCurrentPath() + (ContentPath[0]!=L'/'?L"/":L"") + ContentPath + ((ContentPath.size() && (ContentPath.back() == L'\\')) ? L"" : L"\\");
+			namespace io = PVX::IO;
+			std::wstring cPath = PVX::IO::wCurrentPath() + 
+				(ContentPath[0] != io::sep ? io::sepString : L"") +
+				ContentPath + 
+				((ContentPath.size() && (ContentPath.back() == io::sep)) ? L"" : io::sepString);
 			return [this, cPath](HttpRequest & req, HttpResponse& resp) {
-				std::wstring path = std::regex_replace(cPath + (std::wstring&)req.Variables[L"Path"], std::wregex(L"/"), L"\\");
-				if (path.find(L"..") != -1) {
+				std::wstring path = [&] {
+					if constexpr (io::sep=='\\') return std::filesystem::path(cPath + (std::wstring&)req.Variables[L"Path"]).make_preferred().wstring();
+					else return cPath + (std::wstring&)req.Variables[L"Path"];
+				}(); 
+				if (path.find(L"..") != std::wstring::npos) {
 					resp.StatusCode = 403;
 					return;
 				}
@@ -285,7 +293,7 @@ namespace PVX {
 			if (auto k = req.Cookies.find(L"pvx-token"); k!=req.Cookies.end() && k->second.size() > ((32 * 4 + 2) / 3)) {
 				auto Token = PVX::Decode::Base64Url(k->second);
 				auto Hash = HMAC<SHA256_Algorithm>(TokenKey.data(), TokenKey.size(), Token.data() + 32 + 1, Token.size() - 32 - 1);
-				if (!memcmp(Hash.data(), Token.data(), 32)) {
+				if (!std::memcmp(Hash.data(), Token.data(), 32)) {
 					req.User = PVX::JSON::parse(Token.data() + 32 + 1, Token.size() - 32 - 1);
 				}
 			}

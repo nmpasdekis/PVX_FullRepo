@@ -1,10 +1,6 @@
 #ifndef __PVX_NETWORK_H__
 #define __PVX_NETWORK_H__
 
-//#define WIN32_LEAN_AND_MEAN
-//
-//#include <winsock2.h>
-//#include <ws2tcpip.h>
 #include <functional>
 #include <vector>
 #include <string>
@@ -73,9 +69,9 @@ namespace PVX {
 			size_t SendFragmented(const std::vector<unsigned char>& data, size_t FragmentSize = 0x00800000);
 			inline int Send(const std::vector<uint8_t>& Data) { return Send(Data.data(), Data.size()); }
 			inline int Send(const std::string& Data) { return Send(Data.data(), Data.size()); }
-			int Receive(void* Data, size_t Size);
-			int Receive(std::vector<uint8_t>& Data);
-			int Receive(std::string& Data);
+			int64_t Receive(void* Data, size_t Size);
+			int64_t Receive(std::vector<uint8_t>& Data);
+			int64_t Receive(std::string& Data);
 			std::vector<uint8_t> Receive();
 
 			int ReceiveAsync(void* data, size_t Size);
@@ -161,7 +157,7 @@ namespace PVX {
 			UtfHelper Get;
 			std::map<std::string, UtfHelper> Headers;
 			HttpRequest();
-			HttpRequest(const std::string & s);
+			//HttpRequest(const std::string & s);
 			HttpRequest & operator=(const std::string & s);
 			std::vector<unsigned char> RawContent;
 			std::wstring HasHeader(const std::string & h) const;

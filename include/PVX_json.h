@@ -73,9 +73,11 @@ namespace PVX {
 				return *Val.get();
 			}
 			inline T& operator()() {
+				if (!Val.get()) Val = std::make_shared<T>();
 				return *Val.get();
 			}
 			inline T* get() {
+				if (!Val.get()) Val = std::make_shared<T>();
 				return Val.get();
 			}
 			inline const T* get() const {
@@ -351,8 +353,12 @@ namespace PVX {
 			inline bool Boolean() const { return std::get<bool>(Value); };
 			inline std::wstring& String() { return std::get<std::wstring>(Value); }
 			inline std::wstring String() const { return std::get<std::wstring>(Value); }
-			inline std::unordered_map<std::wstring, R<Item>>& Object() { return std::get<std::unordered_map<std::wstring, R<Item>>>(Value); }
-			inline const std::unordered_map<std::wstring, R<Item>>& Object() const { return std::get<std::unordered_map<std::wstring, R<Item>>>(Value); }
+			inline std::unordered_map<std::wstring, R<Item>>& Object() {
+				return std::get<std::unordered_map<std::wstring, R<Item>>>(Value); 
+			}
+			inline const std::unordered_map<std::wstring, R<Item>>& Object() const { 
+				return std::get<std::unordered_map<std::wstring, R<Item>>>(Value); 
+			}
 
 			inline std::vector<uint8_t>& Binary() { return std::get<std::vector<uint8_t>>(Value); }
 			inline const std::vector<uint8_t>& Binary() const { return std::get<std::vector<uint8_t>>(Value); }

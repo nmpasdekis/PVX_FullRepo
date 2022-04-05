@@ -17,6 +17,11 @@
 
 namespace PVX {
 	namespace IO {
+		constexpr wchar_t sep = std::filesystem::path::preferred_separator;
+		constexpr wchar_t otherSep = [] { return sep == L'\\' ? L'/' : L'\\'; }();
+		constexpr wchar_t sepString[2]{ sep, 0 };
+		constexpr wchar_t otherSepString[2]{ otherSep, 0 };
+
 		class ChangeTracker {
 			std::wstring Filename;
 			std::filesystem::file_time_type LastTime;
@@ -106,6 +111,7 @@ namespace PVX {
 				Read(&ret[0], ItemCount * sizeof(T));
 				return ret;
 			}
+
 		};
 
 		inline void ReadLines(const std::string& Filename, std::function<void(const std::string&)> clb) {
@@ -168,6 +174,7 @@ namespace PVX {
 
 		int Write(const std::string& fn, const void* data, size_t Size);
 		int Write(const std::string& fn, const std::vector<unsigned char>& Data);
+		int Write(const std::string& fn, const PVX::JSON::Item& Data);
 
 		int Write(const std::wstring& fn, const void* data, size_t Size);
 		int Write(const std::wstring& fn, const std::vector<unsigned char>& Data);
