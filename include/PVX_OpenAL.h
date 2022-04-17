@@ -175,7 +175,7 @@ namespace PVX {
 
 		class StreamOut {
 		public:
-			StreamOut(int Channels = 2, int BitsPerSample = 16, int SampleRate = 44100);
+			StreamOut(int Channels = 2, int BitsPerSample = 16, int SampleRate = 44100, const int bufferCount = 3);
 			~StreamOut();
 			StreamOut(const StreamOut&) = delete;
 			StreamOut(StreamOut&&) = delete;
@@ -191,6 +191,7 @@ namespace PVX {
 			Source & Get();
 			int AvailableBuffers();
 			void SetProperties(int Channels, int BitsPerSample, int SampleRate);
+			inline bool IsPlaying() { return Playing!=0; }
 		private:
 			int Channels;
 			int BitsPerSample;
@@ -199,7 +200,8 @@ namespace PVX {
 			int availableBuffers;
 			int Playing;
 			Source Player;
-			std::queue<uint32_t> Buffers;
+			std::vector<uint32_t> Buffers;
+			std::queue<uint32_t> BufferQueue;
 		};
 
 		typedef struct StereoSample32 {

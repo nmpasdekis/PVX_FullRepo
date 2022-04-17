@@ -169,7 +169,7 @@ namespace PVX {
 		static bool NeedUriEncode(const std::string& str) {
 			size_t i;
 			auto sz = str.size();
-			for (i = 0; i<sz && str[i]<128 && str[i]>32; i++);
+			for (i = 0; i<sz && uint8_t(str[i])<128 && str[i]>32; i++);
 			return i < sz;
 		}
 

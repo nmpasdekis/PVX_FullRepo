@@ -1,11 +1,12 @@
 <html>
 <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="icon" href="/content/images/favicon.ico?v=4">
+	<link rel="icon" href="/content/images/favicon.ico?v=5">
 	<base href="/" />
 	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.12/angular-material.min.css">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.2.95/css/materialdesignicons.min.css">
 
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
 	<script src="https://code.angularjs.org/1.8.2/angular-sanitize.min.js"></script>
 	<script src="https://unpkg.com/@uirouter/angularjs@1.0.29/release/angular-ui-router.min.js"></script>
@@ -14,59 +15,17 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-messages.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.12/angular-material.js"></script>
 	<script type="text/javascript" src="/js/ace/ace-builds/src/ace.js"></script>
+	<script type="text/javascript" src="/js/ace/ace-builds/src/theme-monokai.js"></script>
+	<script type="text/javascript" src="/js/ace/ace-builds/src/mode-json.js"></script>
+	<script type="text/javascript" src="/js/ace/ace-builds/src/mode-html.js"></script>
+	<script type="text/javascript" src="/js/ace/ace-builds/src/mode-javascript.js"></script>
 	<script type="text/javascript" src="/js/ace/angular-ui-ace/ui-ace.min.js"></script>
 	<script src="/js/general.js"></script>
 	<script src="/js/module.js"></script>
 	<script src="/js/directives.js"></script>
 	<script src="/js/factories.js"></script>
 	<script src="/js/index.js"></script>
-	<style>
-		.menu-active {
-			color: white;
-			background-color: blue;
-		}
-
-		.main-menu span {
-			margin: 0 5px;
-		}
-
-		.main-menu .md-button {
-			min-width: auto;
-		}
-		.ace_print-margin {
-			display: none;
-		}
-		.iBlock {
-			display: inline-block;
-			vertical-align: top;
-			margin: 10px;
-		}
-		.table{
-			width:100%;
-			max-width:100%;
-		}
-		.table td{
-			padding: 0 5px;
-		}
-		.table tr{
-			height:24px;
-		}
-			.table th {
-				padding: 0 5px;
-				height: 25px;
-			}
-		.editor {
-			min-height: 300px;
-			width: 100%;
-		}
-		md-input-container .md-errors-spacer{
-			min-height: 0;
-		}
-		h4{
-			margin-top: 0;
-			margin-bottom: 0;
-		}
-	</style>
+	<link rel="stylesheet" href="/content/css/site.css">
 </head>
 	<body ng-app="app" ng-cloak ui-view></body>
 </html>

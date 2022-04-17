@@ -1,0 +1,108 @@
+md-card, md-dialog, md-toolbar, md-card-title, .md-button {
+    border-radius: 8px;
+}
+
+.md-button{
+    line-height: 30px;
+    min-height: 30px;
+    padding: 0 8px;
+}
+
+.md-button>span{
+    margin: 0 5px;
+}
+
+md-toolbar {
+    min-height: 50px;
+}
+.md-toolbar-tools{
+    height: 50px
+}
+
+md-card md-toolbar, md-dialog md-toolbar, md-card md-card-title {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+md-content>md-toolbar{
+    border-radius: 0;
+}
+
+md-card md-card-title {
+    padding: 16px 8px 8px;
+}
+
+md-toolbar h1, md-toolbar h2, md-toolbar h3, md-toolbar h4, md-toolbar .h1, md-toolbar .h2, md-toolbar .h3, md-toolbar .h4 {
+    margin: 15px;
+}
+
+
+md-card-title .md-headline {
+    margin: 0 8px 8px;
+}
+.btn-primary {
+    color: #fff;
+    background-color: #6667ab;
+    border-color: #2e6da4;
+}
+
+.emFormTable .emFormTableCell2 {
+    width: 30vw;
+}
+.menu-active {
+    color: white;
+    background-color: blue;
+}
+
+.main-menu span {
+    margin: 0 5px;
+}
+
+.main-menu .md-button {
+    min-width: auto;
+}
+
+.ace_print-margin {
+    display: none;
+}
+
+.iBlock {
+    display: inline-block;
+    vertical-align: top;
+    margin: 10px;
+}
+
+.table {
+    width: 100%;
+    max-width: 100%;
+}
+
+    .table td {
+        padding: 0 5px;
+    }
+
+    .table tr {
+        height: 24px;
+    }
+
+    .table th {
+        padding: 0 5px;
+        height: 25px;
+    }
+
+.editor {
+    min-height: 300px;
+    width: 100%;
+}
+
+md-input-container .md-errors-spacer {
+    min-height: 0;
+}
+
+h4 {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ace-monokai {
+    background-color: black !important;
+}

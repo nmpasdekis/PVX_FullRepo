@@ -562,7 +562,7 @@ namespace PVX {
 			return UriEncode(UTF(s));
 		}
 
-		constexpr auto Windows1253_Greek_unordered_map = []() {
+		constexpr auto Windows1253_Greek_unordered_map = []() constexpr {
 			std::array<wchar_t, 65536> map{ 0 };
 			for (int i = 0; i < 65536; i++) map[i] = '?';
 			for (int i = 0; i < 256; i++)
@@ -811,16 +811,19 @@ namespace PVX {
 			return ret;
 		}
 		std::wstring Uri(const std::string & S) {
-			unsigned char unordered_map[256]{ 0 };
-			for (int i = 0; i < 10; i++) {
-				unordered_map['0' + i] = i;
-				unordered_map['a' + i] = i + 10;
-				unordered_map['A' + i] = i + 10;
-			}
-			std::wstring ret;
+			constexpr std::array<unsigned char, 256> unordered_map = []() constexpr {
+				std::array<unsigned char, 256> tmp{ 0 };
+				for (int i = 0; i < 10; i++) {
+					tmp['0' + i] = i;
+					tmp['a' + i] = i + 10;
+					tmp['A' + i] = i + 10;
+				}
+				return tmp;
+			}();
+			
 			unsigned char * tmp = new unsigned char[S.size()];
 			size_t sz = S.size();
-			const char * s = S.data();
+			const unsigned char * s = (const unsigned char*)S.data();
 			int c = 0;
 			for (auto i = 0; i < sz; i++) {
 				if (s[i] != '%')
@@ -831,7 +834,7 @@ namespace PVX {
 					i++;
 				}
 			}
-			ret = UTF(tmp, c);
+			std::wstring ret = UTF(tmp, c);
 			delete[] tmp;
 			return ret;
 		}

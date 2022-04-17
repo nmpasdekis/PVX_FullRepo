@@ -151,7 +151,7 @@ namespace PVX{
 		std::string Replace(const std::string & Text, const std::regex & pattern, std::function<const std::string(const std::smatch&)> newWordFnc) {
 			std::vector<smatch> matches;
 			std::string ret(Text);
-			PVX::onMatch(Text, pattern, [&matches, &Text](const std::smatch & m) {
+			PVX::onMatch(Text, pattern, [&matches](const std::smatch & m) {
 				matches.push_back(m);
 			}); 
 			for (int64_t i = matches.size() - 1; i >= 0; i--) {
@@ -167,7 +167,7 @@ namespace PVX{
 		std::wstring Replace(const std::wstring& Text, const std::wregex& pattern, std::function<const std::wstring(const std::wsmatch&)> newWordFnc) {
 			std::vector<wsmatch> matches;
 			std::wstring ret(Text);
-			PVX::onMatch(Text, pattern, [&matches, &Text](const std::wsmatch& m) {
+			PVX::onMatch(Text, pattern, [&matches](const std::wsmatch& m) {
 				matches.push_back(m);
 			}); for (int64_t i = matches.size() - 1; i >= 0; i--) {
 				//ret.replace(matches[i][0].first._Ptr - Text.c_str(), matches[i][0].second._Ptr - matches[i][0].first._Ptr, newWordFnc(matches[i]).c_str());

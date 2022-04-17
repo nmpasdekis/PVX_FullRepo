@@ -2,6 +2,7 @@
 #define __PVX_AUDIO_VIDEO_H__
 #include <vector>
 #include <functional>
+#include <memory>
 #include "PVX_AudioData.h"
 
 namespace PVX {
@@ -11,6 +12,8 @@ namespace PVX {
 			Media();
 			Media(const Media & m);
 			~Media();
+
+			void Seek(int64_t tm);
 
 			int ReadAudioStream(std::vector<unsigned char> & Data);
 			int ReadAudioStream(std::vector<short> & Data);
@@ -31,9 +34,6 @@ namespace PVX {
 				ReadAllAudio(ret);
 				ret.shrink_to_fit();
 
-				//int cnt = 0;
-				//for (auto& t : ret)
-				//	cnt += !!t;
 				if constexpr (sizeof(T) == 4) {
 					return {
 						(unsigned int)AudioChannels(),
@@ -53,6 +53,7 @@ namespace PVX {
 			}
 
 			double EstimatedDuration();
+			double CurrentTimeSecs() const;
 			int ReadVideoFrame(std::vector<unsigned char> & Pixels);
 
 			int AudioSampleRate();
@@ -72,6 +73,13 @@ namespace PVX {
 
 		Media LoadFile(const char * Filename);
 	}
+}
+namespace PVX::ffMPEG {
+	class ffMedia {
+		std::shared_ptr<void> Data;
+	public:
+		ffMedia(const char* filename);
+	};
 }
 
 #endif

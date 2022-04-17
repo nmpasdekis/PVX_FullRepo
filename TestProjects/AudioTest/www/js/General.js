@@ -821,3 +821,19 @@ function IRR(CF, m){
 	}
 	return mins.Value;
 }
+
+function UriToObject(txt) {
+	let ret = {};
+	txt.split("&").map(c => c.split("=").map(c => c.trim())).forEach(([name, value]) => {
+		if (ret[name]) {
+			if (Array.isArray(ret[name])) ret[name].push(value);
+			else ret[name] = [ret[name], value];
+		} else {
+			ret[name] = value;
+		}
+	});
+	return ret;
+}
+
+//var worker = new Worker("/js/worker.js");
+//worker.onmessage = (e => console.log(e.data));

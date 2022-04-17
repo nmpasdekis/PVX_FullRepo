@@ -858,7 +858,7 @@ namespace PVX {
 				Text = Text.replace(index, end - index + 1, L"\x01");
 				index = Text.find('"', index + 1);
 			}
-			return std::move(Text);
+			return Text;
 		}
 
 		int64_t FindNum(std::wstring& txt, int64_t& cur, int64_t start) {
@@ -1275,7 +1275,7 @@ namespace PVX {
 			}
 
 			std::wstring ReadString(const unsigned char*& cur) {
-				auto sz = Int(cur);
+				Int(cur);
 				return String(cur);
 			}
 

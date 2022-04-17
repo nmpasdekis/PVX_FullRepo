@@ -13,6 +13,7 @@
 #include <PVX_Threading.h>
 #include <shared_mutex>
 #include <atomic>
+#include <filesystem>
 
 typedef uint64_t SOCKET_type;
 
@@ -206,18 +207,18 @@ namespace PVX {
 			void BeginRange(size_t Size);
 			void AddRange(const std::wstring & ContentType, size_t Offset, const std::vector<unsigned char> & Data);
 			void EndRange();
-			int StreamFile(const std::wstring& Filename, int BufferSize = 0xffff, const std::wstring & Mime = L"");
-			int StreamFile(HttpRequest& Request, const std::wstring& Filename, int BufferSize = 0xffff);
-			int ServeFile(const std::wstring & Filename, const std::wstring & Mime = L"");
+			int StreamFile(const std::filesystem::path& Filename, size_t BufferSize = 0x00800000, const std::wstring & Mime = L"");
+			int StreamFile(HttpRequest& Request, const std::wstring& Filename, size_t BufferSize = 0x00800000);
+			int ServeFile(const std::filesystem::path& Filename, const std::wstring & Mime = L"");
 
-			int SingleRangeFile(size_t Offset, size_t Size, const std::wstring & Filename, int FragmentSize=0x00100000);
+			int SingleRangeFile(size_t Offset, size_t Size, const std::filesystem::path& Filename, size_t FragmentSize=0x00100000);
 
-			void Download(const std::wstring& Filename);
+			void Download(const std::filesystem::path& Filename);
 
 			// return true if More data sould me sent
 			void StreamRaw(size_t Size, std::function<bool(TcpSocket & Socket)> fnc);
 
-			void SetCookie(const std::wstring & Name, const std::wstring & Value);
+			void SetCookie(const std::wstring & Name, const std::wstring & Value, const std::wstring& Path = L"");
 			void ClearCookie(const std::wstring & Name, const std::wstring& Path = L"");
 			int SendHeader(size_t ContentLength = 0);
 			void AllowOrigin(HttpRequest& req, const std::set<std::wstring>& Allow = {});
@@ -234,10 +235,12 @@ namespace PVX {
 			size_t RangeSize;
 
 			HttpServer * Server;
-			typedef struct { 
+			struct myStream {
+				template<typename T>
+				inline myStream(size_t sz, T&& f) : Size{ sz }, Func{ std::forward<T>(f) } {}
 				size_t Size;
 				std::function<bool(TcpSocket&)> Func;
-			} myStream;
+			};
 			std::vector<myStream> Streams;
 			std::unordered_map<std::wstring, UtfHelper> Headers;
 			std::unordered_map<std::wstring, std::wstring> MoreHeaders;
@@ -298,25 +301,25 @@ namespace PVX {
 			const std::wstring & GetMime(const std::wstring & extension) const;
 
 			// Route must contain {Path} Variable
-			std::function<void(HttpRequest&, HttpResponse&)> ContentServer(const std::wstring & ContentPath = L"");
-			std::function<void(HttpRequest&, HttpResponse&)> HtmlFileRoute(const std::wstring& Filename) {
+			std::function<void(HttpRequest&, HttpResponse&)> ContentServer(const std::filesystem::path& ContentPath = L"");
+			std::function<void(HttpRequest&, HttpResponse&)> HtmlFileRoute(const std::filesystem::path& Filename) {
 				return [Filename](HttpRequest& req, HttpResponse& resp) {
 					resp.ServeFile(Filename, L"text/html");
 				};
 			};
 
-			void ContentRoute(const std::wstring & Url, const std::wstring & Path) {
+			void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path) {
 				auto url = Url;
 				if (url.front() != L'/')url = L"/" + url;
 				Routes({ url + L"/{Path}", ContentServer(Path) });
 			}
-			void DefaultRouteForContent(const std::wstring & Path) {
+			void DefaultRouteForContent(const std::filesystem::path& Path) {
 				SetDefaultRoute(ContentServer(Path));
 			}
-			void DefaultHtml(const std::wstring& Filename) {
+			void DefaultHtml(const std::filesystem::path& Filename) {
 				SetDefaultRoute(HtmlFileRoute(Filename));
 			}
-			void ServeFile(const std::wstring& Url, const std::wstring& File) {
+			void ServeFile(const std::wstring& Url, const std::filesystem::path& File) {
 				Routes(Url, [File](HttpResponse& resp) {
 					resp.ServeFile(File);
 				});

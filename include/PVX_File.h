@@ -23,11 +23,11 @@ namespace PVX {
 		constexpr wchar_t otherSepString[2]{ otherSep, 0 };
 
 		class ChangeTracker {
-			std::wstring Filename;
+			std::filesystem::path Filename;
 			std::filesystem::file_time_type LastTime;
 			void GetLastTime();
 		public:
-			ChangeTracker(const std::wstring& Filename);
+			ChangeTracker(const std::filesystem::path& Filename);
 			operator bool();
 			operator std::wstring();
 		};
@@ -44,21 +44,10 @@ namespace PVX {
 		public:
 			ChangeEventer();
 			~ChangeEventer();
-			void Track(const std::wstring& Filename, std::function<void()> clb);
-		};
-		class Text {
-			unsigned char buffer[512];
-			size_t BufferPosition, BufferSize;
-			FILE* fin;
-			std::wstring curLine;
-		public:
-			Text(const char* Filename);
-			Text(const wchar_t* Filename);
-			size_t ReadLine();
-			std::wstring Line();
+			void Track(const std::filesystem::path& Filename, std::function<void()> clb);
 		};
 
-		std::wstring ReadUtf(const std::wstring& Filename);
+		std::wstring ReadUtf(const std::filesystem::path& Filename);
 
 		class BinReader {
 			struct PrivateData {
@@ -114,7 +103,7 @@ namespace PVX {
 
 		};
 
-		inline void ReadLines(const std::string& Filename, std::function<void(const std::string&)> clb) {
+		inline void ReadLines(const std::filesystem::path& Filename, std::function<void(const std::string&)> clb) {
 			std::ifstream fin(Filename.c_str());
 			if (fin.fail())return;
 			std::string line;
@@ -124,36 +113,8 @@ namespace PVX {
 			}
 		}
 
-		inline void ReadLines(const std::wstring& Filename, std::function<void(const std::string&)> clb) {
-#ifndef __linux
+		inline void ReadLinesUTF(const std::filesystem::path& Filename, std::function<void(const std::wstring&)> clb) {
 			std::ifstream fin(Filename.c_str());
-#else
-			std::ifstream fin((char*)PVX::Encode::UTF0(Filename.c_str()).data());
-#endif
-			if (fin.fail())return;
-			std::string line;
-			while (!fin.eof()) {
-				std::getline(fin, line);
-				clb(line);
-			}
-		}
-
-		inline void ReadLinesUTF(const std::string& Filename, std::function<void(const std::wstring&)> clb) {
-			std::ifstream fin(Filename.c_str());
-			if (fin.fail())return;
-			std::string line;
-			while (!fin.eof()) {
-				std::getline(fin, line);
-				clb(PVX::Decode::UTF((unsigned char*)line.c_str(), line.size()));
-			}
-		}
-
-		inline void ReadLinesUTF(const std::wstring& Filename, std::function<void(const std::wstring&)> clb) {
-#ifndef __linux
-			std::ifstream fin(Filename.c_str());
-#else
-			std::ifstream fin((char*)PVX::Encode::UTF0(Filename.c_str()).data());
-#endif
 			if (fin.fail())return;
 			std::string line;
 			while (!fin.eof()) {
@@ -163,12 +124,15 @@ namespace PVX {
 		}
 
 		size_t FileSize(FILE* fin);
-		size_t FileSize(const std::string& filename);
-		size_t FileSize(const std::wstring& filename);
+		//size_t FileSize(const std::string& filename);
+		//size_t FileSize(const std::wstring& filename);
+		size_t FileSize(const std::filesystem::path& filename);
 
-		std::string FindFileFullPath(const std::string& Filename);
-		std::wstring FindFileFullPath(const std::wstring& Filename);
+		std::filesystem::path FindFileFullPath(const std::filesystem::path& Filename);
+		//std::string FindFileFullPath(const std::string& Filename);
+		//std::wstring FindFileFullPath(const std::wstring& Filename);
 
+		std::filesystem::path FilePathPart(const std::filesystem::path& Filename);
 		std::string FilePathPart(const std::string& Filename);
 		std::wstring FilePathPart(const std::wstring& Filename);
 
@@ -180,14 +144,21 @@ namespace PVX {
 		int Write(const std::wstring& fn, const std::vector<unsigned char>& Data);
 		int Write(const std::wstring& fn, const PVX::JSON::Item& Data);
 
-		std::vector<unsigned char> ReadBinary(const char* Filename);
-		std::vector<unsigned char> ReadBinary(const char* Filename, size_t offset, size_t length);
-		size_t ReadBinary(const char* Filename, std::vector<unsigned char>& Data);
-		size_t ReadBinary(const char* Filename, size_t offset, size_t length, std::vector<unsigned char>& Data);
-		std::vector<unsigned char> ReadBinary(const wchar_t* Filename);
-		std::vector<unsigned char> ReadBinary(const wchar_t* Filename, size_t offset, size_t length);
-		size_t ReadBinary(const wchar_t* Filename, std::vector<unsigned char>& Data);
-		size_t ReadBinary(const wchar_t* Filename, size_t offset, size_t length, std::vector<unsigned char>& Data);
+		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename);
+		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length);
+		size_t ReadBinary(const std::filesystem::path& Filename, std::vector<uint8_t>& Data);
+		size_t ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length, std::vector<uint8_t>& Data);
+
+		//std::vector<unsigned char> ReadBinary(const char* Filename);
+		//std::vector<unsigned char> ReadBinary(const char* Filename, size_t offset, size_t length);
+		//size_t ReadBinary(const char* Filename, std::vector<unsigned char>& Data);
+		//size_t ReadBinary(const char* Filename, size_t offset, size_t length, std::vector<unsigned char>& Data);
+		//
+		//std::vector<unsigned char> ReadBinary(const wchar_t* Filename);
+		//std::vector<unsigned char> ReadBinary(const wchar_t* Filename, size_t offset, size_t length);
+		//size_t ReadBinary(const wchar_t* Filename, std::vector<unsigned char>& Data);
+		//size_t ReadBinary(const wchar_t* Filename, size_t offset, size_t length, std::vector<unsigned char>& Data);
+
 		std::string ReadText(const char* Filename);
 		std::string ReadText(const wchar_t* Filename);
 		std::vector<std::string> Dir(const std::string& Expression);
@@ -198,10 +169,12 @@ namespace PVX {
 		std::vector<std::wstring> SubDir(const std::wstring& Expression);
 		std::vector<std::string> SubDirFull(const std::string& Expression);
 		std::vector<std::wstring> SubDirFull(const std::wstring& Expression);
-		int FileExists(const std::string& File);
-		int FileExists(const std::wstring& File);
+		//int FileExists(const std::string& File);
+		//int FileExists(const std::wstring& File);
+		int FileExists(const std::filesystem::path& File);
 		void MakeDirectory(const std::string& Directory);
 		void MakeDirectory(const std::wstring& Directory);
+		void MakeDirectory(const std::filesystem::path& Directory);
 
 		JSON::Item LoadJson(const char* Filename);
 		JSON::Item LoadJson(const wchar_t* Filename);

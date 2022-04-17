@@ -116,3 +116,19 @@ app.factory('modaldbgFactory', ["$http", "$mdDialog", function ($http, $mdDialog
         });
     }
 }]);
+app.factory("$hash", ["$location", function ($location) {
+    function f(obj) {
+        let ret = UriToObject($location.hash());
+        if (obj) {
+            Object.keys(obj).forEach(c => {
+                if (obj[c] === undefined) delete ret[c];
+                else ret[c] = obj[c];
+            });
+            $location.hash(Object.keys(ret).map(c => {
+                return c + "=" + (Array.isArray(ret[c]) ? ret[c].join(",") : ret[c]);
+            }).join("&"));
+        }
+        return ret;
+    }
+    return f;
+}])

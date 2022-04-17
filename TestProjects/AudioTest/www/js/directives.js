@@ -75,7 +75,7 @@ app.directive("emcDirective", ['$http', '$injector', '$compile', "$q", function 
 				if (Controller) {
 					try {
 						let args = [];
-						let ctrl = eval(Controller);
+						let ctrl = eval(`(function DebugFunction(){try{return ${Controller};}catch(e){debugger;throw e;}})()`);
 						let promices = [];
 						let promiceIndex = [];
 						for (let i = 0; i < ctrl.length - 1; i++) {
@@ -110,4 +110,13 @@ app.directive("emcDirective", ['$http', '$injector', '$compile', "$q", function 
 			}
 		}
 	};
+}]);
+
+app.directive("emcCode", [function(){
+	return{
+		template: (elem, attr) => `<div style="position:relative;height:100%">
+	<div layout-fill ng-model="${attr.ngModel}" class="editor" ui-ace="{ mode: '${attr.mode}', theme: 'monokai', useSoftTabs: true, tabSize: 4 }"
+		style="font-family: monospace; white-space:pre; position:absolute; top:0;bottom:0;left:0;right:0;"></div>
+</div>`
+	}
 }]);

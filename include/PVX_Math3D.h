@@ -631,7 +631,7 @@ namespace PVX {
 			m33 = vec.w;
 		}
 
-		constexpr bool IsIdentity(const float e = 1e-6) const {
+		bool IsIdentity(const float e = 1e-6) const {
 			float sum = 0;
 			for (auto i = 0; i<16; i++)
 				sum += std::abs(Identity().m16[i] - m16[i]);

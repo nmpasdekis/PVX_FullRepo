@@ -46,7 +46,7 @@ namespace PVX {
 				std::function<void()> NextTask;
 				{
 					std::unique_lock<std::mutex> lock{ pd.Mutex };
-					pd.TaskAdded.wait(lock, [this, &pd] { return pd.TaskCount > 0; });
+					pd.TaskAdded.wait(lock, [&pd] { return pd.TaskCount > 0; });
 					if (!pd.Running)return;
 					NextTask = Tasks.front();
 					Tasks.pop();
@@ -78,7 +78,7 @@ namespace PVX {
 			TaskPumpPrivate & pd = *(TaskPumpPrivate*)PrivateData;
 			{
 				std::unique_lock<std::mutex> lock{ pd.Mutex };
-				if (Limit) pd.TaskRemoved.wait(lock, [this, Limit, &pd] { return pd.TaskCount < Limit; });
+				if (Limit) pd.TaskRemoved.wait(lock, [Limit, &pd] { return pd.TaskCount < Limit; });
 				Tasks.push(Task);
 				pd.TaskCount++;
 			}
@@ -95,7 +95,7 @@ namespace PVX {
 		void TaskPump::Wait() {
 			TaskPumpPrivate & pd = *(TaskPumpPrivate*)PrivateData;
 			std::unique_lock<std::mutex> lock{ pd.BarrierMutex };
-			pd.Barrier.wait(lock, [this, &pd] {
+			pd.Barrier.wait(lock, [&pd] {
 				return pd.TaskCount == 0 && pd.Working == 0;
 			});
 		}

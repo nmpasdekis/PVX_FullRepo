@@ -3,8 +3,19 @@
 
 #include <functional>
 
+#ifndef __linux
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#else
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <fcntl.h>
+using SOCKET = int;
+#define closesocket close
+#endif
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -12,14 +23,11 @@
 
 
 namespace {
-	using SendCLB = int (*)(void* dt, const void*, size_t sz);
-	using ReceiveCLB = int (*)(void* sock, void*, size_t sz);
-	using ReleaseCLB = void (*)(void*);
 
 	struct Callbacks {
-		SendCLB Send;
-		ReceiveCLB Recv;
-		ReleaseCLB Release;
+		std::function<int(void*, const void*, std::size_t)> Send;
+		std::function<int(void*, void*, std::size_t)> Recv;
+		std::function<void(void*)> Release;
 	};
 
 	class socketData {
@@ -112,10 +120,9 @@ namespace PVX::Security {
 			auto err2 = SSL_get_error(ssl, err);
 			char errString[1024];
 			ERR_error_string(err2, errString);
-
-			int err3 = WSAGetLastError();
-
-			err2 = SSL_ERROR_NONE;
+#ifndef __linux
+			WSAGetLastError();
+#endif
 		}
 	}
 	enum class SSLErrors {
@@ -152,10 +159,9 @@ namespace PVX::Security {
 			auto err2 = (SSLErrors)SSL_get_error(ssl, err);
 			char errString[1024];
 			ERR_error_string((int)err2, errString);
-
-			int err3 = WSAGetLastError();
-
-			err3 = SSL_ERROR_NONE;
+#ifndef __linux
+			WSAGetLastError();
+#endif
 		}
 	}
 

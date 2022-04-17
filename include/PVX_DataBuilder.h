@@ -25,7 +25,7 @@ public:
 	PVX_DataBuilder & operator<<(const std::string & str);
 	PVX_DataBuilder & operator<<(const std::vector<unsigned char> & data);
 	PVX_DataBuilder & operator<<(const unsigned char* RawString);
-	PVX_DataBuilder & operator<<(long long Number);
+	PVX_DataBuilder & operator<<(int64_t Number);
 	std::vector<unsigned char> & GetDataVector();
 protected:
 	std::vector<unsigned char> Data;

@@ -345,8 +345,8 @@ namespace PVX::Network {
 			resp.StatusCode = 101;
 			resp[L"upgrade"] = L"websocket";
 			resp[L"connection"] = L"upgrade";
-			resp[L"sec-websocket-accept"] = Key;			
-			resp[L"set-cookie"] = L"pvxWSId=" + Key;
+			resp[L"sec-websocket-accept"] = Key;
+			resp.SetCookie(L"pvxWSId", Key, L"/");
 			auto s = req.GetWebSocket();
 			{
 				std::unique_lock<std::mutex> lock{ ThreadCleanerMutex };
@@ -400,7 +400,7 @@ namespace PVX::Network {
 			resp[L"upgrade"] = L"websocket";
 			resp[L"connection"] = L"upgrade";
 			resp[L"sec-websocket-accept"] = Key;
-			resp[L"set-cookie"] = L"pvxWSId=" + Key;
+			resp.SetCookie(L"pvxWSId", Key, L"/");
 			auto s = req.GetWebSocket();
 			{
 				std::unique_lock<std::mutex> lock{ ThreadCleanerMutex };
@@ -456,7 +456,7 @@ namespace PVX::Network {
 		}
 		this.SetAngularScope = function(element){t.$scope = angular.element(document.querySelector(element)).scope().$root;};
 		this.connect = function connect() {
-			if(angular)this.SetAngularScope("[ng-controller]");
+			if(angular)this.SetAngularScope("[ng-app]");
 			return new Promise(function(resolve, reject){
 				if (t.ws) {
 					SetState("reconnecting");
@@ -465,9 +465,10 @@ namespace PVX::Network {
 					SetState("connecting");
 				}
 				let p = window.location.port,pc = window.location.protocol=="https:"?"wss://":"ws://";
+				//try{} catch(e){}
 				t.Server.ws = t.ws = new WebSocket(pc + window.location.hostname + (p==80?"":(":"+p)) + server);
 				t.ws.onopen = function(e){
-					t.Id = document.cookie.replace(/\s/g,"").split(";").filter(c => c.indexOf("pvxWSId")==0)[0].substring(8);
+					t.Id = (document.cookie.replace(/\s/g,"").split(";").find(c => c.indexOf("pvxWSId")==0)||"").substring(8);
 					TO = 1000;
 					t.onopen&&t.onopen(e);
 					SetState("connected");
@@ -492,11 +493,7 @@ namespace PVX::Network {
 		}
 		if(fncs&&fncs.length) for(let f of fncs) t.Server[f.split(":")[0].trim()] = eval(MakeSendFunction(f));
 	}
-})(window, ")raw" << Url << L"\",[";
-
-			ret << PVX::Encode::ToString(functions);
-
-			ret << L"]);";
+})(window, ")raw" << Url << L"\",[" << PVX::Encode::ToString(functions) << L"]);";
 			resp.UtfData(ret.str(), L"script/javascript");
 		};
 	}

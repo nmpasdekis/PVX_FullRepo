@@ -76,6 +76,8 @@ namespace PVX {
 
 		class ParamTuple {
 		public:
+			template<typename T1, typename T2>
+			inline ParamTuple(T1&& Name, T2&& p) : Name{ std::forward<T1>(Name) }, Param{ std::forward<T2>(p) }{}
 			std::wstring Name;
 			Parameter Param;
 		};

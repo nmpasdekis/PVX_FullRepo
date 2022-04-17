@@ -64,6 +64,7 @@ namespace PVX {
 				return *Val.get();
 			}
 			inline operator T& () {
+				if (!Val.get()) Val = std::make_shared<T>();
 				return *Val.get();
 			}
 			inline operator const T& () const {
@@ -102,6 +103,19 @@ namespace PVX {
 				std::vector<uint8_t>
 			> Value;
 		public:
+			static constexpr const char* TypeString(const jsElementType tp) {
+				switch (tp) {
+					case jsElementType::Undefined: return "Undefined";
+					case jsElementType::Null: return "Null";
+					case jsElementType::Boolean: return "Boolean";
+					case jsElementType::Integer: return "Integer";
+					case jsElementType::Float: return "Float";
+					case jsElementType::String: return "String";
+					case jsElementType::Array: return "Array";
+					case jsElementType::Object: return "Object";
+					case jsElementType::Binary: return "Binary";
+				}
+			}
 			Item() : Value{ nullptr }, JSONType { jsElementType::Undefined }, BSONType{ BSON_Type::Undefined } {}
 			Item(const Item&) = default;
 			Item(Item&&) = default;

@@ -115,7 +115,7 @@ namespace PVX {
 		std::vector<ParamTuple> ToParams(const PVX::JSON::Item & v) {
 			std::vector<ParamTuple> ret;
 			for (auto &[Name, Value] : v.getObject())
-				ret.push_back({ Name, Value });
+				ret.emplace_back(Name, Value());
 			return ret;
 		}
 
@@ -467,7 +467,7 @@ namespace PVX {
 		PVX::JSON::Item SQL::JsonQueryJson(const std::wstring & query, const PVX::JSON::Item & params) {
 			std::vector<ParamTuple> Params;
 			for (auto &[Name, Value] : params.getObject()) {
-				Params.push_back({ Name, Value });
+				Params.emplace_back(Name, Value());
 			}
 			auto result = JsonQuery(query, Params);
 			result.each([](PVX::JSON::Item& line) {
@@ -484,7 +484,7 @@ namespace PVX {
 		PVX::JSON::Item SQL::JsonQueryJson2(const std::wstring& query, const PVX::JSON::Item& params) {
 			std::vector<ParamTuple> Params;
 			for (auto& [Name, Value] : params.getObject()) {
-				Params.push_back({ Name, Value });
+				Params.emplace_back(Name, Value());
 			}
 			return JsonQuery(query, Params);
 		}

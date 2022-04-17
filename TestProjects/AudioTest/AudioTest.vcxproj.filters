@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="CustomViews.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SqlServices.cpp">
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="account.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -207,25 +207,25 @@ namespace PVX::XML {
 	}
 
 	Element Tag(const std::wstring& name) {
-		return std::move(Element{ Element::ElementType::Tag, PVX::String::ToLower(name), name });
+		return { Element::ElementType::Tag, PVX::String::ToLower(name), name };
 	}
 	Element Tag(const std::wstring& name, const std::vector<Element>& _Children) {
-		return std::move(Element{ Element::ElementType::OpenTag, PVX::String::ToLower(name), name, {}, _Children });
+		return { Element::ElementType::OpenTag, PVX::String::ToLower(name), name, {}, _Children };
 	}
 	Element TagWithAttributes(const std::wstring& name, const std::unordered_map<std::wstring, std::wstring>& _Attributes){
-		return std::move(Element{ Element::ElementType::Tag, PVX::String::ToLower(name), name, _Attributes });
+		return { Element::ElementType::Tag, PVX::String::ToLower(name), name, _Attributes };
 	}
 	Element TagWithAttributes(const std::wstring& name, const std::unordered_map<std::wstring, std::wstring>& _Attributes, const std::vector<Element>& _Children) {
-		return std::move(Element{ Element::ElementType::OpenTag, PVX::String::ToLower(name), name, _Attributes, _Children });
+		return { Element::ElementType::OpenTag, PVX::String::ToLower(name), name, _Attributes, _Children };
 	}
 	Element Text(const std::wstring& text) {
-		return std::move(Element{ Element::ElementType::Text, {}, text });
+		return { Element::ElementType::Text, {}, text };
 	}
 
-	Element Script(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"script", L"script", { { L"src", src } } }); }
-	Element ScriptCode(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"script", L"script", {}, { Text(src) } }); }
-	Element Style(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"link", L"link", { { L"href", src } } }); }
-	Element StyleCode(const std::wstring& src) { return std::move(Element{ Element::ElementType::OpenTag, L"style", L"style", {}, { Text(src) } }); }
+	Element Script(const std::wstring& src) { return { Element::ElementType::OpenTag, L"script", L"script", { { L"src", src } } }; }
+	Element ScriptCode(const std::wstring& src) { return { Element::ElementType::OpenTag, L"script", L"script", {}, { Text(src) } }; }
+	Element Style(const std::wstring& src) { return { Element::ElementType::OpenTag, L"link", L"link", { { L"href", src } } }; }
+	Element StyleCode(const std::wstring& src) { return { Element::ElementType::OpenTag, L"style", L"style", {}, { Text(src) } }; }
 
 	std::wstring Serialize(const Element& xml) {
 		std::wstringstream out;

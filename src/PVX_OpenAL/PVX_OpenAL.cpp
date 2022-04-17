@@ -1,7 +1,7 @@
 #include <PVX_OpenAL.h>
-#include <al/alc.h>
-#include <al/al.h>
-#include <al/alext.h>
+#include <AL/alc.h>
+#include <AL/al.h>
+#include <AL/alext.h>
 #include <stdio.h>
 #include <thread>
 #include <map>
@@ -10,6 +10,7 @@
 #define PLAYING		1
 #define PAUSED		2
 #define LOOPING		4
+
 
 namespace PVX {
 	namespace Audio {
@@ -142,7 +143,7 @@ namespace PVX {
 		}
 
 		void Source::SetOffset(float pos) {
-			alSourcei(Id, AL_SEC_OFFSET, pos);
+			alSourcef(Id, AL_SEC_OFFSET, pos);
 		}
 		float Source::GetSecOffset() {
 			float pos;
@@ -180,18 +181,18 @@ namespace PVX {
 			}
 		}
 		Buffer::Buffer():
-			Channels{ 0 },
-			BitsPerSamples{ 0 },
 			SampleRate{ 0 },
+			BitsPerSamples{ 0 },
+			Channels{ 0 },
 			Size{ 0 },
 			Format{ 0 } {
 			alGenBuffers(1, &Id);
 		}
 
 		Buffer::Buffer(int Channels, int BitsPerSamples, int SampleRate, void * Data, int Size):
-			Channels{ Channels },
-			BitsPerSamples{ BitsPerSamples },
 			SampleRate{ SampleRate },
+			BitsPerSamples{ BitsPerSamples },
+			Channels{ Channels },
 			Size{ Size },
 			Format{ SetFormat(Channels, BitsPerSamples) } {
 			alGenBuffers(1, &Id);
@@ -211,9 +212,9 @@ namespace PVX {
 			SetData(Data);
 		}
 		Buffer::Buffer(int SampleRate, const std::vector<short>& Samples):
-			Channels{ 2 },
-			BitsPerSamples{ 16 },
 			SampleRate{ SampleRate },
+			BitsPerSamples{ 16 },
+			Channels{ 2 },
 			Format{ SetFormat(2, 16) } {
 			alGenBuffers(1, &Id);
 			SetData(Samples);
@@ -264,17 +265,17 @@ namespace PVX {
 		void Buffer::Set(int Type, const int * Value) { alBufferiv(Id, Type, Value); }
 
 
-		StreamOut::StreamOut(int Channels, int BitsPerSample, int SampleRate):
+		StreamOut::StreamOut(int Channels, int BitsPerSample, int SampleRate, const int bufferCount):
 			Channels{ Channels },
 			BitsPerSample{ BitsPerSample },
 			SampleRate{ SampleRate },
-			Format{ SetFormat(Channels, BitsPerSample) } {
+			Format{ SetFormat(Channels, BitsPerSample) },
+			Buffers{ std::vector<uint32_t>(bufferCount) } {
 
-			uint32_t bufs[10];
-			alGenBuffers(10, bufs);
-			for(int i = 0; i < 10; i++)
-				Buffers.push(bufs[i]);
-			availableBuffers = 10;
+			alGenBuffers(bufferCount, Buffers.data());
+			for(int i = 0; i < bufferCount; i++)
+				BufferQueue.push(Buffers[i]);
+			availableBuffers = bufferCount;
 			Playing = 0;
 		}
 		void StreamOut::SetProperties(int Channels, int BitsPerSample, int SampleRate) {
@@ -293,11 +294,10 @@ namespace PVX {
 				uint32_t bufs[10];
 				alSourceUnqueueBuffers(id, n, bufs);
 				for(int i = 0; i < n; i++)
-					Buffers.push(bufs[i]);
+					BufferQueue.push(bufs[i]);
 			}
-			while(Buffers.size()) {
-				uint32_t b = Buffers.front();
-				Buffers.pop();
+			while(BufferQueue.size()) {
+				uint32_t b = BufferQueue.front(); BufferQueue.pop();
 				alDeleteBuffers(1, &b);
 			}
 		}
@@ -310,7 +310,7 @@ namespace PVX {
 				uint32_t bufs[10];
 				alSourceUnqueueBuffers(id, more, bufs);
 				for(int i = 0; i < more; i++)
-					Buffers.push(bufs[i]);
+					BufferQueue.push(bufs[i]);
 				availableBuffers += more;
 			}
 			return availableBuffers;
@@ -424,19 +424,19 @@ namespace PVX {
 		}
 		void StreamOut::Stream(const void * Data, int Size) {
 			int more = 0;
-			uint32_t bufs[10];
+			//uint32_t bufs[10];
 			uint32_t id = Player.Get();
 			if(!availableBuffers) {
 				while(!more) {
 					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					alGetSourcei(id, AL_BUFFERS_PROCESSED, &more);
 				}
-				alSourceUnqueueBuffers(id, more, bufs);
+				alSourceUnqueueBuffers(id, more, Buffers.data());
 				for(int i = 0; i < more; i++)
-					Buffers.push(bufs[i]);
+					BufferQueue.push(Buffers[i]);
 				availableBuffers += more;
 			}
-			uint32_t buf = Buffers.front(); Buffers.pop();
+			uint32_t buf = BufferQueue.front(); BufferQueue.pop();
 			availableBuffers--;
 			alBufferData(buf, Format, Data, Size, SampleRate);
 			alSourceQueueBuffers(id, 1, &buf);
@@ -456,7 +456,7 @@ namespace PVX {
 				}
 				alSourceUnqueueBuffers(id, more, bufs);
 				for(int i = 0; i < more; i++)
-					Buffers.push(bufs[i]);
+					BufferQueue.push(bufs[i]);
 				availableBuffers += more;
 			}
 		}
@@ -582,7 +582,6 @@ namespace PVX {
 			memset(&ret[0], 0, sizeof(float) * ret.size());
 			for(auto i = 1; i < Count; i++) {
 				float & x = ret[i - 1];
-				int c2 = Count - i;
 				for(int j = i; j < Count; j++)
 					x += a[j] * a[j - i];
 				x /= (Count - i);
@@ -636,8 +635,8 @@ namespace PVX {
 
 		AudioData<unsigned char> LoadWaveFile(const char * Filename) {
 			AudioData<unsigned char> ret{ 0 };
-			ret.Data = std::move(LoadWaveFile(Filename, ret.Channels, ret.BitsPerSample, ret.SampleRate));
-			return std::move(ret);
+			ret.Data = LoadWaveFile(Filename, ret.Channels, ret.BitsPerSample, ret.SampleRate);
+			return ret;
 		}
 	}
 }

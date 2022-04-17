@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 using SOCKET = int;
 #define closesocket close
 #define INVALID_SOCKET  (SOCKET)(~0)
@@ -24,17 +25,13 @@ using SOCKET = int;
 #include <PVX_Network.h>
 
 namespace {
-	using SendCLB = int (*)(void* dt, const void*, size_t sz);
-	using ReceiveCLB = int (*)(void* sock, void*, size_t sz);
-	using ReleaseCLB = void (*)(void*);
-
-#ifdef _WINDOWS
+#ifndef __linux
 	static WSAData Windows_Socket_Data;
 #endif
 	struct Callbacks {
-		SendCLB Send;
-		ReceiveCLB Recv;
-		ReleaseCLB Release;
+		std::function<int(void*, const void*, std::size_t)> Send;
+		std::function<int(void*, void*, std::size_t)> Recv;
+		std::function<void(void*)> Release;
 	};
 	Callbacks StandartActions{};
 
@@ -56,6 +53,13 @@ namespace {
 		SOCKET SocketID = socket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
 		if (SocketID == INVALID_SOCKET)
 			return 0;
+
+#ifdef __linux
+		fcntl(SocketID, F_SETFL, fcntl(SocketID, F_GETFL, 0) | O_NONBLOCK);
+#endif
+		int enable = 1;
+		setsockopt(SocketID, SOL_SOCKET, SO_REUSEADDR, (const char*)&enable, sizeof(int));
+
 		if (bind(SocketID, Source->ai_addr, (int)Source->ai_addrlen) == SOCKET_ERROR)
 			return 0;
 
@@ -68,7 +72,7 @@ namespace {
 	class socketData {
 	public:
 		socketData() = default;
-		socketData(uint32_t* s, const struct sockaddr addr) : Socket{ (SOCKET)s }, Address{ addr } {}
+		socketData(SOCKET s, const struct sockaddr addr) : Socket{ (SOCKET)s }, Address{ addr } {}
 		~socketData() { Actions->Release(this); }
 
 		SOCKET Socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -112,7 +116,7 @@ namespace PVX::Network {
 	int TcpSocket::SetOption(SocketOption Op, const void* Value, int ValueSize) {
 		return setsockopt(((socketData*)SocketData.get())->Socket, SOL_SOCKET, (int)Op, (const char*)Value, ValueSize);
 	}
-	TcpSocket::TcpSocket(uint32_t* socket, const void* addr) : SocketData{ (void*)new socketData(socket, *(const sockaddr*)addr), socketData_Deleter } {}
+	TcpSocket::TcpSocket(uint32_t* socket, const void* addr) : SocketData{ (void*)new socketData(SOCKET((size_t)socket), *(const sockaddr*)addr), socketData_Deleter } {}
 
 	int TcpSocket::CanRead() {
 		fd_set sock{};
@@ -188,7 +192,7 @@ namespace PVX::Network {
 			//if (CanRead() < 0 || (rsz = Receive(ret.data() + cur, 1024))<0) {
 			//	return {};
 			//}
-			if ( (rsz = Receive(ret.data() + cur, 1024))<0) {
+			if ((rsz = Receive(ret.data() + cur, 1024))<0) {
 				return {};
 			}
 			if (rsz < 1024) {
@@ -255,7 +259,7 @@ namespace PVX::Network {
 	}
 
 	TcpServer::TcpServer(const char* Port, int ThreadCount) :
-		ServingSocket{ (uint32_t*)CreateListenSocket(Port) } {
+		ServingSocket{ (uint32_t*)(size_t)CreateListenSocket(Port) } {
 		Running = ServingSocket != nullptr;
 		if (ThreadCount<=0)ThreadCount = std::max(1, (int)std::thread::hardware_concurrency() - 1);
 		for (auto i = 0; i<ThreadCount; i++) {
@@ -279,30 +283,55 @@ namespace PVX::Network {
 	}
 	TcpServer::~TcpServer() {
 		Running = false;
-		closesocket((SOCKET)ServingSocket);
+		closesocket((SOCKET)(size_t)ServingSocket);
 		Stop();
 	}
+
+#ifdef __linux
+	SOCKET Accept(SOCKET s, struct sockaddr * addr, socklen_t* addrlen) {
+		fd_set set;
+		struct timeval timeout;
+		sockaddr info;
+		socklen_t len = sizeof(sockaddr);
+		int rv = 0;
+		int to = 0;
+		while (rv == 0) {
+			timeout.tv_sec = 1;
+			timeout.tv_usec = 0;
+			FD_ZERO(&set);
+			FD_SET((SOCKET)(size_t)s, &set);
+			rv = select(((SOCKET)(size_t)s) + 1, &set, NULL, NULL, &timeout);
+		}
+		if (rv==-1) return -1;
+		return accept((SOCKET)(size_t)s, &info, &len);
+	}
+#else
+	inline SOCKET Accept(SOCKET s, sockaddr* addr, socklen_t* addrlen) {
+		return accept(s, addr, addrlen);
+	}
+#endif
+
 	void TcpServer::Serve(std::function<void(TcpSocket)> Event, std::function<void(TcpSocket&)> Transform) {
 		if ((Running = ServingSocket != nullptr)) {
 			ServingThread = std::make_unique<std::thread>([this, Event, Transform] {
 				while (Running) {
 					sockaddr info;
 					socklen_t len = sizeof(sockaddr);
-					auto ss = accept((SOCKET)ServingSocket, &info, &len);
+					auto ss = Accept((SOCKET)(size_t)ServingSocket, &info, &len);
 					if (ss != -1) {
 						{
 							std::lock_guard<std::mutex> slock{ SocketGuard };
-							OpenSockets.insert((uint32_t*)ss);
+							OpenSockets.insert((uint32_t*)(size_t)ss);
 						}
 						std::lock_guard<std::mutex> lock{ TaskMutex };
 						{
 							Tasks.push([ss, info, Event, Transform, this] {
-								TcpSocket mySocket{ (uint32_t*)ss, (void*)&info };
+								TcpSocket mySocket{ (uint32_t*)(size_t)ss, (void*)&info };
 								if (Transform) Transform(mySocket);
 								Event(mySocket);
 								{
 									std::lock_guard<std::mutex> slock{ SocketGuard };
-									OpenSockets.erase((uint32_t*)ss);
+									OpenSockets.erase((uint32_t*)(size_t)ss);
 								}
 							});
 						}
@@ -315,7 +344,7 @@ namespace PVX::Network {
 	}
 	void TcpServer::Stop() {
 		Running = false;
-		for (auto s : OpenSockets) closesocket((SOCKET)s);
+		for (auto s : OpenSockets) closesocket((SOCKET)(size_t)s);
 		TaskAdded.notify_all();
 		if (ServingThread.get() != nullptr) ServingThread->join();
 	}

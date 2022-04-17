@@ -62,7 +62,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>PVX_OpenAL.lib;PVX_ffMPEG.lib;PVX_General.lib;PVX_Network.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>PVX_OpenAL.lib;PVX_ffMPEG.lib;PVX_General.lib;PVX_Network.lib;PVX_OpenSSL.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -84,9 +84,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="account.cpp" />
     <ClCompile Include="CustomViews.cpp" />
-    <ClCompile Include="Source.cpp" />
-    <ClCompile Include="SqlServices.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

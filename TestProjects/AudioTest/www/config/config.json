@@ -1,20 +1,34 @@
 {
-	"title": "PerVertEX CMS",
+	"title": "PerVertEX Raspberry Pi",
 	"navMenu": [
 		{
-			"Title": "Item1",
-			"sref": "root.view({'name': 'nikos', '#': undefined })",
-			"icon": "mdi-home"
+			"Title": "Icons",
+			"sref": "root.view({'name': 'mdi-icons', '#': undefined })",
+			"icon": "mdi-file-image-outline"
 		},
 		{
-			"Title": "Item1",
-			"sref": "root.view({'name': 'SQL Services', '#': undefined })",
-			"icon": "mdi-database"
+			"Title": "Video",
+			"sref": "root.view({'name': 'VideoContent', '#': 'src=/data/hq.mp4' })",
+			"icon": "mdi-play-circle",
+			"Roles": [
+				"SuperAdmin"
+			]
 		},
 		{
-			"Title": "Item2",
+			"Title": "Custom Views",
 			"sref": "root.view({'name': 'Custom Views', '#': undefined })",
-			"icon": "mdi-code-braces"
+			"icon": "mdi-code-braces",
+			"Roles": [
+				"SuperAdmin"
+			]
+		},
+		{
+			"Title": "Settings",
+			"sref": "root.view({'name': 'EditConfig', '#': undefined })",
+			"icon": "mdi-cog-outline",
+			"Roles": [
+				"SuperAdmin"
+			]
 		}
 	]
 }

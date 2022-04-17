@@ -58,7 +58,8 @@ namespace PVX {
 			return ret;
 		}
 
-		Route::Route(const std::wstring & url, std::function<void(HttpRequest&, HttpResponse&)> action) : Matcher(MakeRegex(url), std::regex_constants::optimize | std::regex_constants::icase | std::regex_constants::ECMAScript), Action(action) {
+		Route::Route(const std::wstring & url, std::function<void(HttpRequest&, HttpResponse&)> action) : 
+			Action(action), Matcher(MakeRegex(url), std::regex_constants::optimize | std::regex_constants::icase | std::regex_constants::ECMAScript) {
 			OriginalRoute = url;
 			std::wregex r(MakeRegex2(url));
 			std::wsmatch m;
@@ -229,31 +230,56 @@ namespace PVX {
 			return Mime.at(L"");
 		}
 
-		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::wstring & ContentPath) {
+		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::filesystem::path& ContentPath) {
 			namespace io = PVX::IO;
-			std::wstring cPath = PVX::IO::wCurrentPath() + 
-				(ContentPath[0] != io::sep ? io::sepString : L"") +
-				ContentPath + 
-				((ContentPath.size() && (ContentPath.back() == io::sep)) ? L"" : io::sepString);
-			return [this, cPath](HttpRequest & req, HttpResponse& resp) {
-				std::wstring path = [&] {
-					if constexpr (io::sep=='\\') return std::filesystem::path(cPath + (std::wstring&)req.Variables[L"Path"]).make_preferred().wstring();
-					else return cPath + (std::wstring&)req.Variables[L"Path"];
-				}(); 
-				if (path.find(L"..") != std::wstring::npos) {
+			namespace fs = std::filesystem;
+
+			auto cPath = fs::current_path() / ContentPath;
+
+			return [cPath](HttpRequest& req, HttpResponse& resp) {
+				auto path = cPath / (std::wstring&)req.Variables[L"Path"];
+
+				if (!path.is_absolute()) {
 					resp.StatusCode = 403;
 					return;
 				}
-				if ((resp.StatusCode = resp.Content.BinaryFile(path.c_str())) == 200) {
-					std::wsmatch Extension;
-					std::map<std::wstring, std::wstring>::iterator pMime;
-					auto ext = PVX::IO::FileExtension(path);
-					if ((pMime = Mime.find(ext)) != Mime.end()) {
-						resp[L"Content-Type"] = pMime->second;
-					}
+				io::FileExists(path.wstring());
+
+				if (!fs::exists(path)) { resp.StatusCode = 404; return; }
+
+				if (fs::file_size(path) < 1024 * 1024) {
+					resp.ServeFile(path.wstring());
+				} else {
+					resp.StreamFile(req, path.wstring());
 				}
 			};
 		}
+
+		//std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::wstring & ContentPath) {
+		//	namespace io = PVX::IO;
+		//	std::wstring cPath = PVX::IO::wCurrentPath() + 
+		//		(ContentPath[0] != io::sep ? io::sepString : L"") +
+		//		ContentPath + 
+		//		((ContentPath.size() && (ContentPath.back() == io::sep)) ? L"" : io::sepString);
+		//	return [this, cPath](HttpRequest & req, HttpResponse& resp) {
+		//		auto path = [&] {
+		//			if constexpr (io::sep=='\\') return std::filesystem::path(cPath + (std::wstring&)req.Variables[L"Path"]).make_preferred().wstring();
+		//			else return cPath + (std::wstring&)req.Variables[L"Path"];
+		//		}(); 
+		//		if (path.find(L"..") != std::wstring::npos) {
+		//			resp.StatusCode = 403;
+		//			return;
+		//		}
+		//		if ((resp.StatusCode = resp.Content.BinaryFile(path.c_str())) == 200) {
+		//			std::wsmatch Extension;
+		//			std::map<std::wstring, std::wstring>::iterator pMime;
+		//			auto ext = PVX::IO::FileExtension(path);
+		//			if ((pMime = Mime.find(ext)) != Mime.end()) {
+		//				resp[L"Content-Type"] = pMime->second;
+		//			}
+		//		}
+		//	};
+		//}
 
 		//Route HttpServer::ContentPathRoute(const std::wstring & Url, const std::wstring & Path) {
 		//	auto url = Url;

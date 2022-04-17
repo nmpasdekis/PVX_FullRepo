@@ -40,7 +40,7 @@ namespace PVX {
 		void ChangeTracker::GetLastTime() {
 			LastTime = fs::directory_entry(Filename).last_write_time();
 		}
-		ChangeTracker::ChangeTracker(const std::wstring& Filename) :
+		ChangeTracker::ChangeTracker(const std::filesystem::path& Filename) :
 			Filename{ Filename },
 			LastTime{ fs::directory_entry(Filename).last_write_time() } {}
 		ChangeTracker::operator bool() {
@@ -68,7 +68,7 @@ namespace PVX {
 			Running = 0;
 			Tracker.join();
 		}
-		void ChangeEventer::Track(const std::wstring& Filename, std::function<void()> clb) {
+		void ChangeEventer::Track(const std::filesystem::path& Filename, std::function<void()> clb) {
 			std::unique_lock<std::mutex> lock{ Locker };
 			Files.push_back({ Filename, clb });
 			if ((bool)Files.back().File)	clb();
@@ -81,7 +81,7 @@ namespace PVX {
 			fs::create_directories(Directory);
 		}
 
-		std::wstring ReadUtf(const std::wstring& Filename) {
+		std::wstring ReadUtf(const std::filesystem::path& Filename) {
 			auto bin = ReadBinary(Filename.c_str());
 			return PVX::Decode::UTF(bin);
 		}
@@ -98,64 +98,88 @@ namespace PVX {
 		size_t FileSize(const std::wstring & filename) {
 			return fs::directory_entry(filename).file_size();
 		}
-		std::string FindFileFullPath(const std::string& Filename) {
-			namespace fs = std::filesystem;
-			auto p = fs::path{ Filename };
-			if (p.is_absolute()) return Filename;
-			auto cp = fs::current_path().string();
-			cp.push_back(fs::path::preferred_separator);
-			cp += Filename;
-			if (FileExists(cp)) return cp;
-			std::string_view var = getenv("PATH");
-			while (var.size()) {
-				auto x = var.find(';'); if (x==std::string_view::npos) x = var.size();
-				auto pp = std::string(var.substr(0, x));
-				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
-				pp += Filename;
-				if (FileExists(pp))
-					return pp;
-				var.remove_prefix(x+1);
-			}
-			return "";
+		size_t FileSize(const std::filesystem::path& filename) {
+			return std::filesystem::file_size(filename);
 		}
-
-
-		std::wstring FindFileFullPath(const std::wstring& Filename) {
+		std::filesystem::path FindFileFullPath(const std::filesystem::path& Filename) {
 			namespace fs = std::filesystem;
-			auto p = fs::path{ Filename };
-			if (p.is_absolute()) return Filename;
-			auto cp = fs::current_path().wstring();
-			cp.push_back(fs::path::preferred_separator);
-			cp += Filename;
-			if (FileExists(cp)) return cp;
+			if (Filename.is_absolute()) return Filename;
+			auto cp = fs::current_path() / Filename;
+			if (std::filesystem::exists(cp)) return cp;
 #ifdef __linux
-			std::wstring PATH = [] { auto tmp = getenv("PATH");	return PVX::Decode::UTF((uint8_t*)tmp, std::strlen(tmp)); }();
-			std::wstring_view var = PATH;
+			std::string_view var = getenv(L"PATH");
 #else
 			std::wstring_view var = _wgetenv(L"PATH");
 #endif
 			while (var.size()) {
-				auto x = var.find(';'); if (x==std::wstring_view::npos) x = var.size();
-				auto pp = std::wstring(var.substr(0, x));
-				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
-				pp += Filename;
-				if (FileExists(pp))
+				auto x = var.find(';'); if (x==std::string_view::npos) x = var.size();
+				auto pp = fs::path{ var.substr(0, x) } / Filename;
+				if (std::filesystem::exists(pp))
 					return pp;
 				var.remove_prefix(x+1);
 			}
-			return L"";
+
+		}
+//		std::string FindFileFullPath(const std::string& Filename) {
+//			namespace fs = std::filesystem;
+//			auto p = fs::path{ Filename };
+//			if (p.is_absolute()) return Filename;
+//			auto cp = fs::current_path().string();
+//			cp.push_back(fs::path::preferred_separator);
+//			cp += Filename;
+//			if (FileExists(cp)) return cp;
+//			std::string_view var = getenv("PATH");
+//			while (var.size()) {
+//				auto x = var.find(';'); if (x==std::string_view::npos) x = var.size();
+//				auto pp = std::string(var.substr(0, x));
+//				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
+//				pp += Filename;
+//				if (FileExists(pp))
+//					return pp;
+//				var.remove_prefix(x+1);
+//			}
+//			return "";
+//		}
+//		std::wstring FindFileFullPath(const std::wstring& Filename) {
+//			namespace fs = std::filesystem;
+//			auto p = fs::path{ Filename };
+//			if (p.is_absolute()) return Filename;
+//			auto cp = fs::current_path().wstring();
+//			cp.push_back(fs::path::preferred_separator);
+//			cp += Filename;
+//			if (FileExists(cp)) return cp;
+//#ifdef __linux
+//			std::wstring PATH = [] { auto tmp = getenv("PATH");	return PVX::Decode::UTF((uint8_t*)tmp, std::strlen(tmp)); }();
+//			std::wstring_view var = PATH;
+//#else
+//			std::wstring_view var = _wgetenv(L"PATH");
+//#endif
+//			while (var.size()) {
+//				auto x = var.find(';'); if (x==std::wstring_view::npos) x = var.size();
+//				auto pp = std::wstring(var.substr(0, x));
+//				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
+//				pp += Filename;
+//				if (FileExists(pp))
+//					return pp;
+//				var.remove_prefix(x+1);
+//			}
+//			return L"";
+//		}
+
+		std::filesystem::path FilePathPart(const std::filesystem::path& Filename) {
+			return FindFileFullPath(Filename).remove_filename();
 		}
 
-		std::string FilePathPart(const std::string& Filename) {
-			auto p = PVX::String::Split(FindFileFullPath(Filename), "\\");
-			p.pop_back();
-			return PVX::String::Join(p, "\\");
-		}
-		std::wstring FilePathPart(const std::wstring& Filename) {
-			auto p = PVX::String::Split(FindFileFullPath(Filename), L"\\");
-			p.pop_back();
-			return PVX::String::Join(p, L"\\");
-		}
+		//std::string FilePathPart(const std::string& Filename) {
+		//	auto p = PVX::String::Split(FindFileFullPath(Filename), "\\");
+		//	p.pop_back();
+		//	return PVX::String::Join(p, "\\");
+		//}
+		//std::wstring FilePathPart(const std::wstring& Filename) {
+		//	auto p = PVX::String::Split(FindFileFullPath(Filename), L"\\");
+		//	p.pop_back();
+		//	return PVX::String::Join(p, L"\\");
+		//}
 
 		int Write(const std::string & fn, const void*data, size_t Size) {
 			FILE * fout;
@@ -179,101 +203,142 @@ namespace PVX {
 			return Write(fn, Data.data(), Data.size());
 		}
 
-		std::vector<unsigned char> ReadBinary(const char * Filename) {
-			FILE * file;
-			std::vector<unsigned char> ret;
-			if(fopen_s(&file, Filename, "rb"))return ret;
-			fseek(file, 0, SEEK_END);
-			ret.resize(ftell(file));
-			if (ret.size()) {
-				fseek(file, 0, SEEK_SET);
-				fread(&ret[0], 1, ret.size(), file);
+		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename) {
+			if (std::filesystem::exists(Filename)) {
+				std::vector<uint8_t> ret(std::filesystem::file_size(Filename));
+				std::ifstream(Filename, std::ifstream::binary).read((char*)ret.data(), ret.size());
+				return ret;
 			}
-			fclose(file);
-			return ret;
+			return {};
 		}
-		std::vector<unsigned char> ReadBinary(const char * Filename, size_t offset, size_t length) {
-			FILE * file;
-			std::vector<unsigned char> ret(length);
-			if(fopen_s(&file, Filename, "rb"))return ret;
-			fseek(file, offset, SEEK_SET);
-			fread(&ret[0], 1, length, file);
-			fclose(file);
-			return ret;
+		std::vector<unsigned char> ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length) {
+			if (std::filesystem::exists(Filename)) {
+				length = std::min(length, std::filesystem::file_size(Filename) - offset);
+				std::vector<uint8_t> ret(length);
+				auto fin = std::ifstream(Filename, std::ifstream::binary);
+				fin.seekg(offset);
+				fin.read((char*)ret.data(), ret.size());
+				return ret;
+			}
+			return {};
 		}
-		size_t ReadBinary(const char * Filename, std::vector<unsigned char> & Data) {
-			FILE * file;
-			if(fopen_s(&file, Filename, "rb")) return 0;
-			Data.clear();
-			fseek(file, 0, SEEK_END);
-			size_t sz = ftell(file);
-			fseek(file, 0, SEEK_SET);
-			Data.resize(sz);
-			int ret = (sz == fread(&Data[0], 1, sz, file));
-			fclose(file);
-			if(ret)
-				return sz;
+		size_t ReadBinary(const std::filesystem::path& Filename, std::vector<uint8_t>& Data) {
+			if (std::filesystem::exists(Filename)) {
+				Data.resize(std::filesystem::file_size(Filename));
+				std::ifstream(Filename, std::ifstream::binary).read((char*)Data.data(), Data.size());
+				return Data.size();
+			}
 			return 0;
 		}
-		size_t ReadBinary(const char * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
-			FILE * file;
-			if(fopen_s(&file, Filename, "rb")) return 0;
-			Data.clear();
-			Data.resize(length);
-			fseek(file, offset, SEEK_SET);
-			int ret = (length == fread(&Data[0], 1, length, file));
-			fclose(file);
-			if(ret)return length;
+		size_t ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length, std::vector<unsigned char>& Data) {
+			if (std::filesystem::exists(Filename)) {
+				length = std::min(length, std::filesystem::file_size(Filename) - offset);
+				Data.resize(length);
+				auto fin = std::ifstream(Filename, std::ifstream::binary);
+				fin.seekg(offset);
+				fin.read((char*)Data.data(), Data.size());
+				return Data.size();
+			}
 			return 0;
 		}
 
-		std::vector<unsigned char> ReadBinary(const wchar_t * Filename) {
-			FILE * file;
-			std::vector<unsigned char> ret;
-			if(_wfopen_s(&file, Filename, L"rb"))return ret;
-			fseek(file, 0, SEEK_END);
-			ret.resize(ftell(file));
-			if (ret.size()) {
-				fseek(file, 0, SEEK_SET);
-				fread(&ret[0], 1, ret.size(), file);
-			}
-			fclose(file);
-			return ret;
-		}
-		std::vector<unsigned char> ReadBinary(const wchar_t * Filename, size_t offset, size_t length) {
-			FILE * file;
-			std::vector<unsigned char> ret(length);
-			if(_wfopen_s(&file, Filename, L"rb"))return ret;
-			fseek(file, offset, SEEK_SET);
-			fread(&ret[0], 1, length, file);
-			fclose(file);
-			return ret;
-		}
-		size_t ReadBinary(const wchar_t * Filename, std::vector<unsigned char> & Data) {
-			FILE * file;
-			if(_wfopen_s(&file, Filename, L"rb")) return 0;
-			Data.clear();
-			fseek(file, 0, SEEK_END);
-			size_t sz = ftell(file);
-			fseek(file, 0, SEEK_SET);
-			Data.resize(sz);
-			int ret = (sz == fread(&Data[0], 1, sz, file));
-			fclose(file);
-			if(ret)
-				return sz;
-			return 0;
-		}
-		size_t ReadBinary(const wchar_t * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
-			FILE * file;
-			if (_wfopen_s(&file, Filename, L"rb")) return 0;
-			Data.clear();
-			Data.resize(length);
-			fseek(file, offset, SEEK_SET);
-			int ret = (length == fread(&Data[0], 1, length, file));
-			fclose(file);
-			if(ret)return length;
-			return 0;
-		}
+
+
+		//std::vector<unsigned char> ReadBinary(const char * Filename) {
+		//	FILE * file;
+		//	std::vector<unsigned char> ret;
+		//	if(fopen_s(&file, Filename, "rb"))return ret;
+		//	fseek(file, 0, SEEK_END);
+		//	ret.resize(ftell(file));
+		//	if (ret.size()) {
+		//		fseek(file, 0, SEEK_SET);
+		//		fread(&ret[0], 1, ret.size(), file);
+		//	}
+		//	fclose(file);
+		//	return ret;
+		//}
+		//std::vector<unsigned char> ReadBinary(const char * Filename, size_t offset, size_t length) {
+		//	FILE * file;
+		//	std::vector<unsigned char> ret(length);
+		//	if(fopen_s(&file, Filename, "rb"))return ret;
+		//	fseek(file, offset, SEEK_SET);
+		//	fread(&ret[0], 1, length, file);
+		//	fclose(file);
+		//	return ret;
+		//}
+		//size_t ReadBinary(const char * Filename, std::vector<unsigned char> & Data) {
+		//	FILE * file;
+		//	if(fopen_s(&file, Filename, "rb")) return 0;
+		//	Data.clear();
+		//	fseek(file, 0, SEEK_END);
+		//	size_t sz = ftell(file);
+		//	fseek(file, 0, SEEK_SET);
+		//	Data.resize(sz);
+		//	int ret = (sz == fread(&Data[0], 1, sz, file));
+		//	fclose(file);
+		//	if(ret)
+		//		return sz;
+		//	return 0;
+		//}
+		//size_t ReadBinary(const char * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
+		//	FILE * file;
+		//	if(fopen_s(&file, Filename, "rb")) return 0;
+		//	Data.clear();
+		//	Data.resize(length);
+		//	fseek(file, offset, SEEK_SET);
+		//	int ret = (length == fread(&Data[0], 1, length, file));
+		//	fclose(file);
+		//	if(ret)return length;
+		//	return 0;
+		//}
+
+		//std::vector<unsigned char> ReadBinary(const wchar_t * Filename) {
+		//	FILE * file;
+		//	std::vector<unsigned char> ret;
+		//	if(_wfopen_s(&file, Filename, L"rb"))return ret;
+		//	fseek(file, 0, SEEK_END);
+		//	ret.resize(ftell(file));
+		//	if (ret.size()) {
+		//		fseek(file, 0, SEEK_SET);
+		//		fread(&ret[0], 1, ret.size(), file);
+		//	}
+		//	fclose(file);
+		//	return ret;
+		//}
+		//std::vector<unsigned char> ReadBinary(const wchar_t * Filename, size_t offset, size_t length) {
+		//	FILE * file;
+		//	std::vector<unsigned char> ret(length);
+		//	if(_wfopen_s(&file, Filename, L"rb"))return ret;
+		//	fseek(file, offset, SEEK_SET);
+		//	fread(&ret[0], 1, length, file);
+		//	fclose(file);
+		//	return ret;
+		//}
+		//size_t ReadBinary(const wchar_t * Filename, std::vector<unsigned char> & Data) {
+		//	FILE * file;
+		//	if(_wfopen_s(&file, Filename, L"rb")) return 0;
+		//	Data.clear();
+		//	fseek(file, 0, SEEK_END);
+		//	size_t sz = ftell(file);
+		//	fseek(file, 0, SEEK_SET);
+		//	Data.resize(sz);
+		//	int ret = (sz == fread(&Data[0], 1, sz, file));
+		//	fclose(file);
+		//	if(ret)
+		//		return sz;
+		//	return 0;
+		//}
+		//size_t ReadBinary(const wchar_t * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
+		//	FILE * file;
+		//	if (_wfopen_s(&file, Filename, L"rb")) return 0;
+		//	Data.clear();
+		//	Data.resize(length);
+		//	fseek(file, offset, SEEK_SET);
+		//	int ret = (length == fread(&Data[0], 1, length, file));
+		//	fclose(file);
+		//	if(ret)return length;
+		//	return 0;
+		//}
 
 		std::string ReadText(const char * Filename) {
 			std::ifstream inp(Filename);
@@ -364,38 +429,6 @@ namespace PVX {
 			size_t dot = f.size();
 			for (auto i = 0; i < f.size(); i++) if (f[i] == L'.')dot = i;
 			return (dot == f.size())? L"": f.substr(dot + 1, f.size() - dot - 1);
-		}
-
-
-		Text::Text(const char * Filename) : BufferPosition(0), BufferSize(0){
-			fopen_s(&fin, Filename, "rb");
-		}
-		Text::Text(const wchar_t * Filename) : BufferPosition(0), BufferSize(0) {
-			_wfopen_s(&fin, Filename, L"rb");
-		}
-		size_t Text::ReadLine() {
-			int64_t i;
-			std::vector<unsigned char> Data;
-			do {
-				if(BufferSize == BufferPosition) {
-					BufferSize = fread_s(buffer, 512, 1, 512, fin);
-					if(!BufferSize)return 0;
-					BufferPosition = 0;
-				}
-				for(i = BufferPosition; i < BufferSize && buffer[i] != '\n'; i++);
-				size_t sz = i - BufferPosition;
-				if(sz) {
-					size_t oldSize = Data.size();
-					Data.resize(oldSize + sz);
-					memcpy(&Data[oldSize], buffer + BufferPosition, sz);
-				}
-				BufferPosition += sz + (buffer[i] == '\n');
-			} while(BufferSize == 512 && buffer[i]!='\n');
-			curLine = PVX::Decode::UTF(Data);
-			return curLine.size();
-		}
-		std::wstring Text::Line() {
-			return curLine;
 		}
 
 
@@ -554,6 +587,9 @@ namespace PVX {
 		}
 
 
+		int FileExists(const fs::path& file) {
+			return fs::exists(file.c_str());
+		}
 		int FileExists(const std::wstring& file) {
 			return fs::exists(file.c_str());
 		}
