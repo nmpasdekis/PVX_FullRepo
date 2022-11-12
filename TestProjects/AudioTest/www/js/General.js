@@ -835,5 +835,28 @@ function UriToObject(txt) {
 	return ret;
 }
 
+var PreloadedImage = {};
+function LoadImage(src){
+	return new Promise((r, e) => {
+		let img = new Image();
+		img.src = src;
+		img.onload = () => r(img);
+		img.onerror = (() => e(imgName));
+	});
+}
+
+function PreloadImage(src){
+	if (PreloadedImage[src]) return new Promise(r => r(PreloadedImage[src]));
+	return LoadImage(src).then(c => (PreloadedImage[src] = c));
+}
+
+function fetchJs(src, params){
+	return fetch(src).then(r => r.text()).then(r => {
+		let js = eval(`(${r})`);
+		return js(params);
+	});
+}
+window.all = Promise.all.bind(Promise);
+
 //var worker = new Worker("/js/worker.js");
 //worker.onmessage = (e => console.log(e.data));

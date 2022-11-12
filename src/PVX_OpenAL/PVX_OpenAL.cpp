@@ -291,10 +291,9 @@ namespace PVX {
 
 			alGetSourcei(id, AL_BUFFERS_QUEUED, &n);
 			if(n) {
-				uint32_t bufs[10];
-				alSourceUnqueueBuffers(id, n, bufs);
+				alSourceUnqueueBuffers(id, n, Buffers.data());
 				for(int i = 0; i < n; i++)
-					BufferQueue.push(bufs[i]);
+					BufferQueue.push(Buffers[i]);
 			}
 			while(BufferQueue.size()) {
 				uint32_t b = BufferQueue.front(); BufferQueue.pop();
@@ -307,10 +306,9 @@ namespace PVX {
 			int more = 0;
 			alGetSourcei(id, AL_BUFFERS_PROCESSED, &more);
 			if(more) {
-				uint32_t bufs[10];
-				alSourceUnqueueBuffers(id, more, bufs);
+				alSourceUnqueueBuffers(id, more, Buffers.data());
 				for(int i = 0; i < more; i++)
-					BufferQueue.push(bufs[i]);
+					BufferQueue.push(Buffers[i]);
 				availableBuffers += more;
 			}
 			return availableBuffers;
@@ -447,16 +445,15 @@ namespace PVX {
 		void StreamOut::Flush() {
 			Player.Play();
 			int more = 0;
-			uint32_t bufs[10];
 			uint32_t id = Player.Get();
-			while(availableBuffers < 10) {
+			while(availableBuffers < Buffers.size()) {
 				while(!more) {
 					alGetSourcei(id, AL_BUFFERS_PROCESSED, &more);
 					std::this_thread::sleep_for(std::chrono::microseconds(1));
 				}
-				alSourceUnqueueBuffers(id, more, bufs);
+				alSourceUnqueueBuffers(id, more, Buffers.data());
 				for(int i = 0; i < more; i++)
-					BufferQueue.push(bufs[i]);
+					BufferQueue.push(Buffers[i]);
 				availableBuffers += more;
 			}
 		}

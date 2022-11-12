@@ -1,8 +1,61 @@
 <html>
-	<head>
-	<script src="js/hello.js"></script>
-	</head>
-	<body>
-	Hello!!!
-	</body>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" href="/content/images/favicon.ico?v=5">
+	<base href="/" />
+	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.12/angular-material.min.css">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@6.2.95/css/materialdesignicons.min.css">
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+	<script src="https://code.angularjs.org/1.8.2/angular-sanitize.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-animate.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-aria.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-messages.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.12/angular-material.js"></script>
+	<script src="/js/script.js"></script>
+</head>
+<body ng-app="app" ng-controller="ctrl" ng-cloak>
+	<md-card>
+		<md-toolbar style="min-height: initial;"><h4 style="padding:10px;margin:0 10px">Air-conditioner</h4></md-toolbar>
+		<md-card-content layout="column" layout-gt-md="row" layout-align-gt-md="start center">
+			<md-input-container flex-gt-md="10" flex>
+				<label>Mode</label>
+				<md-select ng-model="mode">
+					<md-option ng-value="0">Cool</md-option>
+					<md-option ng-value="1">Dry</md-option>
+					<md-option ng-value="2">Heat</md-option>
+					<md-option ng-value="3">Fan</md-option>
+					<md-option ng-value="4">Auto</md-option>
+				</md-select>
+			</md-input-container>
+			<md-input-container flex-gt-md="10" flex>
+				<label>Fan</label>
+				<md-select ng-model="fan">
+					<md-option ng-value="0">Auto</md-option>
+					<md-option ng-value="1">High</md-option>
+					<md-option ng-value="2">Mid</md-option>
+					<md-option ng-value="3">Low</md-option>
+				</md-select>
+			</md-input-container>
+			<md-input-container flex-gt-md="10" flex>
+				<label>Temprature</label>
+				<md-select ng-model="temp">
+					<md-option ng-repeat="t in temps" ng-value="t">{{t}}</md-option>
+				</md-select>
+			</md-input-container>
+			<div layout="row" flex-lt-md>
+				<md-input-container>
+					<md-button class="md-primary md-raised" ng-click="command(1, mode, fan, temp)">GO</md-button>
+				</md-input-container>
+				<md-input-container>
+					<md-button class="md-warn md-raised" ng-click="command(0,0,0,0)">Off</md-button>
+				</md-input-container>
+			</div>
+			<md-input-container>
+				<md-button class="md-accent md-raised" ng-click="command(2,0,0,0)">AirFlow Direction</md-button>
+			</md-input-container>
+		</md-card-content>
+	</md-card>
+</body>
 </html>

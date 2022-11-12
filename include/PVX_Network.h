@@ -11,6 +11,7 @@
 #include <map>
 #include <PVX_DataBuilder.h>
 #include <PVX_Threading.h>
+#include <PVX_File.h>
 #include <shared_mutex>
 #include <atomic>
 #include <filesystem>
@@ -75,8 +76,8 @@ namespace PVX {
 			int64_t Receive(std::string& Data);
 			std::vector<uint8_t> Receive();
 
-			int ReceiveAsync(void* data, size_t Size);
-			int ReceiveAsync(std::vector<uint8_t>& data);
+			int64_t ReceiveAsync(void* data, size_t Size);
+			int64_t ReceiveAsync(std::vector<uint8_t>& data);
 
 			int CanRead();
 			int CanReadAsync();
@@ -110,6 +111,7 @@ namespace PVX {
 			void Stop();
 		protected:
 			std::atomic_bool Running;
+			std::atomic_int Working = 0;
 			uint32_t* ServingSocket;
 			std::unique_ptr<std::thread> ServingThread;
 			std::vector<std::thread> Workers;
@@ -207,16 +209,16 @@ namespace PVX {
 			void BeginRange(size_t Size);
 			void AddRange(const std::wstring & ContentType, size_t Offset, const std::vector<unsigned char> & Data);
 			void EndRange();
-			int StreamFile(const std::filesystem::path& Filename, size_t BufferSize = 0x00800000, const std::wstring & Mime = L"");
+			int StreamFile(const std::filesystem::path& Filename, size_t BufferSize = 0x00800000, const std::string & Mime = "");
 			int StreamFile(HttpRequest& Request, const std::wstring& Filename, size_t BufferSize = 0x00800000);
-			int ServeFile(const std::filesystem::path& Filename, const std::wstring & Mime = L"");
+			int ServeFile(const std::filesystem::path& Filename, const std::string & Mime = "");
 
 			int SingleRangeFile(size_t Offset, size_t Size, const std::filesystem::path& Filename, size_t FragmentSize=0x00100000);
 
 			void Download(const std::filesystem::path& Filename);
 
 			// return true if More data sould me sent
-			void StreamRaw(size_t Size, std::function<bool(TcpSocket & Socket)> fnc);
+			void StreamRaw(size_t Size, std::function<void(TcpSocket & Socket)> fnc);
 
 			void SetCookie(const std::wstring & Name, const std::wstring & Value, const std::wstring& Path = L"");
 			void ClearCookie(const std::wstring & Name, const std::wstring& Path = L"");
@@ -239,7 +241,7 @@ namespace PVX {
 				template<typename T>
 				inline myStream(size_t sz, T&& f) : Size{ sz }, Func{ std::forward<T>(f) } {}
 				size_t Size;
-				std::function<bool(TcpSocket&)> Func;
+				std::function<void(TcpSocket&)> Func;
 			};
 			std::vector<myStream> Streams;
 			std::unordered_map<std::wstring, UtfHelper> Headers;
@@ -251,12 +253,13 @@ namespace PVX {
 
 		class Route {
 		public:
-			Route(const std::wstring & url, std::function<void(HttpRequest&, HttpResponse&)> Action);
+			Route(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
+			Route(const std::wregex& url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action);
 			int Match(const std::wstring & url, std::map<std::wstring, UtfHelper> & Vars, UtfHelper & Query);
 			int Run(HttpRequest &, HttpResponse &);
 			void ResetAction(std::function<void(HttpRequest&, HttpResponse&)> Action);
 		private:
-			std::wstring OriginalRoute;
+			//std::wstring OriginalRoute;
 			std::vector<std::wstring> Names;
 			std::function<void(HttpRequest&, HttpResponse&)> Action;
 			std::wregex Matcher;
@@ -274,7 +277,6 @@ namespace PVX {
 			friend class HttpResponse;
 		public:
 			HttpServer();
-			HttpServer(const std::wstring & ConfigFile);
 			~HttpServer();
 
 			std::function<void(TcpSocket)> GetHandler();
@@ -283,8 +285,13 @@ namespace PVX {
 			}
 
 			void Routes(const Route & routes);
-			void Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
 
+			void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action);
+			inline void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpResponse&)> Action) { Routes(url, Names, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
+			inline void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&)> Action) { Routes(url, Names, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
+			inline void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void()> Action) { Routes(url, Names, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
+
+			void Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
 			inline void Routes(const std::wstring& url, std::function<void(HttpResponse&)> Action) { Routes(url, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
 			inline void Routes(const std::wstring& url, std::function<void(HttpRequest&)> Action) { Routes(url, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
 			inline void Routes(const std::wstring& url, std::function<void()> Action) { Routes(url, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
@@ -298,13 +305,13 @@ namespace PVX {
 			void Stop();
 			WebSocketServer & CreateWebSocketServer(const std::wstring& Url);
 			WebSocketServer & CreateWebSocketServer(const std::wstring & Url, std::function<void(WebSocketServer&, const std::string&, const std::vector<unsigned char>&)> clb);
-			const std::wstring & GetMime(const std::wstring & extension) const;
+			const std::string & GetMime(const std::string & extension) const;
 
 			// Route must contain {Path} Variable
 			std::function<void(HttpRequest&, HttpResponse&)> ContentServer(const std::filesystem::path& ContentPath = L"");
 			std::function<void(HttpRequest&, HttpResponse&)> HtmlFileRoute(const std::filesystem::path& Filename) {
 				return [Filename](HttpRequest& req, HttpResponse& resp) {
-					resp.ServeFile(Filename, L"text/html");
+					resp.ServeFile(Filename, "text/html");
 				};
 			};
 
@@ -340,12 +347,13 @@ namespace PVX {
 			std::vector<std::unique_ptr<WebSocketServer>> WebSocketServers;
 			std::vector<Route> Router;
 			Route DefaultRoute;
-			std::map<std::wstring, std::wstring> Mime;
+			std::map<std::string, std::string> Mime;
 			//std::vector<SimpleTuple> DefaultHeader;
 			std::unordered_map<std::wstring, std::wstring>  DefaultHeader;
 			std::vector<std::function<int(HttpRequest&, HttpResponse&)>> Filters;
 			std::set<std::wstring> Sessions;
 			std::string TokenKey;
+			std::atomic_bool Running = true;
 			friend class WebSocket;
 		};
 
@@ -519,6 +527,14 @@ namespace PVX {
 			std::string protocol = "http", port = "80", domain, path;
 			std::unordered_map<std::string, UtfHelper> headers;
 		};
+
+		inline PVX::JSON::Item ls(const std::filesystem::path& path) {
+			return {
+				//{ L"Path", path.wstring() },
+				{ L"Directories", PVX::IO::SubDir(path) },
+				{ L"Files", PVX::IO::Dir(path) },
+			};
+		}
 	}
 }
 #endif

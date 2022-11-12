@@ -1,6 +1,8 @@
 #ifndef __PVX_WINDOW_2019_H__
 #define __PVX_WINDOW_2019_H__
 
+#define NOMINMAX
+
 #include <Windows.h>
 #include <vector>
 #include <map>
@@ -168,6 +170,8 @@ namespace PVX::Windows {
 		void LockCursor();
 		void UnlockCursor();
 		std::pair<int, int> GetLockedRelative();
+
+		void OnLockedDrag(int Dragging, std::function<void(int btn, int x, int y)> clb);
 	protected:
 		void Init(int w, int h, const wchar_t* className);
 		std::vector<Eventer*> Eventers;
@@ -176,6 +180,7 @@ namespace PVX::Windows {
 			int y;
 			int CenterX, CenterY;
 			int locked;
+			int Dragging;
 		} lockCursor;
 	};
 

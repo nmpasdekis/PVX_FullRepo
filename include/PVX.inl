@@ -31,24 +31,24 @@
 #define __InitialValue1024__(x) __InitialValue512__(x), __InitialValue512__(x)
 #endif
 
-#ifdef __linux
-#include <PVX_Encode.h>
-#define fread_s(data, buf, size, count, file) fread(data, size, count, file)
-#define memcpy_s(dest, dstSize, src, byteCount) memcpy(dest, src, byteCount)
-
-inline bool _wfopen_s(FILE** fl, const wchar_t* filename, const wchar_t* mode) {
-	char md[5];
-	int i;
-	for (i = 0; mode[i]; i++) md[i] = char(mode[i]); md[i] = 0;
-	auto fn = PVX::Encode::UtfString(filename);
-	*fl = fopen(fn.c_str(), md);
-	return *fl == nullptr;
-}
-inline bool fopen_s(FILE** fl, const char* filename, const char* mode) {
-	*fl = fopen(filename, mode);
-	return *fl == nullptr;
-}
-#endif
+//#ifdef __linux
+//#include <PVX_Encode.h>
+//#define fread_s(data, buf, size, count, file) fread(data, size, count, file)
+//#define memcpy_s(dest, dstSize, src, byteCount) memcpy(dest, src, byteCount)
+//
+//inline bool _wfopen_s(FILE** fl, const wchar_t* filename, const wchar_t* mode) {
+//	char md[5];
+//	int i;
+//	for (i = 0; mode[i]; i++) md[i] = char(mode[i]); md[i] = 0;
+//	auto fn = PVX::Encode::UtfString(filename);
+//	*fl = fopen(fn.c_str(), md);
+//	return *fl == nullptr;
+//}
+//inline bool fopen_s(FILE** fl, const char* filename, const char* mode) {
+//	*fl = fopen(filename, mode);
+//	return *fl == nullptr;
+//}
+//#endif
 
 
 namespace PVX {
@@ -71,7 +71,7 @@ namespace PVX {
 		}() };
 		std::uniform_real_distribution<float> Distribution;
 	public:
-		inline float NextPostitive() { return Distribution(Engine); }
+		inline float NextPositive() { return Distribution(Engine); }
 		inline float Next() { return Distribution(Engine) * 2.0f - 1.0f; }
 	};
 
@@ -86,6 +86,22 @@ namespace PVX {
 		inline int Next() { return Distribution(Engine); }
 		inline int Next(int min, int max) { return (Distribution(Engine)%(max-min+1)) + min; }
 	};
+
+	template<typename clbType, typename RetType, typename defClb>
+	RetType find(const std::vector<RetType>& list, clbType clb, defClb def) {
+		for (const auto& it : list) {
+			if (clb(it)) return it;
+		}
+		return def();
+	}
+
+	template<typename clbType, typename RetType>
+	RetType find(const std::vector<RetType>& list, clbType clb, RetType def) {
+		for (const auto& it : list) {
+			if (clb(it)) return it;
+		}
+		return def;
+	}
 
 	inline void ForEach(size_t count, std::function<void(size_t)> clb) {
 		for (auto i = 0; i<count; i++)clb(i);

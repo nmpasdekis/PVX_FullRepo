@@ -82,32 +82,10 @@ void PVX_DataBuilder::WriteText(const std::string & String) {
 	Data.resize(String.size());
 	memcpy(&Data[0], &String[0], String.size());
 }
-int PVX_DataBuilder::BinaryFile(const char * fn){
+int PVX_DataBuilder::BinaryFile(const std::filesystem::path& fn) {
 	Data = PVX::IO::ReadBinary(fn);
 	return 200;
 }
-int PVX_DataBuilder::BinaryFile(const wchar_t * fn){
-	FILE * fin;
-	_wfopen_s(&fin, fn, L"rb");
-	if (!fin)return 404;
-	fseek(fin, 0, SEEK_END);
-	int Size = ftell(fin);
-	fseek(fin, 0, SEEK_SET);
-	this->Data.resize(Size);
-	fread(Data.data(), 1, Size, fin);
-
-	fclose(fin);
-	return 200;
-}
-void PVX_DataBuilder::AppendBinaryFile(const char * fn){
-	FILE * fin;
-	fopen_s(&fin, fn, "rb");
-	if (!fin)return;
-	fseek(fin, 0, SEEK_END);
-	int Size = ftell(fin);
-	fseek(fin, 0, SEEK_SET);
-	auto sz = Data.size();
-	this->Data.resize(Size + sz);
-	fread(Data.data()+sz, 1, Size, fin);
-	fclose(fin);
+void PVX_DataBuilder::AppendBinaryFile(const std::filesystem::path& fn) {
+	PVX::IO::AppendBinary(fn, Data);
 }

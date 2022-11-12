@@ -9,7 +9,7 @@ app.config(["$stateProvider", "$urlRouterProvider", "$locationProvider", "$mdThe
 			resolve: {
 				roles: ["$http", "$rootScope", ($http, $rootScope) => $http.post("/account/roles").then(r => ($rootScope.Roles = r.data))],
 				user: [function () {
-					let cookie = document.cookie.match(/pvx-token=([^\&]+)/);
+					let cookie = document.cookie.match(/pvx-token=([^\&;]+)/);
 					if(cookie) return JSON.parse(Base64.decode(cookie[1].slice(44)).replace(/\0+$/, ""))
 					return null;
 				}],

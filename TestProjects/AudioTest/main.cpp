@@ -14,7 +14,7 @@
 void CustomViews(PVX::Network::HttpServer& http);
 void Account(PVX::Network::HttpServer& http);
 
-/*class AudioPlayer {
+class AudioPlayer {
 public:
 	PVX::AudioVideo::Media File;
 	PVX::Audio::StreamOut Streamer;
@@ -59,10 +59,10 @@ public:
 	}
 protected:
 	bool Live = true;
-};*/
+};
 
 int main() {
-	//PVX::Audio::Engine al;
+	PVX::Audio::Engine al;
 
 	std::cout << "Start\n";
 	using namespace PVX::Network;
@@ -93,24 +93,40 @@ int main() {
 		PVX::IO::Write(L"./www/data/" + name, req.RawContent);
 	});
 	http.Routes(L"/api/data/{name}", [](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
-		std::wstring name = L"./www/data/" + req[L"name"];
-		if(PVX::IO::FileExists(name) && PVX::IO::FileSize(name) < (1024*1024))
-			resp.ServeFile(name);
-		else
-			resp.StreamFile(req, name);
+		std::filesystem::path name{ L"./www/data/" + req[L"name"] };
+		if (PVX::IO::FileExists(name)) {
+			if (PVX::IO::FileSize(name) < (1024*1024))
+				resp.ServeFile(name);
+			else
+				resp.StreamFile(req, name);
+			return;
+		}
+		resp.StatusCode = 404;
 	});
 
-	http.Routes(L"/api/data", [](PVX::Network::HttpResponse& resp){
-		resp.Json(PVX::IO::Dir(L"www/data"));
+	http.Routes(L"/api/vulkan/update", [](HttpRequest& req, HttpResponse& resp) {
+		auto text = req[L"text"];
+		auto code = PVX::IO::ReadUtf(L"D:\\GitProjects2022\\PVX_FullRepo\\PVX_Vulkan\\PVX_Vulkan.cpp");
+	});
+
+	//http.Routes(L"/api/data", [](PVX::Network::HttpResponse& resp){
+	//	resp.Json(PVX::IO::Dir(L"www/data"));
+	//});
+
+	http.Routes(std::wregex{ LR"regex(/api/ls/(.*))regex" }, { L"Path" }, [](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
+		auto p = PVX::Network::ls(std::filesystem::path(L"d:\\vr\\" + req[L"Path"]).make_preferred());
+		p[L"Path"] = req[L"Path"];
+		resp.Json(p);
 	});
 	
 	http.ContentRoute(L"/js", L"www/js");
 	http.ContentRoute(L"/customViews", L"www/customViews");
 	http.ContentRoute(L"/views", L"www/views");
 	http.ContentRoute(L"/data", L"www/data");
+	http.ContentRoute(L"/content/images", L"D:\\Work2022\\images");
 	http.ContentRoute(L"/content", L"www/content");
 	http.ContentRoute(L"/modals", L"www/modals");
-	http.Routes(L"/api/saveConfig", [](PVX::Network::HttpRequest& req) {
+	http.Routes(L"/api/config/save", [](PVX::Network::HttpRequest& req) {
 		PVX::IO::Write(L"www/config/config.json", req.RawContent);
 	});
 	http.ServeFile(L"/api/config", L"www/config/config.json");
@@ -118,9 +134,9 @@ int main() {
 	CustomViews(http);
 	Account(http);
 	
-/*	auto& WebSocketServer = http.CreateWebSocketServer(L"/api/socket");
+	auto& WebSocketServer = http.CreateWebSocketServer(L"/api/socket");
 
-	AudioPlayer song("Seven Lions & Blastoyz - After Dark (ft. Fiora) [Ophelia Records].mp3", [&WebSocketServer](AudioPlayer& player) {
+	AudioPlayer song("D:\\C++ Projects 2022\\clangBuild\\build\\build\\Seven Lions & Blastoyz - After Dark (ft. Fiora) [Ophelia Records].mp3", [&WebSocketServer](AudioPlayer& player) {
 		WebSocketServer.SendAll([&player](WebSocketPacket& p) {
 			p.Run(L"SetTime", { { L"cur", player.File.CurrentTimeSecs() } });
 		});
@@ -143,7 +159,7 @@ int main() {
 		auto ts = req.Json()[L"timestamp"].Integer();
 		song.Seek(ts);
 	});
-*/
+
 
 	http.DefaultHtml(L"www/index.html");
 	

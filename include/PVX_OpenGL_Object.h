@@ -62,6 +62,8 @@ namespace PVX {
 			InterleavedArrayObject() {}
 			operator Geometry();
 			std::vector<Attribute> Attributes;
+			std::vector<PVX::Vector3D> GetTriangles() const;
+			std::vector<PVX::Vector3D> GetTrianglesIndexed() const;
 		protected:
 			friend class BufferObject;
 			friend class ObjectBuilder;

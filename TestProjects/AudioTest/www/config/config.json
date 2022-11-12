@@ -1,10 +1,16 @@
 {
-	"title": "PerVertEX Raspberry Pi",
+	"title": "PerVertEX Windows",
 	"navMenu": [
 		{
 			"Title": "Icons",
 			"sref": "root.view({'name': 'mdi-icons', '#': undefined })",
 			"icon": "mdi-file-image-outline"
+		},
+		{
+			"Title": "Icons",
+			"sref": "root.view({'name': 'webGL', '#': undefined })",
+			"icon": "mdi-video-3d"
+		    
 		},
 		{
 			"Title": "Video",

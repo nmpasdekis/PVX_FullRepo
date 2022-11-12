@@ -1,9 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
+#define NOMINMAX
 
 #include<vector>
 #include<string>
 #include<PVX_File.h>
-#include<stdio.h>
+//#include<stdio.h>
 #pragma comment(lib, "User32.lib")
 #include<fstream>
 #include<PVX_Encode.h>
@@ -28,11 +29,6 @@ inline std::string fromWide(const std::wstring& s) {
 }
 #endif
 
-
-namespace PVX_Helpers {
-	int indexOf(const char * s, char c, int start = 0);
-}
-
 namespace PVX {
 	namespace IO {
 		namespace fs = std::filesystem;
@@ -49,7 +45,7 @@ namespace PVX {
 			return lt != LastTime;
 		}
 		ChangeTracker::operator std::wstring() {
-			return Filename;
+			return Filename.wstring();
 		}
 		ChangeEventer::ChangeEventer() {
 			Running = 1;
@@ -74,10 +70,7 @@ namespace PVX {
 			if ((bool)Files.back().File)	clb();
 		}
 
-		void MakeDirectory(const std::wstring& Directory) {
-			fs::create_directories(Directory);
-		}
-		void MakeDirectory(const std::string& Directory) {
+		void MakeDirectory(const std::filesystem::path& Directory) {
 			fs::create_directories(Directory);
 		}
 
@@ -107,7 +100,7 @@ namespace PVX {
 			auto cp = fs::current_path() / Filename;
 			if (std::filesystem::exists(cp)) return cp;
 #ifdef __linux
-			std::string_view var = getenv(L"PATH");
+			std::string_view var = getenv("PATH");
 #else
 			std::wstring_view var = _wgetenv(L"PATH");
 #endif
@@ -118,102 +111,31 @@ namespace PVX {
 					return pp;
 				var.remove_prefix(x+1);
 			}
-
+			return {};
 		}
-//		std::string FindFileFullPath(const std::string& Filename) {
-//			namespace fs = std::filesystem;
-//			auto p = fs::path{ Filename };
-//			if (p.is_absolute()) return Filename;
-//			auto cp = fs::current_path().string();
-//			cp.push_back(fs::path::preferred_separator);
-//			cp += Filename;
-//			if (FileExists(cp)) return cp;
-//			std::string_view var = getenv("PATH");
-//			while (var.size()) {
-//				auto x = var.find(';'); if (x==std::string_view::npos) x = var.size();
-//				auto pp = std::string(var.substr(0, x));
-//				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
-//				pp += Filename;
-//				if (FileExists(pp))
-//					return pp;
-//				var.remove_prefix(x+1);
-//			}
-//			return "";
-//		}
-//		std::wstring FindFileFullPath(const std::wstring& Filename) {
-//			namespace fs = std::filesystem;
-//			auto p = fs::path{ Filename };
-//			if (p.is_absolute()) return Filename;
-//			auto cp = fs::current_path().wstring();
-//			cp.push_back(fs::path::preferred_separator);
-//			cp += Filename;
-//			if (FileExists(cp)) return cp;
-//#ifdef __linux
-//			std::wstring PATH = [] { auto tmp = getenv("PATH");	return PVX::Decode::UTF((uint8_t*)tmp, std::strlen(tmp)); }();
-//			std::wstring_view var = PATH;
-//#else
-//			std::wstring_view var = _wgetenv(L"PATH");
-//#endif
-//			while (var.size()) {
-//				auto x = var.find(';'); if (x==std::wstring_view::npos) x = var.size();
-//				auto pp = std::wstring(var.substr(0, x));
-//				if (pp.back() != fs::path::preferred_separator) pp.push_back(fs::path::preferred_separator);
-//				pp += Filename;
-//				if (FileExists(pp))
-//					return pp;
-//				var.remove_prefix(x+1);
-//			}
-//			return L"";
-//		}
 
 		std::filesystem::path FilePathPart(const std::filesystem::path& Filename) {
 			return FindFileFullPath(Filename).remove_filename();
 		}
 
-		//std::string FilePathPart(const std::string& Filename) {
-		//	auto p = PVX::String::Split(FindFileFullPath(Filename), "\\");
-		//	p.pop_back();
-		//	return PVX::String::Join(p, "\\");
-		//}
-		//std::wstring FilePathPart(const std::wstring& Filename) {
-		//	auto p = PVX::String::Split(FindFileFullPath(Filename), L"\\");
-		//	p.pop_back();
-		//	return PVX::String::Join(p, L"\\");
-		//}
-
-		int Write(const std::string & fn, const void*data, size_t Size) {
-			FILE * fout;
-			if(fopen_s(&fout, fn.c_str(), "wb"))return 0;
-			fwrite(data, 1, Size, fout);
-			fclose(fout);
+		int Write(const std::filesystem::path& fn, const void* data, size_t Size) {
+			std::ofstream fout(fn, std::ofstream::binary);
+			if (fout.fail()) return 0;
+			fout.write((const char*)data, Size);
 			return 1;
-		}
-		int Write(const std::string & fn, const std::vector<unsigned char> & Data) {
-			return Write(fn, Data.data(), Data.size());
-		}
-
-		int Write(const std::wstring & fn, const void*data, size_t Size) {
-			FILE * fout;
-			if(_wfopen_s(&fout, fn.c_str(), L"wb"))return 0;
-			fwrite(data, 1, Size, fout);
-			fclose(fout);
-			return 1;
-		}
-		int Write(const std::wstring & fn, const std::vector<unsigned char> & Data) {
-			return Write(fn, Data.data(), Data.size());
 		}
 
 		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename) {
-			if (std::filesystem::exists(Filename)) {
-				std::vector<uint8_t> ret(std::filesystem::file_size(Filename));
-				std::ifstream(Filename, std::ifstream::binary).read((char*)ret.data(), ret.size());
-				return ret;
-			}
-			return {};
+			auto fl = std::ifstream(Filename, std::ifstream::binary | std::ifstream::ate);
+			if (fl.fail()) return {};
+			std::vector<uint8_t> ret(fl.tellg());
+			fl.seekg(0);
+			fl.read((char*)ret.data(), ret.size());
+			return ret;
 		}
 		std::vector<unsigned char> ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length) {
 			if (std::filesystem::exists(Filename)) {
-				length = std::min(length, std::filesystem::file_size(Filename) - offset);
+				length = std::min(length, size_t(std::filesystem::file_size(Filename) - offset));
 				std::vector<uint8_t> ret(length);
 				auto fin = std::ifstream(Filename, std::ifstream::binary);
 				fin.seekg(offset);
@@ -230,9 +152,19 @@ namespace PVX {
 			}
 			return 0;
 		}
+		size_t AppendBinary(const std::filesystem::path& Filename, std::vector<uint8_t>& Data) {
+			if (std::filesystem::exists(Filename)) {
+				auto sz = Data.size();
+				auto nsz = std::filesystem::file_size(Filename);
+				Data.resize(sz + nsz);
+				std::ifstream(Filename, std::ifstream::binary).read((char*)Data.data() + sz, nsz);
+				return nsz;
+			}
+			return 0;
+		}
 		size_t ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length, std::vector<unsigned char>& Data) {
 			if (std::filesystem::exists(Filename)) {
-				length = std::min(length, std::filesystem::file_size(Filename) - offset);
+				length = std::min(length, size_t(std::filesystem::file_size(Filename) - offset));
 				Data.resize(length);
 				auto fin = std::ifstream(Filename, std::ifstream::binary);
 				fin.seekg(offset);
@@ -242,121 +174,10 @@ namespace PVX {
 			return 0;
 		}
 
-
-
-		//std::vector<unsigned char> ReadBinary(const char * Filename) {
-		//	FILE * file;
-		//	std::vector<unsigned char> ret;
-		//	if(fopen_s(&file, Filename, "rb"))return ret;
-		//	fseek(file, 0, SEEK_END);
-		//	ret.resize(ftell(file));
-		//	if (ret.size()) {
-		//		fseek(file, 0, SEEK_SET);
-		//		fread(&ret[0], 1, ret.size(), file);
-		//	}
-		//	fclose(file);
-		//	return ret;
-		//}
-		//std::vector<unsigned char> ReadBinary(const char * Filename, size_t offset, size_t length) {
-		//	FILE * file;
-		//	std::vector<unsigned char> ret(length);
-		//	if(fopen_s(&file, Filename, "rb"))return ret;
-		//	fseek(file, offset, SEEK_SET);
-		//	fread(&ret[0], 1, length, file);
-		//	fclose(file);
-		//	return ret;
-		//}
-		//size_t ReadBinary(const char * Filename, std::vector<unsigned char> & Data) {
-		//	FILE * file;
-		//	if(fopen_s(&file, Filename, "rb")) return 0;
-		//	Data.clear();
-		//	fseek(file, 0, SEEK_END);
-		//	size_t sz = ftell(file);
-		//	fseek(file, 0, SEEK_SET);
-		//	Data.resize(sz);
-		//	int ret = (sz == fread(&Data[0], 1, sz, file));
-		//	fclose(file);
-		//	if(ret)
-		//		return sz;
-		//	return 0;
-		//}
-		//size_t ReadBinary(const char * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
-		//	FILE * file;
-		//	if(fopen_s(&file, Filename, "rb")) return 0;
-		//	Data.clear();
-		//	Data.resize(length);
-		//	fseek(file, offset, SEEK_SET);
-		//	int ret = (length == fread(&Data[0], 1, length, file));
-		//	fclose(file);
-		//	if(ret)return length;
-		//	return 0;
-		//}
-
-		//std::vector<unsigned char> ReadBinary(const wchar_t * Filename) {
-		//	FILE * file;
-		//	std::vector<unsigned char> ret;
-		//	if(_wfopen_s(&file, Filename, L"rb"))return ret;
-		//	fseek(file, 0, SEEK_END);
-		//	ret.resize(ftell(file));
-		//	if (ret.size()) {
-		//		fseek(file, 0, SEEK_SET);
-		//		fread(&ret[0], 1, ret.size(), file);
-		//	}
-		//	fclose(file);
-		//	return ret;
-		//}
-		//std::vector<unsigned char> ReadBinary(const wchar_t * Filename, size_t offset, size_t length) {
-		//	FILE * file;
-		//	std::vector<unsigned char> ret(length);
-		//	if(_wfopen_s(&file, Filename, L"rb"))return ret;
-		//	fseek(file, offset, SEEK_SET);
-		//	fread(&ret[0], 1, length, file);
-		//	fclose(file);
-		//	return ret;
-		//}
-		//size_t ReadBinary(const wchar_t * Filename, std::vector<unsigned char> & Data) {
-		//	FILE * file;
-		//	if(_wfopen_s(&file, Filename, L"rb")) return 0;
-		//	Data.clear();
-		//	fseek(file, 0, SEEK_END);
-		//	size_t sz = ftell(file);
-		//	fseek(file, 0, SEEK_SET);
-		//	Data.resize(sz);
-		//	int ret = (sz == fread(&Data[0], 1, sz, file));
-		//	fclose(file);
-		//	if(ret)
-		//		return sz;
-		//	return 0;
-		//}
-		//size_t ReadBinary(const wchar_t * Filename, size_t offset, size_t length, std::vector<unsigned char> & Data) {
-		//	FILE * file;
-		//	if (_wfopen_s(&file, Filename, L"rb")) return 0;
-		//	Data.clear();
-		//	Data.resize(length);
-		//	fseek(file, offset, SEEK_SET);
-		//	int ret = (length == fread(&Data[0], 1, length, file));
-		//	fclose(file);
-		//	if(ret)return length;
-		//	return 0;
-		//}
-
-		std::string ReadText(const char * Filename) {
+		std::string ReadText(const std::filesystem::path& Filename) {
 			std::ifstream inp(Filename);
 			if(inp.fail())return "";
-			std::string txt(std::istreambuf_iterator<char>(inp), (std::istreambuf_iterator<char>()));
-			inp.close();
-			return txt;
-		}
-		std::string ReadText(const wchar_t* Filename) {
-#ifndef __linux
-			std::ifstream inp(Filename);
-#else
-			std::ifstream inp((const char*)PVX::Encode::UTF0(Filename).data());
-#endif
-			if (inp.fail())return "";
-			std::string txt(std::istreambuf_iterator<char>(inp), (std::istreambuf_iterator<char>()));
-			inp.close();
-			return txt;
+			return std::string(std::istreambuf_iterator<char>(inp), (std::istreambuf_iterator<char>()));
 		}
 
 		std::vector<std::string> SplitPath(const std::string & Path) {
@@ -367,70 +188,21 @@ namespace PVX {
 			return PVX::String::Split_No_Empties(Path, L"\\");
 		}
 
-		std::string ReplaceExtension(const std::string & Filename, const std::string & NewExtension) {
-			auto spl = PVX::String::Split(Filename, ".");
-			spl.pop_back();
-			if (NewExtension.size()) spl.push_back(NewExtension);
-			return PVX::String::Join(spl, ".");
+		std::filesystem::path ReplaceExtension(const std::filesystem::path& Filename, const std::filesystem::path& NewExtension) {
+			std::filesystem::path ret = Filename;
+			return ret.replace_extension(NewExtension);
 		}
 
-		std::wstring ReplaceExtension(const std::wstring & Filename, const std::wstring & NewExtension) {
-			auto spl = PVX::String::Split(Filename, L".");
-			spl.pop_back();
-			if(NewExtension.size()) spl.push_back(NewExtension);
-			return PVX::String::Join(spl, L".");
-		}
-
-
-
-
-		JSON::Item LoadJson(const char * Filename) {
+		JSON::Item LoadJson(const std::filesystem::path& Filename) {
 			return JSON::parse(PVX::IO::ReadBinary(Filename));
 		}
-		JSON::Item LoadJson(const wchar_t * Filename) {
-			return JSON::parse(PVX::IO::ReadBinary(Filename));
-		}
-		int Write(const std::wstring& Filename, const PVX::JSON::Item& Json) {
-			return Write(Filename, PVX::Encode::UTF(PVX::JSON::stringify(Json)));
-		}
-		int Write(const std::string& Filename, const PVX::JSON::Item& Json) {
+		int Write(const std::filesystem::path& Filename, const PVX::JSON::Item& Json) {
 			return Write(Filename, PVX::Encode::UTF(PVX::JSON::stringify(Json)));
 		}
 
-		std::vector<std::string> FileExtensions(const std::string & f) {
-			size_t dot = f.size();
-			for(auto i = 0; i < f.size(); i++) if(f[i] == '.')dot = i;
-			std::vector<std::string> ret;
-			ret.push_back(f.substr(0, dot));
-			if(dot == f.size())
-				ret.push_back("");
-			else
-				ret.push_back(f.substr(dot + 1, f.size() - dot - 1));
-			return ret;
+		std::filesystem::path FileExtension(const std::filesystem::path& Filename) {
+			return Filename.extension();
 		}
-		std::vector<std::wstring> FileExtensions(const std::wstring & f) {
-			size_t dot = f.size();
-			for(auto i = 0; i < f.size(); i++) if(f[i] == L'.')dot = i;
-			std::vector<std::wstring> ret;
-			ret.push_back(f.substr(0, dot));
-			if(dot == f.size())
-				ret.push_back(L"");
-			else
-				ret.push_back(f.substr(dot + 1, f.size() - dot - 1));
-			return ret;
-		}
-
-		std::string FileExtension(const std::string & f) {
-			size_t dot = f.size();
-			for (auto i = 0; i < f.size(); i++) if (f[i] == '.')dot = i;
-			return (dot == f.size()) ? "" : f.substr(dot + 1, f.size() - dot - 1);
-		}
-		std::wstring FileExtension(const std::wstring & f) {
-			size_t dot = f.size();
-			for (auto i = 0; i < f.size(); i++) if (f[i] == L'.')dot = i;
-			return (dot == f.size())? L"": f.substr(dot + 1, f.size() - dot - 1);
-		}
-
 
 		BinReader::BinReader(const std::string & Filename) {
 			pData = new PrivateData{ 1 };
@@ -518,71 +290,30 @@ namespace PVX {
 			}
 			return ret;
 		}
-
-		std::vector<std::string> Dir(const std::string& filter) {
-			std::vector<std::string> ret;
+		std::vector<std::filesystem::path> Dir(const std::filesystem::path& filter) {
+			std::vector<std::filesystem::path> ret;
 			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory()) {
-				auto fn = entry.path().string();
-				size_t start = fn.size();
-				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
-				ret.push_back(fn.substr(start));
+				ret.push_back(entry.path().filename());
 			}
 			return ret;
 		}
-		std::vector<std::string> DirFull(const std::string& filter) {
-			std::vector<std::string> ret;
+		std::vector<std::filesystem::path> DirFull(const std::filesystem::path& filter) {
+			std::vector<std::filesystem::path> ret;
 			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory())
-				ret.push_back(entry.path().string());
+				ret.push_back(entry.path());
 			return ret;
 		}
-		std::vector<std::string> SubDir(const std::string& filter) {
-			std::vector<std::string> ret;
+		std::vector<std::filesystem::path> SubDir(const std::filesystem::path& filter) {
+			std::vector<std::filesystem::path> ret;
 			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory()) {
-				auto fn = entry.path().string();
-				size_t start = fn.size();
-				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
-				ret.push_back(fn.substr(start));
+				ret.push_back(entry.path().filename());
 			}
 			return ret;
 		}
-		std::vector<std::string> SubDirFull(const std::string& filter) {
-			std::vector<std::string> ret;
+		std::vector<std::filesystem::path> SubDirFull(const std::filesystem::path& filter) {
+			std::vector<std::filesystem::path> ret;
 			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory())
-				ret.push_back(entry.path().string());
-			return ret;
-		}
-
-		std::vector<std::wstring> Dir(const std::wstring& filter) {
-			std::vector<std::wstring> ret;
-			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory()) {
-				auto fn = entry.path().wstring();
-				size_t start = fn.size();
-				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
-				ret.push_back(fn.substr(start));
-			}
-			return ret;
-		}
-		std::vector<std::wstring> DirFull(const std::wstring& filter) {
-			std::vector<std::wstring> ret;
-			for (const auto& entry : fs::directory_iterator(filter)) if (!entry.is_directory()) {
-				ret.push_back(entry.path().wstring());
-			}
-			return ret;
-		}
-		std::vector<std::wstring> SubDir(const std::wstring& filter) {
-			std::vector<std::wstring> ret;
-			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory()) {
-				auto fn = entry.path().wstring();
-				size_t start = fn.size();
-				for (; start>0 && fn[start-1] != '\\' && fn[start-1] != '/'; start--);
-				ret.push_back(fn.substr(start));
-			}
-			return ret;
-		}
-		std::vector<std::wstring> SubDirFull(const std::wstring& filter) {
-			std::vector<std::wstring> ret;
-			for (const auto& entry : fs::directory_iterator(filter)) if (entry.is_directory())
-				ret.push_back(entry.path().wstring());
+				ret.push_back(entry.path());
 			return ret;
 		}
 
@@ -596,20 +327,6 @@ namespace PVX {
 		int FileExists(const std::string& file) {
 			return fs::exists(file.c_str());
 		}
-
-		std::wstring wCurrentPath() {
-			return fs::current_path().wstring();
-		}
-		std::string CurrentPath() {
-			return fs::current_path().string();
-		}
-		void CurrentPath(const std::string path) {
-			fs::current_path(path);
-		}
-		void CurrentPath(const std::wstring path) {
-			fs::current_path(path);
-		}
-
 	}
 	BinWriter::BinWriter(const std::string_view& Filename) :fout{0} {
 		fopen_s(&fout, Filename.data(), "wb");

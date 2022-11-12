@@ -1,6 +1,3 @@
-#include <PVX_OpenSSL.h>
-
-
 #include <functional>
 
 #ifndef __linux
@@ -17,10 +14,14 @@ using SOCKET = int;
 #define closesocket close
 #endif
 
+#include <PVX_OpenSSL.h>
+
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-
+#ifdef __linux
+#define SD_BOTH SHUT_RDWR
+#endif
 
 namespace {
 
@@ -49,6 +50,7 @@ namespace {
 		[](void* sock) {
 			SSL_shutdown((SSL*)((socketData*)sock)->SSL);
 			SSL_free((SSL*)((socketData*)sock)->SSL);
+			shutdown((SOCKET)((socketData*)sock)->Socket, SD_BOTH);
 			closesocket((SOCKET)((socketData*)sock)->Socket);
 		}
 	};

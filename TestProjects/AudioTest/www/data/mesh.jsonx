@@ -1,0 +1,51 @@
+{
+	shaders: [
+		{ 
+			type: "VERTEX_SHADER", 
+			code: `
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 model;
+
+attribute vec3 Position;
+attribute vec2 Texture;
+
+varying vec2 oTex;
+
+void main(){
+gl_Position = projection * view * model * vec4(Position, 1);
+oTex = Texture;
+}`.trim()
+		},
+		{ 
+			type: "FRAGMENT_SHADER", 
+			code: `
+precision mediump float;
+uniform sampler2D sampler0;
+
+varying vec2 oTex;
+
+void main(){
+gl_FragColor = texture2D(sampler0, oTex);
+}`.trim()   
+		},
+	],
+	primitive: "TRIANGLES",
+	attributes:[
+		{ name: "Position", type: "FLOAT", size: 3 },
+		{ name: "Texture", type: "FLOAT", size: 2 }
+	],
+	vertices: [
+		-1.0, -1.0, 0, 0, 0,
+		 1.0, -1.0, 0, 1, 0,
+		 1.0,  1.0, 0, 1, 1,
+		-1.0,  1.0, 0, 0, 1
+	],
+	indices: [
+		0, 1, 2,
+		0, 2, 3
+	],
+	textures:[
+		{ sampler: "sampler0", file: "/content/images/engine control.jpg" }
+	]
+}

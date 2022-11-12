@@ -933,7 +933,7 @@ namespace PVX::OpenGL {
 		Vector3D& MoveCenter(const Vector3D& xyz);
 		Vector3D& MoveCenterLevel(const Vector3D& xyz);
 
-		Matrix4x4& SetPerspective(float FovDeg, float Near, float Far);
+		Matrix4x4& SetPerspective(float FovDeg = 60.0f, float Near = 0.1f, float Far = 1000.0f);
 		Ray& CastScreenRay(float x, float y, Ray& Ray);
 		Ray& CastRay(float x, float y, Ray& Ray);
 		Ray CastScreenRay(float x, float y);

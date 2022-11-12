@@ -60,11 +60,11 @@ namespace PVX::Network {
 		return SingleRangeFile(0, -1, Filename, BufferSize);
 	}
 
-	int HttpResponse::StreamFile(const std::filesystem::path& Filename, size_t BufferSize, const std::wstring & Mime) {
+	int HttpResponse::StreamFile(const std::filesystem::path& Filename, size_t BufferSize, const std::string & Mime) {
 		SouldCompress = false;
 
 		if (!PVX::IO::FileExists(Filename))return 404;
-		Headers[L"content-type"] = PVX::Encode::ToString(Mime.size() ? Mime : Server->GetMime(PVX::IO::FileExtension(Filename)));
+		Headers[L"content-type"] = Mime.size() ? Mime : Server->GetMime(PVX::IO::FileExtension(Filename).string());
 
 		StreamRaw(PVX::IO::FileSize(Filename), [Filename](PVX::Network::TcpSocket& socket) {
 			constexpr size_t FragmentSize = 65536;
@@ -74,31 +74,31 @@ namespace PVX::Network {
 			while (sz >= FragmentSize) {
 				File.read((char*)Buffer.data(), FragmentSize);
 				sz -= FragmentSize;
-				if (socket.Send((const char*)Buffer.data(), FragmentSize)<FragmentSize) { socket.Disconnect(); return false; }
+				if (socket.Send((const char*)Buffer.data(), FragmentSize)<FragmentSize) { socket.Disconnect(); return; }
 			}
 			if (sz) {
 				File.read((char*)Buffer.data(), sz);
-				if (socket.Send((const char*)Buffer.data(), sz)<sz) { socket.Disconnect(); return false; }
+				if (socket.Send((const char*)Buffer.data(), sz)<sz) { socket.Disconnect(); return; }
 			}
-			return false;
 		});
 		return 200;
 	}
 
-	int HttpResponse::ServeFile(const std::filesystem::path& Filename, const std::wstring & Mime) {
+	int HttpResponse::ServeFile(const std::filesystem::path& Filename, const std::string & Mime) {
 		if (!std::filesystem::exists(Filename)) { StatusCode = 404; return 404; }
 		if (Content.BinaryFile(Filename.c_str())==200) {
-			Headers[L"content-type"] = PVX::Encode::ToString(Mime.size() ? Mime : Server->GetMime(PVX::IO::FileExtension(Filename)));
+			Headers[L"content-type"] = Mime.size() ? Mime : Server->GetMime(PVX::IO::FileExtension(Filename).string());
 			StatusCode = 200;
 			return 200;
 		}
+		return 404;
 	}
 
 	int HttpResponse::SingleRangeFile(size_t Offset, size_t Size, const std::filesystem::path& Filename, size_t FragmentSize) {
 		namespace fs = std::filesystem;
 		using namespace std::string_literals;
 		StatusCode = 206;
-		Headers[L"content-type"] = PVX::Encode::ToString(Server->GetMime(PVX::IO::FileExtension(Filename)));
+		Headers[L"content-type"] = Server->GetMime(PVX::IO::FileExtension(Filename).string());
 		using namespace PVX::IO;
 		SouldCompress = false;
 
@@ -116,7 +116,7 @@ namespace PVX::Network {
 		Size = std::min(Size, fsz - Offset);
 
 		Headers[L"content-range"] = L"bytes "s + std::to_wstring(Offset) + L"-"s + std::to_wstring(Size + Offset - 1) + L"/"s + std::to_wstring(fsz);
-		Headers[L"ETag"] = Filename;
+		Headers[L"ETag"] = Filename.wstring();
 
 		StreamRaw(Size, [Filename, Offset, Size, FragmentSize](PVX::Network::TcpSocket& socket) {
 			std::vector<uint8_t> Buffer(FragmentSize);
@@ -126,72 +126,22 @@ namespace PVX::Network {
 			while (sz >= FragmentSize) {
 				File.read((char*)Buffer.data(), FragmentSize);
 				sz -= FragmentSize;
-				if(socket.Send((const char*)Buffer.data(), FragmentSize)<FragmentSize) { socket.Disconnect(); return false; }
+				if(socket.Send((const char*)Buffer.data(), FragmentSize)<FragmentSize) { socket.Disconnect(); return; }
 			}
 			if (sz) {
 				File.read((char*)Buffer.data(), sz);
-				if (socket.Send((const char*)Buffer.data(), sz)<sz) { socket.Disconnect(); return false; }
+				if (socket.Send((const char*)Buffer.data(), sz)<sz) { socket.Disconnect(); return; }
 			}
-			return false;
+			return;
 		});
 		return 0;
 	}
-
-
-	//int HttpResponse::SingleRangeFile(size_t Offset, size_t Size, const std::wstring & Filename, size_t FragmentSize) {
-	//	using namespace std::string_literals;
-	//	StatusCode = 206;
-	//	Headers[L"content-type"] = PVX::Encode::ToString(Server->GetMime(PVX::IO::FileExtension(Filename)));
-	//	using namespace PVX::IO;
-	//	SouldCompress = false;
-
-	//	FILE * fin;
-	//	Content.GetDataVector().reserve(FragmentSize);
-	//	unsigned char * Data = Content.GetData();
-
-	//	if (_wfopen_s(&fin, Filename.c_str(), L"rb")) {
-	//		StatusCode = 404;
-	//		return 1;
-	//	}
-	//	auto fsz = FileSize(fin);
-	//	if (Offset >= fsz) {
-	//		StatusCode = 500;
-	//		return 1;
-	//	}
-
-	//	//if (Size + Offset > fsz) Size = fsz - Offset;
-	//	Size = std::min(Size, fsz - Offset);
-
-	//	//Headers[L"content-range"] = (std::wstringstream() << L"bytes " << Offset << L"-" << (Size + Offset - 1) << L"/" << fsz).str();
-	//	Headers[L"content-range"] = L"bytes "s + std::to_wstring(Offset) + L"-"s + std::to_wstring(Size + Offset - 1) + L"/"s + std::to_wstring(fsz);
-	//	Headers[L"ETag"] = Filename;
-
-	//	fseek(fin, Offset, SEEK_SET);
-	//	fsz = Offset + Size;
-
-	//	StreamRaw(Size, [fsz, fin, Data, FragmentSize](TcpSocket & Socket) {
-	//		size_t Offset = ftell(fin);
-	//		auto fs = std::min(FragmentSize, fsz - Offset);
-	//		//if (Offset + fs > fsz) fs = fsz - Offset;
-
-
-	//		int sz = fread_s(Data, fs, 1, fs, fin);
-	//		if (sz) sz = Socket.Send(Data, sz);
-	//		if (sz < FragmentSize) {
-	//			fclose(fin);
-	//			return false;
-	//		}
-	//		return true;
-	//	});
-	//	return 0;
-	//}
 
 	void HttpResponse::Download(const std::filesystem::path& Filename) {
 		Headers[L"Content-Disposition"] = L"attachment; filename=\"" + Filename.wstring() + L"\"";
 	}
 
-	void HttpResponse::StreamRaw(size_t Size, std::function<bool(TcpSocket & Socket)> fnc) {
-		//Streams.push_back({ Size, fnc });
+	void HttpResponse::StreamRaw(size_t Size, std::function<void(TcpSocket & Socket)> fnc) {
 		Streams.emplace_back(Size, fnc);
 	}
 

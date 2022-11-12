@@ -28,6 +28,18 @@
 	})
 })(["dragenter", "dragleave", "dragover", "drop", "dragstart", "dragstop"]);
 
+app.directive('ngMousewheel', function () {
+	return function (scope, element, attrs) {
+		element.bind("DOMMouseScroll mousewheel onmousewheel", function (event) {
+			scope.$apply(function () {
+				scope.$event = event || window.event;
+				scope.$event.wheelDelta = scope.$event.originalEvent.wheelDelta;
+				scope.$eval(attrs.ngMousewheel);
+				delete scope.$event;
+			});
+		});
+	};
+});
 
 app.directive("emcDirective", ['$http', '$injector', '$compile', "$q", function ($http, $injector, $compile, $q) {
 	let cacheViews = {};
@@ -118,5 +130,14 @@ app.directive("emcCode", [function(){
 	<div layout-fill ng-model="${attr.ngModel}" class="editor" ui-ace="{ mode: '${attr.mode}', theme: 'monokai', useSoftTabs: true, tabSize: 4 }"
 		style="font-family: monospace; white-space:pre; position:absolute; top:0;bottom:0;left:0;right:0;"></div>
 </div>`
+	}
+}]);
+
+app.directive("emCode", [function () {
+	return {
+		template: (elem, attr) => `<div ${Object.keys(attr).filter(c => !c.indexOf("ng")).map(c => {
+			return c.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`) + `="${attr[c]}"`;
+		}).join(" ")} class="editor" ui-ace="{ mode: '${attr.mode}', theme: 'monokai', useSoftTabs: true, tabSize: 4 }"
+		style="font-family: monospace; white-space:pre;"></div>`
 	}
 }]);

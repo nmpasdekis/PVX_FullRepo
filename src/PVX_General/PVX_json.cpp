@@ -450,12 +450,12 @@ namespace PVX {
 		void Item::each(std::function<void(const Item&)> Func) const {
 			if (Type() == JSON::jsElementType::Array) for (auto& i : Array()) Func(i);
 		}
-		void Item::each2(std::function<void(Item&, int Index)> Func) {
-			int Index = 0;
+		void Item::each2(std::function<void(Item&, size_t Index)> Func) {
+			size_t Index = 0;
 			if (Type() == JSON::jsElementType::Array) for (auto& i : Array()) Func(i, Index++);
 		}
-		void Item::each2(std::function<void(const Item&, int Index)> Func) const {
-			int Index = 0;
+		void Item::each2(std::function<void(const Item&, size_t Index)> Func) const {
+			size_t Index = 0;
 			if (Type() == JSON::jsElementType::Array) for (auto& i : Array()) Func(i, Index++);
 		}
 		void Item::eachInObject(std::function<void(const std::wstring& Name, Item&)> Func) {
@@ -687,12 +687,12 @@ namespace PVX {
 		std::wstring stringify(const Item& obj, bool Format) {
 			return stringify(obj, 0, Format);
 		}
-		Item parse(const unsigned char* data, size_t size) {
+		Item parse(const uint8_t* data, size_t size) {
 			if (!size)return jsElementType::Undefined;
 			auto utf = Decode::UTF(data, size);
 			return parse(utf.c_str());
 		}
-		Item parse(const std::vector<unsigned char>& d) {
+		Item parse(const std::vector<uint8_t>& d) {
 			return parse(d.data(), d.size());
 		}
 
@@ -1505,7 +1505,7 @@ namespace PVX {
 			ret.BsonType() = BSON_Type::ObjectId;
 			return ret;
 		}
-		JSON::Item Binary(const std::vector<unsigned char>& Data, int Type) {
+		JSON::Item Binary(const std::vector<uint8_t>& Data, int Type) {
 			JSON::Item ret = Data;
 			ret.BinaryType() = Type;
 			return ret;

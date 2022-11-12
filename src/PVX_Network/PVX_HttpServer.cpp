@@ -25,22 +25,8 @@ namespace PVX {
 #include "mime.inl"
 		} {}
 
-		HttpServer::HttpServer(const std::wstring & ConfigFile) : DefaultRoute{ L"/{Path}", ContentServer() } {
-			auto Config = PVX::IO::LoadJson(ConfigFile.c_str());
-
-			if (auto it = Config.Has(L"Mime"); it)
-				for (auto & [Key, Value] : it->getObject())
-					Mime[Key] = Value().String();
-
-			if (auto it = Config.Has(L"ContentDir"); it)
-				SetDefaultRoute(ContentServer(it->String()));
-
-			if (auto it = Config.Has(L"ResponseHeader"); it)
-				for (auto & [Name, Value] : it->getObject())
-					DefaultHeader[Name] = Value().String();
-		}
-
 		HttpServer::~HttpServer() {
+			Running = false;
 			WebSocketServers.clear();
 		}
 
@@ -60,13 +46,16 @@ namespace PVX {
 
 		Route::Route(const std::wstring & url, std::function<void(HttpRequest&, HttpResponse&)> action) : 
 			Action(action), Matcher(MakeRegex(url), std::regex_constants::optimize | std::regex_constants::icase | std::regex_constants::ECMAScript) {
-			OriginalRoute = url;
+			//OriginalRoute = url;
 			std::wregex r(MakeRegex2(url));
 			std::wsmatch m;
 			if (std::regex_search(url, m, r))
 				for (auto i = 1; i < m.size(); i++)
 					Names.push_back(m[i].str());
 		}
+
+		Route::Route(const std::wregex& url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> action) :
+			Action(action), Names{ Names }, Matcher{ url } {}
 
 		int Route::Match(const std::wstring & url, std::map<std::wstring, UtfHelper> & Vars, UtfHelper & Query) {
 			std::wsmatch m;
@@ -182,6 +171,9 @@ namespace PVX {
 			if (url.front() != L'/')url = L"/" + url;
 			Router.push_back({ url, Action });
 		}
+		void HttpServer::Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action) {
+			Router.push_back({ url, Names, Action });
+		}
 
 		void HttpServer::Routes(const std::initializer_list<Route>& routes) {
 			for (auto & r : routes) {
@@ -204,8 +196,9 @@ namespace PVX {
 			auto Url = url;
 			if (Url.front() != L'/') Url = L"/" + url;
 
-			WebSocketServers.push_back(std::make_unique<WebSocketServer>());
-			auto ret = WebSocketServers.back().get();
+			auto ret = WebSocketServers.emplace_back(std::make_unique<WebSocketServer>()).get();
+			//WebSocketServers.push_back(std::make_unique<WebSocketServer>());
+			//auto ret = WebSocketServers.back().get();
 
 			Routes(Url + L".js", ret->GetScriptHandler(Url));
 			Routes(Url, ret->GetHandler());
@@ -223,11 +216,11 @@ namespace PVX {
 			return *ret;
 		}
 
-		const std::wstring & HttpServer::GetMime(const std::wstring & extension) const {
+		const std::string & HttpServer::GetMime(const std::string & extension) const {
 			auto f = Mime.find(extension);
 			if (f != Mime.end())
 				return f->second;
-			return Mime.at(L"");
+			return Mime.at("");
 		}
 
 		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::filesystem::path& ContentPath) {
@@ -377,7 +370,7 @@ namespace PVX {
 			//if (Socket.Send(Response.GetDataVector()) < 0)return 1;
 			if (resp.Content.GetLength() && Socket.SendFragmented(resp.Content.GetDataVector()) < resp.Content.GetLength()) return 1;
 			for (auto & s : resp.Streams) {
-				while (s.Func(Socket));
+				s.Func(Socket);
 			}
 
 			return 1;
@@ -402,7 +395,7 @@ namespace PVX {
 
 				HttpRequest Request;
 				std::vector<uint8_t> Buffer;
-				while (GetRequest(Buffer, Socket, Request, Request.RawContent)) {
+				while (Running && GetRequest(Buffer, Socket, Request, Request.RawContent)) {
 					for (auto & r : Router) {
 						if (r.Match(Request.QueryString, Request.Variables, Request.Get)) {
 							HandleRequest(Socket, Request, r);

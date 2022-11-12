@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <PVX_json.h>
+#include <filesystem>
 
 
 class PVX_DataBuilder{
@@ -12,9 +13,8 @@ public:
 	unsigned char * GetData();
 	void SetData(const void * Data, int Size);
 	void SetData(const std::vector<unsigned char> & Data);
-	int BinaryFile(const char * Filename);
-	int BinaryFile(const wchar_t * fn);
-	void AppendBinaryFile(const char * Filename);
+	int BinaryFile(const std::filesystem::path& Filename);
+	void AppendBinaryFile(const std::filesystem::path& Filename);
 	void WriteUTF(const std::wstring & String);
 	void WriteText(const std::string & String);
 	//void AppendUTF(const std::wstring & String);
@@ -26,9 +26,9 @@ public:
 	PVX_DataBuilder & operator<<(const std::vector<unsigned char> & data);
 	PVX_DataBuilder & operator<<(const unsigned char* RawString);
 	PVX_DataBuilder & operator<<(int64_t Number);
-	std::vector<unsigned char> & GetDataVector();
+	std::vector<uint8_t> & GetDataVector();
 protected:
-	std::vector<unsigned char> Data;
+	std::vector<uint8_t> Data;
 };
 
 #endif

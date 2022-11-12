@@ -131,4 +131,18 @@ app.factory("$hash", ["$location", function ($location) {
         return ret;
     }
     return f;
-}])
+}]);
+
+app.factory("webGL2", ["$timeout", "$q", function ($timeout, $q) {
+    return function (selector) {
+        function init(r) {
+            let canvas = document.querySelector(selector);
+            if (canvas) {
+                r(getWebGL2Context(canvas));
+                return;
+            }
+            $timeout(() => init(r));
+        }
+        return $q(init);
+    }
+}]);

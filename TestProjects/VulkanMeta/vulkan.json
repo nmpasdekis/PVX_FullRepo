@@ -1,0 +1,7 @@
+[
+	{
+		"name": "Instance",
+		"options":{ "ppEnabledExtensionNames": "PlatformExtensions()", "enabledExtensionCount": "PlatformExtensionCount" },
+		"params": [ { "type": "VkApplicationInfo*", "name": "pApplicationInfo" } ]
+	}
+]

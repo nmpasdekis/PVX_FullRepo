@@ -1,0 +1,76 @@
+{
+	shaders: [
+		{ 
+			type: "VERTEX_SHADER", 
+			code: `
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 model;
+
+attribute vec3 Position;
+attribute vec2 Texture;
+
+varying vec2 oTex;
+
+void main(){
+gl_Position = projection * view * model * vec4(Position, 1);
+oTex = Texture;
+}`.trim()
+		},
+		{ 
+			type: "FRAGMENT_SHADER", 
+			code: `
+precision mediump float;
+uniform sampler2D sampler0;
+
+varying vec2 oTex;
+
+void main(){
+gl_FragColor = texture2D(sampler0, oTex);
+}`.trim()   
+		},
+	],
+	primitive: "TRIANGLES",
+	attributes:[
+		{ name: "Position", type: "FLOAT", size: 3 },
+		{ name: "Texture", type: "FLOAT", size: 2 }
+	],
+	vertices: ((xs, ys)=>{
+		const dy = Math.PI / ys;
+		const dx = 2.0 * Math.PI / xs;
+		let ret = [[0, 1, 0, 0.5, 1.0]];
+		for(let y = 2; y <= ys; y++){
+			let y1 = Math.cos((y - 1) * dy);
+			let y2 = Math.cos(y * dy);
+			let sy1 = Math.sin((y - 1) * dy);
+			let sy2 = Math.sin(y * dy);
+			for(let x = 0; x <= xs; x++){
+				let x1 = x * dx;
+				ret.push([ Math.sin(x1) * sy1, y1, Math.cos(x1) * sy1, 1.0 - x/xs, 1.0 - (y-1)/ys ])
+			}
+		}
+		ret.push([0, -1, 0, 0.5, 0]);
+		return ret;
+	})(64, 32),
+	indices: ((xs, ys)=>{
+		function quad(s, i, xs){
+			let j = i + 1
+			return [
+				s + i, s + j, s + xs + j, 
+				s + i, s + xs + j, s + xs + i
+			]
+		}
+		let ret = [];
+		
+		for(let y = 2; y < ys; y++){
+			for(let x = 0; x < xs; x++){
+				ret.push(quad(1 + (y - 2) * xs, x, xs + 1))
+			}
+		}
+		
+		return ret;
+	})(64, 32),
+	textures:[
+		{ sampler: "sampler0", file: "/content/images/engine control.jpg" }
+	]
+}

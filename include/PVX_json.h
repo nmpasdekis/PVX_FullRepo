@@ -353,16 +353,19 @@ namespace PVX {
 			int64_t NumberSafeInteger() const;
 			std::wstring GetString() const;
 
+			inline int32_t Int32() const { return std::get<int32_t>(Value); };
 			inline int32_t& Int32() { return std::get<int32_t>(Value); };
+			inline int64_t Int64() const { return std::get<int64_t>(Value); };
 			inline int64_t& Int64() { return std::get<int64_t>(Value); };
+			inline double Double() const { return std::get<double>(Value); };
+			inline double& Double() { return std::get<double>(Value); };
+
 			inline int64_t Integer() const { 
 				if(BSONType==BSON_Type::Int64)
 					return std::get<int64_t>(Value); 
 				else
 					return std::get<int32_t>(Value);
 			};
-			inline double& Double() { return std::get<double>(Value); };
-			inline double Double() const { return std::get<double>(Value); };
 			inline bool& Boolean() { return std::get<bool>(Value); };
 			inline bool Boolean() const { return std::get<bool>(Value); };
 			inline std::wstring& String() { return std::get<std::wstring>(Value); }
@@ -418,8 +421,8 @@ namespace PVX {
 			Item map2(std::function<Item(const Item&, int Index)> Convert);
 			void each(std::function<void(Item&)> Func);
 			void each(std::function<void(const Item&)> Func) const;
-			void each2(std::function<void(Item&, int Index)> Func);
-			void each2(std::function<void(const Item&, int Index)> Func) const;
+			void each2(std::function<void(Item&, size_t Index)> Func);
+			void each2(std::function<void(const Item&, size_t Index)> Func) const;
 			void eachInObject(std::function<void(const std::wstring& Name, Item&)> Func);
 			void eachInObject(std::function<void(const std::wstring& Name, const Item&)> Func) const;
 			Item GroupBy(std::function<std::wstring(const Item&)> Func);
@@ -470,8 +473,8 @@ namespace PVX {
 		};
 
 		std::wstring stringify(const Item& Object, bool Format = false);
-		Item parse(const unsigned char*, size_t size);
-		Item parse(const std::vector<unsigned char>&);
+		Item parse(const uint8_t*, size_t size);
+		Item parse(const std::vector<uint8_t>&);
 		Item parse(const std::wstring_view& Json);
 		Item parsePlus(const std::wstring_view& Json);
 
@@ -486,7 +489,7 @@ namespace PVX {
 		void ToBSON(const JSON::Item& obj, std::vector<unsigned char>& Data);
 		JSON::Item ObjectId(const std::string_view& hexId);
 		JSON::Item ObjectId(const std::wstring_view& hexId);
-		JSON::Item Binary(const std::vector<unsigned char>& Data, int Type = 0);
+		JSON::Item Binary(const std::vector<uint8_t>& Data, int Type = 0);
 
 		inline const JSON::Item EmptyObject() { return PVX::JSON::jsElementType::Object; }
 		inline const JSON::Item EmptyArray() { return PVX::JSON::jsElementType::Array; }

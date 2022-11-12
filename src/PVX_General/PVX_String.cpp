@@ -228,13 +228,29 @@ namespace PVX{
 
 		std::string ToLower(const std::string & txt) {
 			std::string ret;
-			for (auto & c : txt) ret.push_back(tolower(c));
+			ret.reserve(txt.size());
+			for (auto & c : txt) ret.push_back(std::tolower(c));
 			return ret;
 		}
 
 		std::wstring ToLower(const std::wstring & txt) {
 			std::wstring ret;
-			for (auto & c : txt) ret.push_back(tolower(c));
+			ret.reserve(txt.size());
+			for (auto & c : txt) ret.push_back(std::tolower(c));
+			return ret;
+		}
+
+		std::string ToUpper(const std::string& txt) {
+			std::string ret;
+			ret.reserve(txt.size());
+			for (auto& c : txt) ret.push_back(std::toupper(c));
+			return ret;
+		}
+
+		std::wstring ToUpper(const std::wstring& txt) {
+			std::wstring ret;
+			ret.reserve(txt.size());
+			for (auto& c : txt) ret.push_back(std::toupper(c));
 			return ret;
 		}
 

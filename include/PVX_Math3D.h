@@ -1,6 +1,8 @@
 #pragma once
 
-//#define PVX_NO_INTRINSICS
+#if !(__has_include(<xmmintrin.h>) && __has_include(<intrin.h>))
+#define PVX_NO_INTRINSICS
+#endif
 
 #ifndef PVX_NO_INTRINSICS
 #include <xmmintrin.h>

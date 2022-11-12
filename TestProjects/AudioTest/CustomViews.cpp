@@ -7,12 +7,14 @@ using namespace PVX::Network;
 std::unordered_map<std::string, std::vector<uint8_t>> CustomViewCache;
 
 PVX::JSON::Item GetViewList() {
-	auto files = PVX::IO::Dir("www/customViews");
+	auto files = PVX::IO::DirFull("www/customViews");
 	PVX::JSON::Item ret = PVX::JSON::jsElementType::Object;
 	for (auto& fn : files) {
-		auto fn2 = fn.substr(0, fn.size()-5);
-		auto txt = PVX::IO::ReadBinary(("www/customViews/" + fn).c_str());
+		auto txt = PVX::IO::ReadBinary(fn);
 		auto it = PVX::JSON::parse(txt);
+
+		auto fn2 = fn.filename().string();
+		fn2 = fn2.substr(0, fn2.size()-5);
 		ret[fn2] = it["Category"];
 		CustomViewCache[fn2] = txt;
 	}
@@ -45,6 +47,8 @@ void CustomViews(PVX::Network::HttpServer& http) {
 		auto Name = PVX::Encode::UtfString(data[L"Name"].String());
 		auto View = data[L"View"];
 		View["Name"] = Name;
-		PVX::IO::Write("www/customViews/" + Name + ".json", View);
+		auto bytes = PVX::Encode::UTF(PVX::JSON::stringify(View));
+		PVX::IO::Write("www/customViews/" + Name + ".json", bytes);
+		CustomViewCache[Name] = bytes;
 	});
 }

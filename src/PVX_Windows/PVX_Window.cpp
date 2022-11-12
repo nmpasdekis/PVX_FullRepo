@@ -703,4 +703,48 @@ namespace PVX::Windows {
 	//		}
 	//	}
 	//}
+
+
+
+
+	void Window::OnLockedDrag(int Dragging, std::function<void(int btn, int x, int y)> clb) {
+		if (Dragging&1) {
+			OnLeftButtonDown([this](int x, int y) {
+				LockCursor();
+				lockCursor.Dragging |= 1;
+			});
+			OnLeftButtonUp([this](int x, int y) {
+				UnlockCursor();
+				lockCursor.Dragging &= ~1;
+			});
+		}
+		if (Dragging&2) {
+			OnRightButtonDown([this](int x, int y) {
+				LockCursor();
+				lockCursor.Dragging |= 2;
+			});
+			OnRightButtonUp([this](int x, int y) {
+				UnlockCursor();
+				lockCursor.Dragging &= ~2;
+			});
+		}
+		if (Dragging&4) {
+			OnMiddleButtonDown([this](int x, int y) {
+				LockCursor();
+				lockCursor.Dragging |= 4;
+			});
+			OnMiddleButtonUp([this](int x, int y) {
+				UnlockCursor();
+				lockCursor.Dragging &= ~4;
+			});
+		}
+		if (Dragging) {
+			OnMouseMove([this, Dragging, clb](auto btn, int x, int y) {
+				if (Dragging) {
+					auto [rx, ry] = GetLockedRelative();
+					clb(Dragging, rx, ry);
+				}
+			});
+		}
+	}
 }

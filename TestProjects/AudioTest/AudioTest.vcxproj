@@ -80,7 +80,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>PVX_OpenAL.lib;PVX_ffMPEG.lib;PVX_General.lib;PVX_Network.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>PVX_OpenAL.lib;PVX_ffMPEG.lib;PVX_General.lib;PVX_Network.lib;PVX_OpenSSL.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -1,5 +1,6 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #include <PVX_Network.h>
+#include <PVX_ComPort.h>
 
 #include <PVX_String.h>
 
@@ -11,63 +12,43 @@
 
 
 int main() {
-
-	auto fp = PVX::IO::FindFileFullPath(L"change.txt");
-	fp = PVX::IO::FindFileFullPath(L"D:\\__Αρχοντούλα\\butterfly_low.ai");
-	fp = PVX::IO::FindFileFullPath(L"config.json");
-
-	//std::filesystem::create_directories(L"testDir");
-	{
-		auto cp = PVX::IO::CurrentPath();
-		cp.push_back(std::filesystem::path::preferred_separator);
-		auto f = std::filesystem::path(cp + "change.txt");
-		auto d = std::filesystem::directory_entry{ f };
-		auto s = d.status();
-		auto path = f.relative_path().wstring();
-		path.c_str();
-	}
-	PVX::IO::ChangeEventer Eventer;
-
-	Eventer.Track(L"change.txt", [] {
-		std::cout << "Changed\n";
-	});
-
-
-
 	using namespace PVX::Network;
 	using namespace PVX;
 	using namespace PVX::JSON;
 
-	auto txt = PVX::Replace(L"nikos 1 2 3", std::wregex(L"\\d"), [](const std::wstring& m) {
-		return L"_";
+	HttpServer http;
+	PVX::Serial::Com comm9(9);
+
+	uint8_t lastMode = 0;
+	uint8_t lastFan = 0;
+	uint8_t lastTemp = 25;
+
+	http.AddFilter([](HttpRequest& req, HttpResponse& resp) {
+		return 1;
 	});
 
-	HttpServer http;
+	http.Routes(L"/api/ac/state", [&](HttpResponse& resp) {
+		resp.Json({  
+			{ L"mode", lastMode },
+			{ L"fan", lastFan },
+			{ L"temp", lastTemp },
+		});
+	});
 
-	PVX::JSON::Item x = L"{\"Message\":\"Hello\",\"Message2\":[\"Hello\",\"Hello2\", 123, 321.555, false, null]}"_json;
-	PVX::JSON::Item x2 = true;
-	auto x3 = LR"(
-{
-	"Test4":[1,2,3,"Nikos"],
-	"Test3":"Text",
-	"Test2":31.500000,
-	"Test":123
-}
-		)"_json;
+	http.Routes(L"/api/ac/command", [&](HttpRequest& req, HttpResponse& resp) {
+		auto body = req.Json();
+		uint8_t on = body[L"on"].Integer();
+		uint8_t Mode = (uint8_t)body[L"mode"].Integer();
+		uint8_t Fan = (uint8_t)body[L"fan"].Integer();
+		uint8_t Temp = (uint8_t)body[L"temp"].Integer();
+		if (on==1) {
+			lastMode = Mode;
+			lastFan = Fan;
+			lastTemp = Temp;
+		}
 
-	auto testJ = x3["Test4"];
-
-	http.Routes(L"/api/test", [](HttpRequest& req, HttpResponse& resp) {
-//		resp.Json(LR"(
-//{
-//	"Message": "nikos",
-//	"Data": [
-//		1, 0.5, "test", true, false, null
-//	]
-//}
-//		)"_json);
-		Item ret = jsArray{ 1, 2, 3 };
-		resp.Json({ { L"Test4", ret } });
+		uint8_t cmd[]{ on, Mode, Fan, Temp };
+		comm9.Write(cmd, 4);		
 	});
 	http.ContentRoute(L"/js", L"html\\js");
 	http.DefaultHtml(L"html\\index.html");

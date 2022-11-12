@@ -20,6 +20,7 @@ using SOCKET = int;
 #define closesocket close
 #define INVALID_SOCKET  (SOCKET)(~0)
 #define SOCKET_ERROR            (-1)
+#define SD_BOTH SHUT_RDWR
 #endif
 
 #include <PVX_Network.h>
@@ -36,6 +37,7 @@ namespace {
 	Callbacks StandartActions{};
 
 	void StandartRelease(void* dt) {
+		shutdown(*(SOCKET*)dt, SD_BOTH);
 		closesocket(*(SOCKET*)dt);
 	}
 
@@ -157,15 +159,15 @@ namespace PVX::Network {
 		return int64_t(((socketData*)SocketData.get())->Actions->Recv(SocketData.get(), Data, Size));
 	}
 
-	int TcpSocket::ReceiveAsync(void* data, size_t Size) {
+	int64_t TcpSocket::ReceiveAsync(void* data, size_t Size) {
 		auto cr = CanReadAsync();
 		if (cr > 0) {
 			return Receive(data, Size);
 		}
 		return cr;
 	}
-	int TcpSocket::ReceiveAsync(std::vector<unsigned char>& data) {
-		int cnt;
+	int64_t TcpSocket::ReceiveAsync(std::vector<unsigned char>& data) {
+		int64_t cnt;
 		size_t sz = data.size();
 		do {
 			int sCount = CanReadAsync();
@@ -268,15 +270,18 @@ namespace PVX::Network {
 					std::function<void()> NextTask;
 					{
 						std::unique_lock<std::mutex> lock{ TaskMutex };
-						TaskAdded.wait(lock, [this] { return Tasks.size() || !Running; });
-						if (Running) {
+						//TaskAdded.wait(lock, [this] { return Tasks.size() || !Running; });
+						TaskAdded.wait_for(lock, std::chrono::seconds(1), [this] { return Tasks.size() || !Running; });
+						if (!Running) return;
+						if (Tasks.size()) {
 							NextTask = std::move(Tasks.front());
 							Tasks.pop();
-						} else
-							return;
+						} else continue;
 					}
+					Working++;
 					NextTask();
-					TaskEnded.notify_one();
+					Working--;
+					//TaskEnded.notify_one();
 				}
 			}));
 		}
@@ -344,7 +349,10 @@ namespace PVX::Network {
 	}
 	void TcpServer::Stop() {
 		Running = false;
-		for (auto s : OpenSockets) closesocket((SOCKET)(size_t)s);
+		for (auto s : OpenSockets) {
+			shutdown(*(SOCKET*)(size_t)s, SD_BOTH);
+			closesocket((SOCKET)(size_t)s);
+		}
 		TaskAdded.notify_all();
 		if (ServingThread.get() != nullptr) ServingThread->join();
 	}
