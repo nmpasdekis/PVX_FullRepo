@@ -34,38 +34,51 @@ namespace PVX {
 		namespace fs = std::filesystem;
 
 		void ChangeTracker::GetLastTime() {
-			if (fs::exists(Filename))
-				LastTime = fs::directory_entry(Filename).last_write_time();
-			else LastTime = {};
+			LastTime = fs::directory_entry(Filename).last_write_time();
 		}
 		ChangeTracker::ChangeTracker(const std::filesystem::path& Filename) :
 			Filename{ Filename },
 			LastTime{ fs::exists(Filename) ? fs::directory_entry(Filename).last_write_time() : fs::file_time_type{} } {}
-		ChangeTracker::operator bool() {
+		bool ChangeTracker::Changed() {
 			auto lt = LastTime;
 			GetLastTime();
 			return lt != LastTime;
 		}
-		ChangeTracker::operator std::wstring() {
-			return Filename.wstring();
-		}
 		ChangeTracker::operator const std::filesystem::path& () {
 			return Filename;
 		}
-		ChangeEventer::ChangeEventer() {
+		ChangeEventer::ChangeEventer(bool ar, std::function<void(const std::filesystem::path&)> defaulFunc, std::function<void(const std::filesystem::path&)> deleteFunc) :
+			AutoRemove{ ar }, defaultClb{ defaulFunc }, onDeletedClb{ deleteFunc }
+		{
 			Running = true;
 			Tracker = std::thread([this]() {
 				while (Running) {
-					if(!Paused) {
-						std::unique_lock<std::mutex> lock{ Locker };
-						for (auto& t : Files) {
-							if ((bool)t.File) t.Do(t.File);
-							if (Paused) break;
-						}
-					}
+					if (!Paused) Run();
 					std::this_thread::sleep_for(std::chrono::milliseconds(333));
 				}
 			});
+		}
+		void ChangeEventer::Run() {
+			std::unique_lock<std::mutex> lock{ Locker };
+			std::vector<size_t> toDelete;
+			size_t i = 0;
+			for (auto& t : Files) {
+				if (fs::exists(t.File)) {
+					if (t.File.Changed()) t.Do(t.File);
+				}
+				else {
+					if (onDeletedClb) onDeletedClb(t.File);
+					t.File.Changed();
+					if (AutoRemove) toDelete.push_back(i);
+				}
+				if (Paused) break;
+				i++;
+			}
+			if (AutoRemove) for (int64_t c = toDelete.size() - 1; c >= 0; c--) {
+				Files.erase(Files.begin() + c);
+				//std::exchange(Files[c], Files.back());
+				//Files.resize(Files.size() - 1);
+			}
 		}
 		ChangeEventer::~ChangeEventer() {
 			Running = 0;
@@ -74,8 +87,15 @@ namespace PVX {
 		bool ChangeEventer::Track(const std::filesystem::path& Filename, std::function<void(const std::filesystem::path&)> clb, bool run) {
 			std::unique_lock<std::mutex> lock{ Locker };
 			Events e{ Filename, clb };
-			Files.push_back(e);
-			if (run && (bool)e.File) clb(Filename);
+			if (run && e.File.Changed()) clb(Filename);
+			Files.push_back(std::move(e));
+			return (fs::exists(Filename));
+		}
+		bool ChangeEventer::Track(const std::filesystem::path& Filename, bool run) {
+			std::unique_lock<std::mutex> lock{ Locker };
+			Events e{ Filename, defaultClb };
+			if (run && e.File.Changed()) defaultClb(Filename);
+			Files.push_back(std::move(e));
 			return (fs::exists(Filename));
 		}
 

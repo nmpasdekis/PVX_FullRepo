@@ -28,8 +28,7 @@ namespace PVX {
 			void GetLastTime();
 		public:
 			ChangeTracker(const std::filesystem::path& Filename);
-			operator bool();
-			operator std::wstring();
+			bool Changed();
 			operator const std::filesystem::path& ();
 		};
 
@@ -41,16 +40,18 @@ namespace PVX {
 			std::mutex Locker;
 			std::thread Tracker;
 			std::vector<Events> Files;
-			bool Running;
+			bool Running, AutoRemove;
 			std::atomic_bool Paused = false;
 			std::function<void(const std::filesystem::path&)> defaultClb;
 			std::function<void(const std::filesystem::path&)> onDeletedClb;
 		public:
-			ChangeEventer();
+			ChangeEventer(bool AutoRemove = false, std::function<void(const std::filesystem::path&)> defaulFunc = nullptr, std::function<void(const std::filesystem::path&)> onDelete = nullptr);
 			~ChangeEventer();
+			void Run();
 			inline void Pause() { Paused = true; }
 			inline void Start() { Paused = false; }
 			bool Track(const std::filesystem::path& Filename, std::function<void(const std::filesystem::path&)> clb, bool RunFirstTime = true);
+			bool Track(const std::filesystem::path& Filename, bool RunFirstTime = true);
 		};
 
 		std::wstring ReadUtf(const std::filesystem::path& Filename);
