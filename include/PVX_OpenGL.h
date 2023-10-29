@@ -572,7 +572,7 @@ namespace PVX::OpenGL {
 		void GenerateMipmaps();
 		void Bind(int Unit = 0) const;
 		void BindToUnit(int Unit) const;
-		void Unbind();
+		static void Unbind();
 		static Texture2D MakeDepthBuffer32F(int Width, int Height);
 		static Texture2D MakeStencilBuffer(int Width, int Height);
 		static Texture2D MakeDepthStencilBuffer24_8(int Width, int Height);
@@ -909,7 +909,6 @@ namespace PVX::OpenGL {
 	public:
 		Camera(PVX::Matrix4x4* View = nullptr, PVX::Matrix4x4* Projection = nullptr);
 		Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* View = nullptr, PVX::Matrix4x4* Projection = nullptr);
-		Vector3D& Position;
 		Vector3D OrbitCenter;
 		Vector3D Rotation;
 		float Width, Height, OrbitDistance;
@@ -961,6 +960,7 @@ namespace PVX::OpenGL {
 		}
 		inline void UpdateConstantBuffer(Buffer& Buffer) { Buffer.Update(sizeof(Storage), &Storage); };
 //#endif
+		Vector3D& Position;
 	};
 }
 

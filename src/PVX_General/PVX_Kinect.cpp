@@ -1,5 +1,6 @@
 #include "PVX_Kinect.h"
 #include <mutex>
+#include <thread>
 
 namespace PVX {
 	namespace Kinect {
@@ -39,6 +40,8 @@ namespace PVX {
 			descr->get_Width(&Width);
 			Capacity = Width * Height;
 			UVs.resize(Capacity);
+			invColorWidth = 1.0f / Width;
+			invColorHeight = 1.0f / Height;
 			InternalBuffer3D.resize(Capacity);
 			InternalBufferFloat.resize(Capacity);
 			InternalBuffer = (unsigned short*)InternalBufferFloat.data();
@@ -150,7 +153,7 @@ namespace PVX {
 			}
 			return 0;
 		}
-		ColorSensor::ColorSensor() {
+		ColorSensor::ColorSensor(bool initF4Buffer) {
 			auto res = GetDefaultKinectSensor(&KinectSensor);
 			res = KinectSensor->get_ColorFrameSource(&color);
 			res = color->OpenReader(&cReader);
@@ -161,8 +164,20 @@ namespace PVX {
 			descr->get_Width(&Width);
 			Capacity = Width * Height;
 
-			BOOLEAN IsOpen;
+			BOOLEAN IsOpen = 0;;
+			
+			
+
 			KinectSensor->get_IsOpen(&IsOpen);
+			if (initF4Buffer) {
+				while (!IsOpen) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					KinectSensor->get_IsOpen(&IsOpen);
+				}
+				InitInternalBufferF4();
+			}
+
+			
 			if (!IsOpen)
 				res = KinectSensor->Open();
 		}

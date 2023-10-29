@@ -11,7 +11,7 @@ namespace PVX {
 	namespace Kinect {
 		class ColorSensor {
 		public:
-			ColorSensor();
+			ColorSensor(bool initF4Buffer = true);
 
 			int GetFrame(PVX::Vector4D * Color);
 			int GetFrame(PVX::ucVector4D * Color);

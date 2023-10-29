@@ -15,4 +15,14 @@ namespace PVX::Network {
 			clientSSL.ConvertClientSocket(s, dom.c_str());
 		});
 	}
+	PVX::Network::HttpClient MakeHttpClient(const std::string& Domain) {
+		auto ret = PVX::Network::HttpClient(Domain);
+		auto dom = ret.Domain();
+		if (ret.Protocol() == "http")
+			return ret;
+		return ret.OnConnect([dom](PVX::Network::TcpSocket& s) {
+			s.SetOption(TcpSocketOption::KeepAlive, 1);
+			clientSSL.ConvertClientSocket(s, dom.c_str());
+		});
+	}
 }

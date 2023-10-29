@@ -380,6 +380,25 @@ namespace PVX {
 			return ret;
 		}
 
+		std::wstring wToHex(const uint8_t* Data, size_t Size) {
+			std::wstring ret;
+			ret.reserve(Size * 2);
+			for (auto i = 0; i < Size; i++) {
+				ret.push_back(Hex_map[Data[i] >> 4]);
+				ret.push_back(Hex_map[Data[i] & 0x0f]);
+			}
+			return ret;
+		}
+		std::wstring wToHexUpper(const uint8_t* Data, size_t Size) {
+			std::wstring ret;
+			ret.reserve(Size * 2);
+			for (auto i = 0; i < Size; i++) {
+				ret.push_back(Hex_mapUpper[Data[i] >> 4]);
+				ret.push_back(Hex_mapUpper[Data[i] & 0x0f]);
+			}
+			return ret;
+		}
+
 		string Base64(const void * data, size_t size) {
 			constexpr char unordered_map[] =
 				"ABCDEFGHIJKLMNOPQRSTUVWXYZ"

@@ -777,7 +777,6 @@ namespace PVX {
 	};
 
 
-
 #define DET3(m00, m01, m02, m10, m11, m12, m20, m21, m22) \
 		(\
 		((m00)*((m11)*(m22)-(m21)*(m12))) - \
@@ -2980,4 +2979,70 @@ namespace PVX {
 		return ret;
 	}
 
+	struct VirtualCamera {
+		Matrix4x4 View = Matrix4x4::Identity();
+		Matrix4x4 Projection = Matrix4x4::Identity();
+		Vector3D Position{};
+		Vector3D Rotation{};
+		float Width, Height, FOV, Near, Far;
+
+		VirtualCamera() {};
+		VirtualCamera(VirtualCamera&&) = default;
+
+		VirtualCamera(float w, float h, float fov = 60.0f, float Near = 1.0, float Far = 100000.0f) {
+			Width = w;
+			Height = h;
+			FOV = fov;
+
+			this->Near = Near;
+			this->Near = Far;
+
+			Projection.m11 = 1.0f / (float)tanf(ToRAD(fov) / 2.0f);
+			Projection.m00 = Projection.m11 * Height / Width;
+
+			Projection.m22 = (Far + Near) / (Near - Far);
+			Projection.m32 = (2.0f * Far * Near) / (Near - Far);
+			Projection.m23 = -1.0f;
+		}
+
+		void UpdateView() {
+			RotateYawPitchRoll2(View, Rotation);
+			View.TranslateBefore(Position);
+		}
+		void UpdateProjection() {
+			Projection.m11 = 1.0f / (float)tanf(ToRAD(FOV) / 2.0f);
+			Projection.m00 = Projection.m11 * Height / Width;
+
+			Projection.m22 = (Far + Near) / (Near - Far);
+			Projection.m32 = (2.0f * Far * Near) / (Near - Far);
+			Projection.m23 = -1.0f;
+		}
+		void Update() {
+			UpdateView();
+			UpdateProjection();
+		}
+
+		Vector3D GetLookVector() const {
+			return { -View.m02, -View.m12, -View.m22 };
+		}
+		Vector3D GetUpVector() const {
+			return { View.m01, View.m11, View.m21 };
+		}
+		Vector3D GetRightVector() const {
+			return { View.m00, View.m10, View.m20 };
+		}
+
+		Ray CastScreenRay(float ScreenX, float ScreenY) const {
+			return { Position, -Mul3x3(View, {
+				((-2.0f * ScreenX / Width) + 1.0f) / Projection.m00,
+				((2.0f * ScreenY / Height) - 1.0f) / Projection.m11,
+				1.0f
+			}).Normalized() };
+		}
+
+		Ray CastRay(float x, float y) const {
+			Vector3D screen = { x / Projection.m00, y / Projection.m11, 1.0f };
+			return { Position, -Mul3x3(View, screen).Normalized() };
+		}
+	};
 }

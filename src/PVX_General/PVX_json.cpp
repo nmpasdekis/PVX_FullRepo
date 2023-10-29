@@ -86,14 +86,14 @@ namespace PVX {
 				default: return;
 			};
 		}
-#ifndef __linux
-		int Item::SaveBinary(const wchar_t* Filename) {
-			std::ofstream fout(Filename, std::ofstream::binary);
-			if (fout.is_open()) WriteBin(fout);
-			return 0;
-		}
-#endif
-		int Item::SaveBinary(const char* Filename) {
+//#ifndef __linux
+//		int Item::SaveBinary(const wchar_t* Filename) {
+//			std::ofstream fout(Filename, std::ofstream::binary);
+//			if (fout.is_open()) WriteBin(fout);
+//			return 0;
+//		}
+//#endif
+		int Item::SaveBinary(const std::filesystem::path& Filename) {
 			std::ofstream fout(Filename, std::ofstream::binary);
 			if (fout.is_open()) WriteBin(fout);
 			return 0;
@@ -150,20 +150,20 @@ namespace PVX {
 			};
 			return type;
 		}
-		Item Item::ReadBinary(const char* Filename) {
+		Item Item::ReadBinary(const std::filesystem::path& Filename) {
 			std::ifstream fin(Filename, std::ifstream::binary);
 			if (fin.is_open()) {
 				return ReadBin(fin);
 			}
 			return jsElementType::Undefined;
 		}
-#ifndef __linux
-		Item Item::ReadBinary(const wchar_t* Filename) {
-			std::ifstream fin(Filename, std::ifstream::binary);
-			if (fin.is_open()) return ReadBin(fin);
-			return jsElementType::Undefined;
-		}
-#endif
+//#ifndef __linux
+//		Item Item::ReadBinary(const wchar_t* Filename) {
+//			std::ifstream fin(Filename, std::ifstream::binary);
+//			if (fin.is_open()) return ReadBin(fin);
+//			return jsElementType::Undefined;
+//		}
+//#endif
 
 		Item::Item(const jsArray& its) {
 			JSONType = jsElementType::Array;

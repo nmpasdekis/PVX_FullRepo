@@ -125,18 +125,17 @@ namespace PVX {
 
 		HttpClient::HttpResponse HttpClient::Get() {
 			HttpClient::HttpResponse ret;
-			TcpSocket Socket;
-			Socket.SetOption(TcpSocketOption::NoDelay, (int)1);
+			ret.Socket.SetOption(TcpSocketOption::NoDelay, (int)1);
 			auto Header = MakeHeader("GET");
 
-			if (Socket.Connect(domain.c_str(), port.c_str())) {
+			if (ret.Socket.Connect(domain.c_str(), port.c_str())) {
 				ret.StatusCode = 404;
 				return ret;
 			}
-			if (onConnect) onConnect(Socket);
+			if (onConnect) onConnect(ret.Socket);
 
-			if (Socket.Send(PVX::Encode::UTF(Header))) {
-				Receive(Socket, ret.Headers, ret.Data, ret.Protocol, ret.StatusCode);
+			if (ret.Socket.Send(PVX::Encode::UTF(Header))) {
+				Receive(ret.Socket, ret.Headers, ret.Data, ret.Protocol, ret.StatusCode, ret.ct);
 			}
 			return ret;
 		}
@@ -144,20 +143,28 @@ namespace PVX {
 			return Post(PVX::Encode::UTF(Data));
 		}
 
-		JSON::Item HttpClient::HttpResponse::Json() {
+		JSON::Item HttpClient::HttpResponse::Json() const {
 			return JSON::parse(Data);
 		}
-		std::vector<unsigned char> HttpClient::HttpResponse::Raw() {
+		std::vector<unsigned char> HttpClient::HttpResponse::Raw() const {
 			return Data;
 		}
-		std::string HttpClient::HttpResponse::Text() {
+		std::string HttpClient::HttpResponse::Text() const {
 			std::string ret;
 			ret.resize(Data.size());
 			memcpy(&ret[0], &Data[0], Data.size());
 			return ret;
 		}
-		std::wstring HttpClient::HttpResponse::UtfText() {
+		std::wstring HttpClient::HttpResponse::UtfText() const {
 			return PVX::Decode::UTF(Data);
+		}
+
+		WebSocket HttpClient::HttpResponse::WebSocket() const {
+			return Socket;
+		}
+
+		const std::wstring& HttpClient::HttpResponse::ContentType() const {
+			return ct;
 		}
 
 		static bool NeedUriEncode(const std::wstring& str) {
@@ -189,7 +196,7 @@ namespace PVX {
 
 			if (Socket.Send(PVX::Encode::UTF(Header))) {
 				if (Data.size()) if (!Socket.Send(Data)) return ret;
-				Receive(Socket, ret.Headers, ret.Data, ret.Protocol, ret.StatusCode);
+				Receive(Socket, ret.Headers, ret.Data, ret.Protocol, ret.StatusCode, ret.ct);
 			}
 			return ret;
 		}
@@ -255,14 +262,13 @@ namespace PVX {
 
 
 		HttpClient::HttpClient(const std::string& url): HttpClient() {
-			urlHelper(PVX::Encode::UriEncode(url));
+			DomainHelper(url);
 		}
 		HttpClient::HttpClient(const std::wstring& url): HttpClient() {
-			urlHelper(PVX::Encode::UriEncode(PVX::Encode::UTF(url)));
+			DomainHelper(PVX::Encode::UtfString(url));
 		}
 
-
-		std::string_view HttpClient::DomainHelper(std::string_view src) {
+		void HttpClient::DomainHelper(std::string_view src) {
 			auto protoEnd = src.find("://");
 			if (protoEnd != std::wstring::npos) {
 				protocol = PVX::String::ToLower(std::string(src.substr(0, protoEnd)));
@@ -284,7 +290,6 @@ namespace PVX {
 				}
 				src = src.substr(domainEnd);
 			}
-			return src;
 		}
 
 		void HttpClient::urlHelper(const std::string_view& src) {
@@ -293,10 +298,20 @@ namespace PVX {
 		}
 
 		void HttpClient::Url(const std::string& Src) {
-			urlHelper(PVX::Encode::UriEncode(Src));
+			auto pathIndex = Src.find("?");
+			auto pathParts = PVX::Map(PVX::String::Split(Src.substr(0, pathIndex), "/"), [](const std::string& str) { return PVX::Encode::UriEncode(str); });
+			urlHelper(PVX::String::Join(pathParts, "/") + (pathIndex!=std::string::npos? ("?" + PVX::Encode::UriEncode(Src.substr(pathIndex+1))) : std::string()));
 		}
 		void HttpClient::Url(const std::wstring& Src) {
-			urlHelper(PVX::Encode::UriEncode(PVX::Encode::UTF(Src)));
+			using namespace PVX::String;
+			auto [wPathPart, wSearchPart] = Split2(Src, L"?");
+			std::string pathPart = Join(PVX::Map(Split(wPathPart, L"/"), [](const std::wstring& str) { return PVX::Encode::UriEncode(PVX::Encode::UtfString(str)); }), "/");
+			std::string searchPart = Join(PVX::Map(Split(wSearchPart, L"&"), [](const std::wstring& str) {
+				auto [key, value] = Split2(str, L"=");
+				return PVX::Encode::UriEncode(PVX::Encode::UtfString(key)) + "=" + PVX::Encode::UriEncode(PVX::Encode::UtfString(value));
+			}), "&");
+
+			urlHelper(pathPart + "?" + searchPart);
 		}
 		
 		HttpClient & HttpClient::OnReceiveHeader(std::function<void(const std::wstring&)> fnc) {
@@ -339,6 +354,42 @@ namespace PVX {
 			return *this;
 		}
 
+		HttpClient& HttpClient::Headers(const std::unordered_map<std::string, std::string>& H) {
+			for (auto& [Name, Value] : H) {
+				headers[PVX::String::ToLower(Name)] = Value;
+			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::Headers_Raw(const std::unordered_map<std::string, std::string>& H) {
+			for (auto& [Name, Value] : H) {
+				headers[Name] = Value;
+			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::HeadersAll(const std::unordered_map<std::string, std::string>& H) {
+			headers = std::unordered_map<std::string, PVX::Network::UtfHelper>();
+			for (auto& [Name, Value] : H) {
+				headers[PVX::String::ToLower(Name)] = Value;
+			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::HeadersAll_Raw(const std::unordered_map<std::string, std::string>& H) {
+			headers = std::unordered_map<std::string, PVX::Network::UtfHelper>();
+			for (auto& [Name, Value] : H) {
+				headers[Name] = Value;
+			}
+			return *this;
+		}
+
+		HttpClient& HttpClient::BasicAuth(const std::string Username, const std::string& Password) {
+			return Headers_Raw({
+				{ "authorization", BasicAuthentication(Username, Password) }
+			});
+		}
+
 		UtfHelper& HttpClient::operator[](const std::string& Name) {
 			return headers[PVX::String::ToLower(Name)];
 		}
@@ -369,7 +420,7 @@ namespace PVX {
 			std::transform(s.begin(), s.end(), s.begin(), [](wchar_t c) { return c | ('a'^'A'); });
 		}
 
-		int HttpClient::Receive(PVX::Network::TcpSocket & Socket, std::vector<std::pair<std::wstring, std::wstring>> & Headers, std::vector<unsigned char> & Data, std::wstring & Proto, int & Status) {
+		int HttpClient::Receive(PVX::Network::TcpSocket & Socket, std::vector<std::pair<std::wstring, std::wstring>> & Headers, std::vector<unsigned char> & Data, std::wstring & Proto, int & Status, std::wstring& ct) {
 			using namespace PVX;
 			using namespace PVX::String;
 			std::wstring Header;
@@ -419,6 +470,8 @@ namespace PVX {
 					auto c = Split_No_Empties_Trimed(Value, L";");
 					auto cookie = Split_Trimed(c[0], L"=");
 					Cookies[cookie[0]] = cookie[1];
+				} else if (Name == L"content-type") {
+					ct = Value;
 				}
 			}
 			int rez = 0;

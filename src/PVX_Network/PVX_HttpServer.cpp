@@ -300,6 +300,10 @@ namespace PVX {
 			return req.SessionId = req.Cookies.at(L"sid");
 		}
 
+		std::string BasicAuthentication(const std::string& Username, const std::string& Password) {
+			return "basic " + PVX::Encode::Base64Url(Username + ":" + Password);
+		}
+
 		void HttpServer::BasicAuthentication(std::function<void(const std::wstring&, const std::wstring&)> clb) {
 			AddFilter([clb](PVX::Network::HttpRequest& req, PVX::Network::HttpResponse& resp) {
 				req.BasicAuthentication(clb);

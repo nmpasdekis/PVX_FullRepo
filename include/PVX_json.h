@@ -11,6 +11,7 @@
 #include <PVX_Encode.h>
 #include <PVX_String.h>
 #include <variant>
+#include <filesystem>
 
 namespace PVX {
 	namespace JSON {
@@ -360,6 +361,17 @@ namespace PVX {
 			inline double Double() const { return std::get<double>(Value); };
 			inline double& Double() { return std::get<double>(Value); };
 
+			inline std::wstring AsString() const {
+				switch (BSONType) {
+				case PVX::JSON::BSON_Type::Double: return std::to_wstring(std::get<double>(Value));
+				case PVX::JSON::BSON_Type::String: return std::get<std::wstring>(Value);
+				case PVX::JSON::BSON_Type::Boolean: return std::get<bool>(Value) ? L"true" : L"false";
+				case PVX::JSON::BSON_Type::Int32: return std::to_wstring(std::get<int32_t>(Value));
+				case PVX::JSON::BSON_Type::Int64: return std::to_wstring(std::get<int64_t>(Value));
+				default: return L"";
+				}
+			}
+
 			inline int64_t Integer() const { 
 				if(BSONType==BSON_Type::Int64)
 					return std::get<int64_t>(Value); 
@@ -435,10 +447,10 @@ namespace PVX {
 			Item DeepReducedCopy();
 
 			Item& Merge(const Item& With);
-			int SaveBinary(const wchar_t* Filename);
-			int SaveBinary(const char* Filename);
-			static Item ReadBinary(const char* Filename);
-			static Item ReadBinary(const wchar_t* Filename);
+			int SaveBinary(const std::filesystem::path& Filename);
+			static Item ReadBinary(const std::filesystem::path& Filename);
+			//static Item ReadBinary(const wchar_t* Filename);
+			//int SaveBinary(const wchar_t* Filename);
 
 			//Variant Value;
 

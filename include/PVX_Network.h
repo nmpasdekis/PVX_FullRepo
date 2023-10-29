@@ -472,13 +472,17 @@ namespace PVX {
 				friend class HttpClient;
 				std::vector<unsigned char> Data;
 				std::wstring Protocol;
+				std::wstring ct;
+				TcpSocket Socket;
 			public:
 				int StatusCode;
-				JSON::Item Json();
-				std::vector<unsigned char> Raw();
-				std::string Text();
-				std::wstring UtfText();
+				JSON::Item Json() const;
+				std::vector<unsigned char> Raw() const;
+				std::string Text() const;
+				std::wstring UtfText() const;
+				WebSocket WebSocket() const;
 				std::vector<std::pair<std::wstring, std::wstring>> Headers;
+				const std::wstring& ContentType() const;
 			};
 
 			HttpClient();
@@ -504,22 +508,31 @@ namespace PVX {
 			HttpClient& OnReceiveData(std::function<void(const std::vector<unsigned char>&)> fnc);
 			HttpClient& OnConnect(std::function<void(TcpSocket&)> clb);
 			std::map<std::wstring, std::wstring> Cookies;
+
 			HttpClient& Headers(const std::unordered_map<std::string, std::wstring>& h);
 			HttpClient& Headers_Raw(const std::unordered_map<std::string, std::wstring>& h);
 			HttpClient& HeadersAll(const std::unordered_map<std::string, std::wstring>& h);
 			HttpClient& HeadersAll_Raw(const std::unordered_map<std::string, std::wstring>& h);
+
+			HttpClient& Headers(const std::unordered_map<std::string, std::string>& h);
+			HttpClient& Headers_Raw(const std::unordered_map<std::string, std::string>& h);
+			HttpClient& HeadersAll(const std::unordered_map<std::string, std::string>& h);
+			HttpClient& HeadersAll_Raw(const std::unordered_map<std::string, std::string>& h);
+
 			UtfHelper& operator[](const std::string& Name);
 
 			const std::string& Domain() const { return domain; }
 			const std::string& Port() const { return port; }
 			const std::string& Protocol() const { return protocol; }
+
+			HttpClient& BasicAuth(const std::string Username, const std::string& Password);
 		protected:
 			void urlHelper(const std::string_view& url);
-			std::string_view DomainHelper(std::string_view url);
+			void DomainHelper(std::string_view url);
 			void Url(const std::wstring & url);
 			void Url(const std::string & url);
 			std::wstring MakeHeader(const char * Verb);
-			int Receive(PVX::Network::TcpSocket&, std::vector<std::pair<std::wstring, std::wstring>> & Headers, std::vector<unsigned char> &, std::wstring & Proto, int & Status);
+			int Receive(PVX::Network::TcpSocket&, std::vector<std::pair<std::wstring, std::wstring>> & Headers, std::vector<unsigned char> &, std::wstring & Proto, int & Status, std::wstring& ct);
 
 			std::function<void(TcpSocket&)> onConnect;
 			std::function<void(const std::wstring&)> onReceiveHeader;
@@ -527,6 +540,8 @@ namespace PVX {
 			std::string protocol = "http", port = "80", domain, path;
 			std::unordered_map<std::string, UtfHelper> headers;
 		};
+
+		std::string BasicAuthentication(const std::string& Username, const std::string& Password);
 
 		inline PVX::JSON::Item ls(const std::filesystem::path& path) {
 			return {

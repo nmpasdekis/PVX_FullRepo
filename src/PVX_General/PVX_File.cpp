@@ -34,11 +34,13 @@ namespace PVX {
 		namespace fs = std::filesystem;
 
 		void ChangeTracker::GetLastTime() {
-			LastTime = fs::directory_entry(Filename).last_write_time();
+			if (fs::exists(Filename))
+				LastTime = fs::directory_entry(Filename).last_write_time();
+			else LastTime = {};
 		}
 		ChangeTracker::ChangeTracker(const std::filesystem::path& Filename) :
 			Filename{ Filename },
-			LastTime{ fs::directory_entry(Filename).last_write_time() } {}
+			LastTime{ fs::exists(Filename) ? fs::directory_entry(Filename).last_write_time() : fs::file_time_type{} } {}
 		ChangeTracker::operator bool() {
 			auto lt = LastTime;
 			GetLastTime();
@@ -47,14 +49,19 @@ namespace PVX {
 		ChangeTracker::operator std::wstring() {
 			return Filename.wstring();
 		}
+		ChangeTracker::operator const std::filesystem::path& () {
+			return Filename;
+		}
 		ChangeEventer::ChangeEventer() {
-			Running = 1;
+			Running = true;
 			Tracker = std::thread([this]() {
 				while (Running) {
-					{
+					if(!Paused) {
 						std::unique_lock<std::mutex> lock{ Locker };
-						for (auto& t : Files)
-							if (t.File) t.Do();
+						for (auto& t : Files) {
+							if ((bool)t.File) t.Do(t.File);
+							if (Paused) break;
+						}
 					}
 					std::this_thread::sleep_for(std::chrono::milliseconds(333));
 				}
@@ -64,10 +71,12 @@ namespace PVX {
 			Running = 0;
 			Tracker.join();
 		}
-		void ChangeEventer::Track(const std::filesystem::path& Filename, std::function<void()> clb) {
+		bool ChangeEventer::Track(const std::filesystem::path& Filename, std::function<void(const std::filesystem::path&)> clb, bool run) {
 			std::unique_lock<std::mutex> lock{ Locker };
-			Files.push_back({ Filename, clb });
-			if ((bool)Files.back().File)	clb();
+			Events e{ Filename, clb };
+			Files.push_back(e);
+			if (run && (bool)e.File) clb(Filename);
+			return (fs::exists(Filename));
 		}
 
 		void MakeDirectory(const std::filesystem::path& Directory) {

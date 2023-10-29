@@ -434,6 +434,12 @@ namespace PVX {
 		return def;
 	}
 
+	template<typename KeyType, typename ValueType>
+	inline ValueType GetOrDefault(const std::unordered_map<KeyType, ValueType>& Map, const KeyType& key, const ValueType& def) {
+		if (auto f = Map.find(key); f != Map.end()) return f->second;
+		return def;
+	}
+
 	inline std::vector<uint8_t> Interleave(const std::vector<std::pair<void*, int>>& Items, size_t Count) {
 		int OutStride = PVX::Reduce(Items, 0, [](auto acc, const auto& it) { 
 			return acc + it.second; 
@@ -443,6 +449,24 @@ namespace PVX {
 		for (auto& [ptr, Stride] : Items) {
 			Interleave(ret.data() + offset, OutStride, ptr, Stride, Count);
 			offset += Stride;
+		}
+		return ret;
+	}
+
+	template<typename TItem, typename TKey, typename TValue>
+	std::unordered_map<TKey, TValue> ToDictionary(const std::vector<TItem>& a, std::function<TKey(const TItem&)> kFnc, std::function<TValue(const TItem&)> vFnc) {
+		std::unordered_map<TKey, TValue> ret;
+		for (const auto& it : a) {
+			ret[kFnc(it)] = vFnc(it);
+		}
+		return ret;
+	}
+
+	template<typename TItem, typename TKey>
+	std::unordered_map<TKey, TItem> ToDictionary(const std::vector<TItem>& a, std::function<TKey(const TItem&)> kFnc) {
+		std::unordered_map<TKey, TItem> ret;
+		for (const auto& it : a) {
+			ret[kFnc(it)] = it;
 		}
 		return ret;
 	}

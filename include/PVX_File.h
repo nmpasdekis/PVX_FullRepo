@@ -30,21 +30,27 @@ namespace PVX {
 			ChangeTracker(const std::filesystem::path& Filename);
 			operator bool();
 			operator std::wstring();
+			operator const std::filesystem::path& ();
 		};
 
 		class ChangeEventer {
 			struct Events {
 				ChangeTracker File;
-				std::function<void()> Do;
+				std::function<void(const std::filesystem::path&)> Do;
 			};
 			std::mutex Locker;
 			std::thread Tracker;
 			std::vector<Events> Files;
-			int Running;
+			bool Running;
+			std::atomic_bool Paused = false;
+			std::function<void(const std::filesystem::path&)> defaultClb;
+			std::function<void(const std::filesystem::path&)> onDeletedClb;
 		public:
 			ChangeEventer();
 			~ChangeEventer();
-			void Track(const std::filesystem::path& Filename, std::function<void()> clb);
+			inline void Pause() { Paused = true; }
+			inline void Start() { Paused = false; }
+			bool Track(const std::filesystem::path& Filename, std::function<void(const std::filesystem::path&)> clb, bool RunFirstTime = true);
 		};
 
 		std::wstring ReadUtf(const std::filesystem::path& Filename);

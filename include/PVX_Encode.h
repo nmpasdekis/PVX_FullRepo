@@ -39,6 +39,8 @@ namespace PVX{
 		std::string ToHexUpper(const std::vector<unsigned char>& Data);
 		std::wstring wToHex(const std::vector<unsigned char>& Data);
 		std::wstring wToHexUpper(const std::vector<unsigned char>& Data);
+		std::wstring wToHex(const uint8_t* Data, size_t Size);
+		std::wstring wToHexUpper(const uint8_t* Data, size_t Size);
 		//std::string encodeURI(const std::string& url);
 		//std::string encodeURI(const std::wstring& url);
 	}

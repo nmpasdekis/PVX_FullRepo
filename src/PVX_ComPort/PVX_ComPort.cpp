@@ -11,10 +11,10 @@ namespace PVX::Serial {
 			return "\\\\.\\COM"s + std::to_string(n);
 		}(Num);
 		baudRate = BaudRate;
-		Connect();
+		//Connect();
 	}
 
-	bool Com::Connect() {
+	uint32_t Com::Connect() {
 		hCom = CreateFileA(static_cast<LPCSTR>(commName.c_str()), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		Error = GetLastError();
 		if (!Error) {
@@ -27,11 +27,10 @@ namespace PVX::Serial {
 				params.fDtrControl = DTR_CONTROL_ENABLE;
 				if (SetCommState(hCom, &params)) {
 					PurgeComm(hCom, PURGE_RXCLEAR | PURGE_TXCLEAR);
-					return true;
 				}
 			}
 		}
-		return false;
+		return Error;
 	}
 
 	void Com::Disconnect() {
@@ -82,8 +81,10 @@ namespace PVX::Serial {
 	}
 	size_t Com::AvailableInBytes() {
 		ClearCommError(hCom, &Error, &status);
-		if (Error)
+		if (Error) {
+			Error = GetLastError();
 			return 0;
+		}
 		return status.cbInQue;
 	}
 }
