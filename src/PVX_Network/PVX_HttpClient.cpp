@@ -129,7 +129,7 @@ namespace PVX {
 			auto Header = MakeHeader("GET");
 
 			if (ret.Socket.Connect(domain.c_str(), port.c_str())) {
-				ret.StatusCode = 404;
+				ret.StatusCode = 0;
 				return ret;
 			}
 			if (onConnect) onConnect(ret.Socket);
@@ -165,6 +165,16 @@ namespace PVX {
 
 		const std::wstring& HttpClient::HttpResponse::ContentType() const {
 			return ct;
+		}
+
+		HttpClient::HttpResponse &HttpClient::HttpResponse::Then(std::function<void(const PVX::JSON::Item &)> json, std::function<void(HttpResponse &)> Error) {
+			if(StatusCode == 200 && ContentType().find(L"/json") != std::wstring::npos) json(Json());
+			else Error(*this);
+			return *this;
+		}
+		HttpClient::HttpResponse &HttpClient::HttpResponse::Then(std::function<void(const PVX::JSON::Item &)> json) {
+			if(StatusCode == 200 && ContentType().find(L"/json") != std::wstring::npos) json(Json());
+			return *this;
 		}
 
 		static bool NeedUriEncode(const std::wstring& str) {
@@ -387,6 +397,11 @@ namespace PVX {
 		HttpClient& HttpClient::BasicAuth(const std::string Username, const std::string& Password) {
 			return Headers_Raw({
 				{ "authorization", BasicAuthentication(Username, Password) }
+			});
+		}
+		HttpClient& HttpClient::BasicAuth(const std::wstring Username, const std::wstring& Password) {
+			return Headers_Raw({
+				{ "authorization", BasicAuthentication(PVX::Encode::UtfString(Username), PVX::Encode::UtfString(Password)) }
 			});
 		}
 

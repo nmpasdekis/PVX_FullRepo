@@ -82,6 +82,7 @@ namespace PVX {
 			int CanRead();
 			int CanReadAsync();
 			void Disconnect();
+			bool IsConnected();
 
 			template<typename T>
 			int SetOption(TcpSocketOption Op, const T& Value) {
@@ -317,7 +318,7 @@ namespace PVX {
 
 			void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path) {
 				auto url = Url;
-				if (url.front() != L'/')url = L"/" + url;
+				if (url.size() && url.front() != L'/')url = L"/" + url;
 				Routes({ url + L"/{Path}", ContentServer(Path) });
 			}
 			void DefaultRouteForContent(const std::filesystem::path& Path) {
@@ -483,6 +484,8 @@ namespace PVX {
 				WebSocket WebSocket() const;
 				std::vector<std::pair<std::wstring, std::wstring>> Headers;
 				const std::wstring& ContentType() const;
+				HttpResponse &Then(std::function<void(const PVX::JSON::Item &)> json, std::function<void(HttpResponse&)> Error);
+				HttpResponse &Then(std::function<void(const PVX::JSON::Item &)> json);
 			};
 
 			HttpClient();
@@ -526,6 +529,7 @@ namespace PVX {
 			const std::string& Protocol() const { return protocol; }
 
 			HttpClient& BasicAuth(const std::string Username, const std::string& Password);
+			HttpClient& BasicAuth(const std::wstring Username, const std::wstring& Password);
 		protected:
 			void urlHelper(const std::string_view& url);
 			void DomainHelper(std::string_view url);

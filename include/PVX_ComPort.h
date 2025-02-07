@@ -10,6 +10,13 @@
 #ifdef _WIN32
 #include <Windows.h>
 namespace PVX::Serial {
+	std::string commNaming(uint8_t n);
+
+	struct PortInfo {
+		std::string port;
+		std::string description;
+		std::string hardware_id;
+	};
 
 	class Com {
 		std::string commName;
@@ -17,12 +24,19 @@ namespace PVX::Serial {
 		HANDLE hCom{};
 		COMSTAT status{};
 		DWORD Error{};
+		uint8_t comNumber;
 	public:
 		Com(uint8_t Num, uint32_t BaudRate = 9600);
 		~Com() { Disconnect(); }
+		static std::vector<PortInfo> Ports();
 		uint32_t Connect();
 		void Disconnect();
 		size_t Read(uint8_t* Buffer, uint32_t Size);
+		size_t Read(void* Buffer, uint32_t Size);
+
+		inline uint8_t GetComNumber() { return comNumber; }
+
+		static std::unordered_map<int, std::string> List();
 
 		template<typename T>
 		T Read() {
@@ -33,6 +47,11 @@ namespace PVX::Serial {
 		template<typename T>
 		size_t Read(T& ret) {
 			return Read((uint8_t*)&ret, sizeof(T));
+		}
+
+		template<typename T>
+		size_t Write(T && data) {
+			return Write((uint8_t*)&data, sizeof(T));
 		}
 
 		std::string ReadString() {
@@ -50,6 +69,8 @@ namespace PVX::Serial {
 
 		size_t Read2(uint8_t* Buffer, uint32_t Size);
 		size_t Write(uint8_t * Buffer, uint32_t Size);
+		size_t WaitForInput();
+		size_t WaitForOutput();
 		size_t AvailableInBytes();
 	};
 
@@ -60,6 +81,7 @@ namespace PVX::Serial {
 		COMSTAT status{};
 		DWORD Error{};
 		std::atomic_bool Running;
+		bool isConnected = false;
 
 		std::vector<uint8_t> Buffer;
 		std::deque< std::vector<uint8_t>> SendQueue;

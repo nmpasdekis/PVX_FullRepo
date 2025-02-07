@@ -14,6 +14,7 @@
 #include<fstream>
 #include <filesystem>
 #include<PVX_Encode.h>
+#include<optional>
 
 namespace PVX {
 	namespace IO {
@@ -24,9 +25,9 @@ namespace PVX {
 
 		class ChangeTracker {
 			std::filesystem::path Filename;
-			std::filesystem::file_time_type LastTime;
 			void GetLastTime();
 		public:
+			std::filesystem::file_time_type LastTime;
 			ChangeTracker(const std::filesystem::path& Filename);
 			bool Changed();
 			operator const std::filesystem::path& ();
@@ -38,14 +39,14 @@ namespace PVX {
 				std::function<void(const std::filesystem::path&)> Do;
 			};
 			std::mutex Locker;
-			std::thread Tracker;
-			std::vector<Events> Files;
 			bool Running, AutoRemove;
+			std::unique_ptr<std::thread> Tracker;
+			std::vector<Events> Files;
 			std::atomic_bool Paused = false;
 			std::function<void(const std::filesystem::path&)> defaultClb;
 			std::function<void(const std::filesystem::path&)> onDeletedClb;
 		public:
-			ChangeEventer(bool AutoRemove = false, std::function<void(const std::filesystem::path&)> defaulFunc = nullptr, std::function<void(const std::filesystem::path&)> onDelete = nullptr);
+			ChangeEventer(bool Automatic, bool AutoRemove = false, std::function<void(const std::filesystem::path&)> defaulFunc = nullptr, std::function<void(const std::filesystem::path&)> onDelete = nullptr);
 			~ChangeEventer();
 			void Run();
 			inline void Pause() { Paused = true; }
@@ -55,6 +56,7 @@ namespace PVX {
 		};
 
 		std::wstring ReadUtf(const std::filesystem::path& Filename);
+		int WriteUtf(const std::filesystem::path &Filename, const std::wstring &Text);
 
 		class BinReader {
 			struct PrivateData {
@@ -131,17 +133,11 @@ namespace PVX {
 		}
 
 		size_t FileSize(FILE* fin);
-		//size_t FileSize(const std::string& filename);
-		//size_t FileSize(const std::wstring& filename);
 		size_t FileSize(const std::filesystem::path& filename);
 
 		std::filesystem::path FindFileFullPath(const std::filesystem::path& Filename);
-		//std::string FindFileFullPath(const std::string& Filename);
-		//std::wstring FindFileFullPath(const std::wstring& Filename);
 
 		std::filesystem::path FilePathPart(const std::filesystem::path& Filename);
-		//std::string FilePathPart(const std::string& Filename);
-		//std::wstring FilePathPart(const std::wstring& Filename);
 
 		int Write(const std::filesystem::path& fn, const void* data, size_t Size);
 		inline int Write(const std::filesystem::path& fn, const std::vector<uint8_t>& Data) {
@@ -149,79 +145,30 @@ namespace PVX {
 		}
 		int Write(const std::filesystem::path& fn, const PVX::JSON::Item& Data);
 
-		//int Write(const std::string& fn, const void* data, size_t Size);
-		//int Write(const std::string& fn, const std::vector<unsigned char>& Data);
-		//int Write(const std::string& fn, const PVX::JSON::Item& Data);
-
-		//int Write(const std::wstring& fn, const void* data, size_t Size);
-		//int Write(const std::wstring& fn, const std::vector<unsigned char>& Data);
-		//int Write(const std::wstring& fn, const PVX::JSON::Item& Data);
-
 		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename);
 		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length);
 		size_t ReadBinary(const std::filesystem::path& Filename, std::vector<uint8_t>& Data);
 		size_t AppendBinary(const std::filesystem::path& Filename, std::vector<uint8_t>& Data);
 		size_t ReadBinary(const std::filesystem::path& Filename, size_t offset, size_t length, std::vector<uint8_t>& Data);
 
-		//std::vector<unsigned char> ReadBinary(const char* Filename);
-		//std::vector<unsigned char> ReadBinary(const char* Filename, size_t offset, size_t length);
-		//size_t ReadBinary(const char* Filename, std::vector<unsigned char>& Data);
-		//size_t ReadBinary(const char* Filename, size_t offset, size_t length, std::vector<unsigned char>& Data);
-		//
-		//std::vector<unsigned char> ReadBinary(const wchar_t* Filename);
-		//std::vector<unsigned char> ReadBinary(const wchar_t* Filename, size_t offset, size_t length);
-		//size_t ReadBinary(const wchar_t* Filename, std::vector<unsigned char>& Data);
-		//size_t ReadBinary(const wchar_t* Filename, size_t offset, size_t length, std::vector<unsigned char>& Data);
-
 		std::string ReadText(const std::filesystem::path& Filename);
-		//std::string ReadText(const char* Filename);
-		//std::string ReadText(const wchar_t* Filename);
-
 
 		std::vector<std::filesystem::path> Dir(const std::filesystem::path& Expression);
 		std::vector<std::filesystem::path> DirFull(const std::filesystem::path& Expression);
 		std::vector<std::filesystem::path> SubDir(const std::filesystem::path& Expression);
 		std::vector<std::filesystem::path> SubDirFull(const std::filesystem::path& Expression);
 
-		//std::vector<std::string> Dir(const std::string& Expression);
-		//std::vector<std::wstring> Dir(const std::wstring& Expression);
-		//std::vector<std::string> DirFull(const std::string& Expression);
-		//std::vector<std::wstring> DirFull(const std::wstring& Expression);
-		//std::vector<std::string> SubDir(const std::string& Expression);
-		//std::vector<std::wstring> SubDir(const std::wstring& Expression);
-		//std::vector<std::string> SubDirFull(const std::string& Expression);
-		//std::vector<std::wstring> SubDirFull(const std::wstring& Expression);
-		//int FileExists(const std::string& File);
-		//int FileExists(const std::wstring& File);
 		int FileExists(const std::filesystem::path& File);
-		//void MakeDirectory(const std::string& Directory);
-		//void MakeDirectory(const std::wstring& Directory);
 		void MakeDirectory(const std::filesystem::path& Directory);
 
-		//JSON::Item LoadJson(const char* Filename);
-		//JSON::Item LoadJson(const wchar_t* Filename);
 		JSON::Item LoadJson(const std::filesystem::path& Filename);
-		//std::wstring wCurrentPath();
-		//std::string CurrentPath();
-		//void CurrentPath(const std::string path);
-		//void CurrentPath(const std::wstring path);
-
-		//std::vector<std::string> FileExtensions(const std::string&);
-		//std::vector<std::wstring> FileExtensions(const std::wstring&);
 
 		std::filesystem::path FileExtension(const std::filesystem::path& Filename);
-		//std::string FileExtension(const std::string&);
-		//std::wstring FileExtension(const std::wstring&);
-
-		//std::string FilePath(const std::string &);
-		//std::wstring FilePath(const std::wstring &);
 
 		std::vector<std::string> SplitPath(const std::string& Path);
 		std::vector<std::wstring> SplitPath(const std::wstring& Path);
 
 		std::filesystem::path ReplaceExtension(const std::filesystem::path& Filename, const std::filesystem::path& NewExtension);
-		//std::string ReplaceExtension(const std::string& Filename, const std::string& NewExtension);
-		//std::wstring ReplaceExtension(const std::wstring& Filename, const std::wstring& NewExtension);
 
 
 #ifdef _WINDOWS
@@ -229,6 +176,25 @@ namespace PVX {
 		std::wstring OpenFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename = 0);
 		std::string SaveFileDialog(HWND Parent, const char* Filter, const char* Filename = 0);
 		std::wstring SaveFileDialog(HWND Parent, const wchar_t* Filter, const wchar_t* Filename = 0);
+
+
+		class PathChangeEventer {
+		public:
+			PathChangeEventer(std::filesystem::path dir, std::function<void(const std::filesystem::path &)> Callback, bool Start = true);
+			~PathChangeEventer();
+			void Do();
+			void Start();
+			void Track(const std::filesystem::path &Filename);
+			std::mutex mtx;
+		private:
+			std::map<std::filesystem::path, std::filesystem::file_time_type> Files;
+			HANDLE hDir;
+			std::filesystem::path Path;
+			std::function<void(const std::filesystem::path &)> Callback;
+			std::optional<std::thread> th;
+			bool Running = false;
+		};
+
 #endif
 	};
 	class BinWriter {

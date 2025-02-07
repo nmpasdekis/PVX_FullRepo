@@ -98,6 +98,12 @@ namespace {
 				return send(((socketData*)sock)->Socket, (const char*)Data, (int)Size, 0);
 			};
 			StandartActions.Recv = [](void* sock, void* Data, size_t Size) {
+				//if(Size>1){
+				//	auto res = recv(((socketData*)sock)->Socket, (char*)Data, 1, 0);
+				//	if(res!=1) 
+				//		return res;
+				//	return recv(((socketData*)sock)->Socket, ((char*)Data)+1, (int)Size-1, 0) + 1;
+				//}
 				return recv(((socketData*)sock)->Socket, (char*)Data, (int)Size, 0);
 			};
 			StandartActions.Release = StandartRelease;
@@ -130,6 +136,11 @@ namespace PVX::Network {
 		fd_set sock{};
 		FD_SET(((socketData*)SocketData.get())->Socket, &sock);
 		return select(0, &sock, 0, 0, &to);
+	}
+	bool TcpSocket::IsConnected() {
+		int error = 0;
+		socklen_t len = sizeof(error);
+		return !getsockopt(((socketData*)SocketData.get())->Socket, SOL_SOCKET, SO_ERROR, (char*) & error, &len);
 	}
 
 	int TcpSocket::Send(const void* Data, size_t Size) {
@@ -316,6 +327,8 @@ namespace PVX::Network {
 	}
 #endif
 
+	//std::atomic<int> debugSocketCount;
+
 	void TcpServer::Serve(std::function<void(TcpSocket)> Event, std::function<void(TcpSocket&)> Transform) {
 		if ((Running = ServingSocket != nullptr)) {
 			ServingThread = std::make_unique<std::thread>([this, Event, Transform] {
@@ -333,7 +346,11 @@ namespace PVX::Network {
 							Tasks.push([ss, info, Event, Transform, this] {
 								TcpSocket mySocket{ (uint32_t*)(size_t)ss, (void*)&info };
 								if (Transform) Transform(mySocket);
+								//debugSocketCount++;
+								//printf("Begin Processing %d, (%d)\n", std::this_thread::get_id(), (int)debugSocketCount);
 								Event(mySocket);
+								//debugSocketCount--;
+								//printf("End Processing %d, (%d)\n", std::this_thread::get_id(), (int)debugSocketCount);
 								{
 									std::lock_guard<std::mutex> slock{ SocketGuard };
 									OpenSockets.erase((uint32_t*)(size_t)ss);
@@ -349,9 +366,12 @@ namespace PVX::Network {
 	}
 	void TcpServer::Stop() {
 		Running = false;
-		for (auto s : OpenSockets) {
-			shutdown(*(SOCKET*)(size_t)s, SD_BOTH);
-			closesocket((SOCKET)(size_t)s);
+		{
+			std::lock_guard<std::mutex> slock{ SocketGuard };
+			for (auto s : OpenSockets) {
+				shutdown(*(SOCKET*)(size_t)s, SD_BOTH);
+				closesocket((SOCKET)(size_t)s);
+			}
 		}
 		TaskAdded.notify_all();
 		if (ServingThread.get() != nullptr) ServingThread->join();

@@ -352,6 +352,7 @@ namespace PVX {
 
 			double NumberSafeDouble() const;
 			int64_t NumberSafeInteger() const;
+			bool BooleanSafe() const;
 			std::wstring GetString() const;
 
 			inline int32_t Int32() const { return std::get<int32_t>(Value); };

@@ -387,6 +387,15 @@ namespace PVX {
 			return ret;
 		}
 
+		bool Item::BooleanSafe() const {
+			switch(Type()) {
+			case jsElementType::Boolean: return Boolean();
+			case jsElementType::Integer: return !!Integer();
+			case jsElementType::Float: return !!Double();
+			default: return false;
+			}
+		}
+
 		double Item::NumberSafeDouble() const {
 			switch (Type()) {
 				case jsElementType::Float: return Double();

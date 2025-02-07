@@ -114,6 +114,12 @@ namespace PVX {
 				RemoveFront(buffer, sz);
 
 				Request = Request.RawHeader;
+
+				if (auto c = Request.Headers.find("connection"); c != Request.Headers.end() && c->second() == L"keep-alive") {
+					int ka = 1;
+					s.SetOption(PVX::Network::SocketOption::KeepAlive, &ka, sizeof(int));
+				}
+
 				
 				if (auto cc = Request.Headers.find("content-length"); cc != Request.Headers.end() && (contentLength = std::stoll(cc->second))) {
 					Content.reserve(contentLength);

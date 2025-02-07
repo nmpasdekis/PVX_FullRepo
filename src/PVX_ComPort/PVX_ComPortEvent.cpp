@@ -6,14 +6,11 @@
 namespace PVX::Serial {
 	using namespace std::chrono_literals;
 
-	ComEvent::ComEvent(uint8_t Num, uint32_t BaudRate) {
-		commName = [](uint8_t n) {
-			using namespace std::string_literals;
-			if (n <= 9) return "COM"s + std::to_string(n);
-			return "\\\\.\\COM"s + std::to_string(n);
-		}(Num);
-		baudRate = BaudRate;
-	}
+	ComEvent::ComEvent(uint8_t Num, uint32_t BaudRate) : commName{ commName = [](uint8_t n) {
+		using namespace std::string_literals;
+		if (n <= 9) return "COM"s + std::to_string(n);
+		return "\\\\.\\COM"s + std::to_string(n);
+	}(Num) }, baudRate{ BaudRate } {}
 
 	void ComEvent::threadMember() {
 		while (Running) {
@@ -59,7 +56,7 @@ namespace PVX::Serial {
 	}
 
 	uint32_t ComEvent::Connect() {
-		hCom = CreateFileA(static_cast<LPCSTR>(commName.c_str()), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		hCom = CreateFileA(static_cast<LPCSTR>(commName.c_str()), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		Error = GetLastError();
 		if (!Error) {
 			DCB params{};

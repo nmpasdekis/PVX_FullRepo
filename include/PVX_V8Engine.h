@@ -22,6 +22,11 @@ namespace PVX::Javascript {
 		v.To(&ret);
 		return ret;
 	}
+
+	inline int getInt(const v8::Local<v8::Value> &v) {
+		return get<int>(v->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext()));
+	}
+
 	v8::Local<v8::String> ToString(const char* Text);
 	v8::Local<v8::String> ToString(const wchar_t* Text);
 	//std::wstring ToString(const v8::Handle<v8::String>& str);
