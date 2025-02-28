@@ -196,7 +196,7 @@ namespace PVX::Encrypt {
 		return ret;
 	}
 
-	template<typename Algorithm, int SaltSize, int HashLength, int Iterations>
+	template<typename Algorithm=SHA1_Algorithm, int SaltSize=128, int HashLength=256, int Iterations=1000>
 	bool IdentityPasswordVerifier(const std::wstring& Password, const std::wstring& PasswordHash) {
 		using namespace PVX::Encrypt;
 		auto pass = PVX::Encode::UTF(Password);

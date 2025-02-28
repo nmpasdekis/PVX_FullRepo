@@ -45,9 +45,6 @@
     <ClCompile Include="PVX_XML.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PVX_Kinect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="stb_implementation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
