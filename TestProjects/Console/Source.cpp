@@ -1,37 +1,75 @@
-#include <PVX_ComPort.h>
 #include <iostream>
-#include <thread>
-#include <chrono>
+#include <PVX_Array.h>
+#include <PVX_Lua.h>
 
-using namespace std::chrono_literals;
 
 int main() {
-	PVX::Serial::Com Comm9(9);
-	Comm9.Connect();
+	//PVX::Array<int> Test {
+	//	1, 2, 3
+	//};
+	//auto x2 = Test.map([](const int& x) {
+	//	return x*2;
+	//});
+	//for (auto& x : x2) {
+	//	x*=3;
+	//}
+	PVX::JSON::Item tbl{
+		{ L"member1", 123 },
+		{ L"member2", "nikos" },
+	};
+	tbl.IsObject();
 
-	uint8_t OnOff[]{
-		1, 0, 0, 25,
-		0, 0, 0, 0
+	PVX::Scripting::Lua lua;
+	lua["test2"] = tbl;
+	lua["aString"] = "nikos";
+
+	lua["aCppFunc"] = [](lua_State* L) -> int {
+		std::cout << "Hello from C++\n";
+		std::string val = lua_tostring(L, -1);
+		std::cout << val << "\n";
+		std::string val2 = lua_tostring(L, -1);
+		std::cout << val << "\n";
+		return 0;
 	};
 
-	while (1) {
-		getchar();
-		Comm9.Write(OnOff, 4);
-		getchar();
-		Comm9.Write(OnOff + 4, 4);
+	lua.doString(R"(
+g = 123;
+
+aCppFunc('Hello C++');
+aDictionary = {
+	test1 = 123,
+	test2 = "Hello",
+	test3 = {
+		test31 = 123
+	}
+}
+
+test = aString .. " hello";
+print(test2.member2);
+function add(x, y)
+	return x + y, x, y;
+end
+)");
+	
+	std::string x = lua["test"];
+	auto add = lua["add"].func<int, int, int>();
+	auto [sum, a, b] = add(5, 7);
+	auto print = lua.func<>("print");
+	print(sum, a, b);
+
+	int64_t g = lua["g"];
+	{
+		lua["aDictionary"]["test2"];
+		auto x = lua["aDictionary"]["test3"]["test31"];
+		int64_t y = x;
 	}
 
-	uint8_t Buffer[1025];
-	Buffer[1024] = 0;
+	lua["aDictionary"]["test3"]["test32"] = L"hello";
 
-	while (1) {
-		while (auto sz = Comm9.Read2(Buffer, 1024)) {
-			Buffer[sz] = 0;
-			std::cout << Buffer;
-		}
-		std::this_thread::sleep_for(10ms);
-	}
+	PVX::JSON::Item dict = lua["aDictionary"];
+	std::wstring str = dict["test2"];
 
-
+	print((std::string)dict);
+	print(PVX::JSON::stringify(dict, true));
 	return 0;
 }

@@ -117,7 +117,7 @@ namespace PVX::OpenGL::Helpers {
 			PostScale{ t.PostScale },
 			ParentIndex{ t.ParentIndex },
 			RotationOrder{ t.RotationOrder },
-			Result{ 0 }
+			Result{}
 		{
 		}
 	};

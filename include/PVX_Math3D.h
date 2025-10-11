@@ -560,7 +560,7 @@ namespace PVX {
 
 #pragma warning(disable:4201)
 	__declspec(align(16))
-		union Matrix4x4 {
+	union Matrix4x4 {
 		Matrix4x4() = default;
 		float m[4][4];
 		struct {
@@ -574,14 +574,21 @@ namespace PVX {
 			Vector4D Vec0, Vec1, Vec2, Vec3;
 		};
 		Vector4D m4[4];
-
+		constexpr Matrix4x4(float m00, float m01, float m02, float m03,
+			float m10, float m11, float m12, float m13,
+			float m20, float m21, float m22, float m23,
+			float m30, float m31, float m32, float m33)
+			: m00(m00), m01(m01), m02(m02), m03(m03),
+			m10(m10), m11(m11), m12(m12), m13(m13),
+			m20(m20), m21(m21), m22(m22), m23(m23),
+			m30(m30), m31(m31), m32(m32), m33(m33) {}
 
 		inline static constexpr Matrix4x4 Identity() {
 			return {
-				1.0f, 0, 0, 0,
-				0, 1.0f, 0, 0,
-				0, 0, 1.0f, 0,
-				0, 0, 0, 1.0f
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
 			};
 		}
 
@@ -1657,68 +1664,25 @@ namespace PVX {
 
 	/// Vector2
 
-	inline void operator+=(Vector2D& v1, const Vector2D& v2) {
-		v1.x += v2.x;
-		v1.y += v2.y;
-	}
+	inline void operator+=(Vector2D& v1, const Vector2D& v2) { v1.x += v2.x; v1.y += v2.y; }
 
-	inline void operator-=(Vector2D& v1, const Vector2D& v2) {
-		v1.x -= v2.x;
-		v1.y -= v2.y;
-	}
+	inline void operator-=(Vector2D& v1, const Vector2D& v2) { v1.x -= v2.x; v1.y -= v2.y; }
 
-	inline void operator*=(Vector2D& v1, const Vector2D& v2) {
-		v1.x *= v2.x;
-		v1.y *= v2.y;
-	}
+	inline void operator*=(Vector2D& v1, const Vector2D& v2) { v1.x *= v2.x; v1.y *= v2.y; }
 
-	inline void operator*=(Vector2D& v1, float f) {
-		v1.x *= f;
-		v1.y *= f;
-	}
+	inline void operator*=(Vector2D& v1, float f) { v1.x *= f; v1.y *= f; }
 
-	inline Vector2D operator+(const Vector2D& v1, const Vector2D& v2) {
-		Vector2D out = v1;
-		out.x += v2.x;
-		out.y += v2.y;
-		return out;
-	}
+	inline Vector2D operator+(const Vector2D& v1, const Vector2D& v2) { return { v1.x + v2.x, v1.y + v2.y }; }
 
-	inline Vector2D operator-(const Vector2D& v1, const Vector2D& v2) {
-		Vector2D out = v1;
-		out.x -= v2.x;
-		out.y -= v2.y;
-		return out;
-	}
+	inline Vector2D operator-(const Vector2D& v1, const Vector2D& v2) { return { v1.x - v2.x, v1.y - v2.y }; }
 
-	inline Vector2D operator*(const Vector2D& v1, const Vector2D& v2) {
-		Vector2D out = v1;
-		out.x *= v2.x;
-		out.y *= v2.y;
-		return out;
-	}
+	inline Vector2D operator*(const Vector2D& v1, const Vector2D& v2) { return { v1.x * v2.x, v1.y * v2.y }; }
 
-	inline Vector2D operator*(const Vector2D& v1, float f) {
-		Vector2D out = v1;
-		out.x *= f;
-		out.y *= f;
-		return out;
-	}
+	inline Vector2D operator*(const Vector2D& v1, float f) { return { v1.x * f, v1.y * f }; }
 
-	inline Vector2D operator*(float f, const Vector2D& v1) {
-		Vector2D out = v1;
-		out.x *= f;
-		out.y *= f;
-		return out;
-	}
+	inline Vector2D operator*(float f, const Vector2D& v1) { return { v1.x * f, v1.y * f }; }
 
-	inline Vector2D operator/(const Vector2D& v1, float f) {
-		Vector2D out = v1;
-		f = 1.0f / f;
-		out.x *= f;
-		out.y *= f;
-		return out;
-	}
+	inline Vector2D operator/(const Vector2D& v1, float f) { return { v1.x / f, v1.y / f }; }
 
 	// Vector3
 
@@ -1826,11 +1790,6 @@ namespace PVX {
 #else
 		return { v1.x / f, v1.y / f, v1.z / f };
 #endif
-		//Vector3D out = v1;
-		//out.x /= f;
-		//out.y /= f;
-		//out.z /= f;
-		//return out;
 	}
 
 	inline Vector3D GramSchmit(const Vector3D& BaseVector, const Vector3D& toBeOrthoCorrected) {
@@ -1876,15 +1835,6 @@ namespace PVX {
 
 		return Out;
 	}
-
-	/*
-	inline Vector operator*(Vector & v, Matrix4x4 & m){
-	Vector out;
-	out.x=v.x*m.m[0][0] + v.y*m.m[1][0] + v.z*m.m[2][0] + m.m[3][0];
-	out.y=v.x*m.m[0][1] + v.y*m.m[1][1] + v.z*m.m[2][1] + m.m[3][1];
-	out.z=v.x*m.m[0][2] + v.y*m.m[1][2] + v.z*m.m[2][2] + m.m[3][2];
-	return out;
-	}*/
 
 	inline PVX::Vector3D operator*(const Matrix4x4& m, const Vector3D& v) {
 		return {

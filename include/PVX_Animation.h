@@ -190,7 +190,7 @@ namespace PVX {
 			void SetRepeatDelay(float time) {
 				Flags |= AnimationFlags::Dirty;
 				if (time <= 0) {
-					Flags &= ~AnimationFlags::Loop;
+					Flags &= ~(unsigned int)AnimationFlags::Loop;
 					time = 0;
 				} else {
 					Flags |= AnimationFlags::Loop;

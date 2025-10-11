@@ -105,6 +105,7 @@
     <ClCompile Include="stb_implementation_raw.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\PVX_Array.h" />
     <ClInclude Include="..\..\include\PVX_BinSaver.h" />
     <ClInclude Include="..\..\include\PVX_Compiler.h" />
     <ClInclude Include="..\..\include\PVX_Deflate.h" />

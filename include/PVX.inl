@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <numeric>
 #include <memory>
+#include <chrono>
 
 #ifdef _USE_PARALLEL_
 #include <execution>

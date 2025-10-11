@@ -165,6 +165,10 @@ namespace PVX {
 			TexCoord3D({ u, v, w });
 		}
 
+		void ObjectBuilder::Begin(PrimitiveType t) {
+			Begin(unsigned int(t));
+		}
+
 		void ObjectBuilder::Begin(unsigned int GL_PrimitiveType) {
 			Mode = GL_PrimitiveType;
 			auto& mode = AddLookup[Mode];
@@ -600,8 +604,8 @@ namespace PVX {
 		}
 
 		BufferObject::BufferObject(const InterleavedArrayObject& ao) :
-			Vertices{ ao.Data.data(), ao.Data.size() },
-			Indices{ ao.Index.data(), ao.Index.size() } {
+			Vertices{ ao.Data.data(), (int)ao.Data.size() },
+			Indices{ ao.Index.data(), (int)ao.Index.size() } {
 			Mode = ao.Mode;
 			Stride = ao.Stride;
 			NormalOffset = ao.NormalOffset;

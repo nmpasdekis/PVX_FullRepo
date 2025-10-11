@@ -121,6 +121,7 @@ namespace PVX {
 			void TexCoord(float u, float v);
 			void TexCoord3D(float u, float v, float w);
 
+			void Begin(PrimitiveType GL_PrimitiveType);
 			void Begin(unsigned int GL_PrimitiveType);
 			void End();
 			void Reset();

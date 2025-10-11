@@ -86,25 +86,25 @@ namespace PVX::OpenGL::Helpers {
 				auto& sp = pp.SubPart.emplace_back();
 				sp.MaterialIndex = MatLookup[Mat];
 
-				unsigned int GeoFlags = PVX::Reduce(SubPart.Attributes, 0, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
-					return acc | unsigned int(attr.Usage);
+				uint32_t GeoFlags = PVX::Reduce(SubPart.Attributes, 0, [](uint32_t acc, const PVX::Object3D::VertexAttribute& attr) {
+					return acc | uint32_t(attr.Usage);
 				});
 				auto& Mater = ret.Materials[sp.MaterialIndex];
-				unsigned int MatFlags = (Mater.Color_Tex ? 1 : 0) | (Mater.PBR_Tex ? 2 : 0) | (Mater.Normal_Tex ? 4 : 0);
+				uint32_t MatFlags = (Mater.Color_Tex ? 1 : 0) | (Mater.PBR_Tex ? 2 : 0) | (Mater.Normal_Tex ? 4 : 0);
 
 				if (!SubPart.CustomShader) {
 					std::vector<std::string> Filters;
 					Filters.reserve(SubPart.Attributes.size());
 					Filters.push_back("Position");
-					if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_Normal))
+					if (GeoFlags & uint32_t(PVX::Object3D::ItemUsage::ItemUsage_Normal))
 						Filters.push_back("Normal");
-					if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_UV) && MatFlags) {
+					if (GeoFlags & uint32_t(PVX::Object3D::ItemUsage::ItemUsage_UV) && MatFlags) {
 						Filters.push_back("UV");
 						Filters.push_back("TexCoord");
-						if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_Tangent) && (MatFlags&4))
+						if (GeoFlags & uint32_t(PVX::Object3D::ItemUsage::ItemUsage_Tangent) && (MatFlags&4))
 							Filters.push_back("Tangent");
 					}
-					if (GeoFlags & unsigned int(PVX::Object3D::ItemUsage::ItemUsage_Weight)) {
+					if (GeoFlags & uint32_t(PVX::Object3D::ItemUsage::ItemUsage_Weight)) {
 						Filters.push_back("Weights");
 						Filters.push_back("WeightIndices");
 					}
@@ -118,8 +118,8 @@ namespace PVX::OpenGL::Helpers {
 
 
 					if (fsp.BlendAttributes.size()) {
-						GeoFlags = PVX::Reduce(SubPart.BlendAttributes, GeoFlags, [](unsigned int acc, const PVX::Object3D::VertexAttribute& attr) {
-							return acc | unsigned int(attr.Usage);
+						GeoFlags = PVX::Reduce(SubPart.BlendAttributes, GeoFlags, [](uint32_t acc, const PVX::Object3D::VertexAttribute& attr) {
+							return acc | uint32_t(attr.Usage);
 						});
 						sp.Morph = PVX::OpenGL::Buffer::MakeImmutableShaderStorage((int)fsp.BlendShapeData.size(), fsp.BlendShapeData.data());
 					}

@@ -387,6 +387,17 @@ namespace PVX {
 			return ret;
 		}
 
+		std::wstring Item::AsString() const {
+			switch (BSONType) {
+			case PVX::JSON::BSON_Type::String: return std::get<std::wstring>(Value);
+			case PVX::JSON::BSON_Type::Double: return std::to_wstring(std::get<double>(Value));
+			case PVX::JSON::BSON_Type::Boolean: return std::get<bool>(Value) ? L"true" : L"false";
+			case PVX::JSON::BSON_Type::Int32: return std::to_wstring(std::get<int32_t>(Value));
+			case PVX::JSON::BSON_Type::Int64: return std::to_wstring(std::get<int64_t>(Value));
+			default: return PVX::JSON::stringify(*this);
+			}
+		}
+
 		bool Item::BooleanSafe() const {
 			switch(Type()) {
 			case jsElementType::Boolean: return Boolean();

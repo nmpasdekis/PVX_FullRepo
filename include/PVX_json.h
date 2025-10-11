@@ -342,8 +342,10 @@ namespace PVX {
 			bool IsUndefined() const;
 			bool IsNullOrUndefined() const;
 			bool IsEmpty() const;
+			inline bool IsBoolean() const { return JSONType == jsElementType::Boolean; }
 			inline bool IsInteger() const { return JSONType == jsElementType::Integer; }
 			inline bool IsDouble() const { return JSONType == jsElementType::Float; }
+			inline bool IsString() const { return JSONType == jsElementType::String; }
 			inline bool IsObject() const { return JSONType == jsElementType::Object; }
 			inline bool IsArray() const { return JSONType == jsElementType::Array; }
 
@@ -362,16 +364,7 @@ namespace PVX {
 			inline double Double() const { return std::get<double>(Value); };
 			inline double& Double() { return std::get<double>(Value); };
 
-			inline std::wstring AsString() const {
-				switch (BSONType) {
-				case PVX::JSON::BSON_Type::Double: return std::to_wstring(std::get<double>(Value));
-				case PVX::JSON::BSON_Type::String: return std::get<std::wstring>(Value);
-				case PVX::JSON::BSON_Type::Boolean: return std::get<bool>(Value) ? L"true" : L"false";
-				case PVX::JSON::BSON_Type::Int32: return std::to_wstring(std::get<int32_t>(Value));
-				case PVX::JSON::BSON_Type::Int64: return std::to_wstring(std::get<int64_t>(Value));
-				default: return L"";
-				}
-			}
+			std::wstring AsString() const;
 
 			inline int64_t Integer() const { 
 				if(BSONType==BSON_Type::Int64)
@@ -383,6 +376,15 @@ namespace PVX {
 			inline bool Boolean() const { return std::get<bool>(Value); };
 			inline std::wstring& String() { return std::get<std::wstring>(Value); }
 			inline std::wstring String() const { return std::get<std::wstring>(Value); }
+
+			//inline operator int32_t() const { return Integer(); }
+			//inline operator int64_t() const { return Integer(); }
+			//inline operator bool() const { return this->BooleanSafe(); }
+			//inline operator double() const { return NumberSafeDouble(); }
+			inline operator std::wstring() const { return AsString(); }
+			inline operator std::string() const { return PVX::Encode::UtfString(AsString()); }
+
+
 			inline std::unordered_map<std::wstring, R<Item>>& Object() {
 				return std::get<std::unordered_map<std::wstring, R<Item>>>(Value); 
 			}
@@ -396,8 +398,8 @@ namespace PVX {
 			inline std::vector<Item>& Array() { return std::get<std::vector<Item>>(Value); }
 			inline const std::vector<Item>& Array() const { return std::get<std::vector<Item>>(Value); }
 
-			operator std::wstring() const { return std::get<std::wstring>(Value); }
-			operator const std::string() const { return PVX::Encode::ToString(std::get<std::wstring>(Value)); }
+			//operator std::wstring() const { return std::get<std::wstring>(Value); }
+			//operator const std::string() const { return PVX::Encode::ToString(std::get<std::wstring>(Value)); }
 
 			//int64_t& Integer() { return Value.Integer(); };
 			//int64_t Integer() const { return Value.Integer(); };

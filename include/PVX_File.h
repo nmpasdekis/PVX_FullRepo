@@ -1,6 +1,7 @@
 #ifndef __PVX_FILE_H__
 #define __PVX_FILE_H__
 
+#define NOMINMAX
 #ifndef __linux
 #include<Windows.h>
 #endif

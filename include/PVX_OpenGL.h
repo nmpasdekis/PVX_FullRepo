@@ -349,7 +349,8 @@ namespace PVX::OpenGL {
 		};
 
 		GroupLimits GetComputeGroupLimits() const;
-
+		inline HGLRC GetRenderContex() const { return rc; }
+		inline HDC GetDiplayContex() const { return dc; }
 	protected:
 		void glThread_Func1(HWND hWnd, bool DepthStencil, std::function<void(Context& gl)> Function);
 		void glThread_Func2(HWND hWnd, bool DepthStencil, std::function<void(Context& gl, void*)> Function, void* Data);

@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\GitProjects2020\PVX_FullRepo\External;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Program Files (x86)\AMD APP SDK\3.0\include;D:\GitProjects2025\PVX_FullRepo\External;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Program Files (x86)\AMD APP SDK\3.0\lib\x86_64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
