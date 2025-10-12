@@ -3,7 +3,9 @@
 #include <PVX_Lua.h>
 
 
+
 int main() {
+	using namespace PVX::Scripting;
 	//PVX::Array<int> Test {
 	//	1, 2, 3
 	//};
@@ -17,39 +19,53 @@ int main() {
 		{ L"member1", 123 },
 		{ L"member2", "nikos" },
 	};
-	tbl.IsObject();
 
-	PVX::Scripting::Lua lua;
+	Lua lua;
 	lua["test2"] = tbl;
 	lua["aString"] = "nikos";
 
-	lua["aCppFunc"] = [](lua_State* L) -> int {
+	lua["aCppFunc"] = [&](const LuaParams & Params, auto& ret) -> void {
+		std::cout << std::string(Params[0]) << "\n";
+		Params[1]["test3"]["fromCpp"] = "Hello!!!";
+		Params[1]["test3"]["fromCppFnc"] = [](const LuaParams& Params, auto& ret) -> void {
+			std::cout << "OMG! It worked!!\n";
+
+			ret << "Returned Hello";
+			ret << "Returned World";
+		};
+		auto ks = Params[2].keys();
 		std::cout << "Hello from C++\n";
-		std::string val = lua_tostring(L, -1);
-		std::cout << val << "\n";
-		std::string val2 = lua_tostring(L, -1);
-		std::cout << val << "\n";
-		return 0;
+
+		auto vals = Params[1]["test4"].values();
+		for(auto& v : vals) 
+			v = 321;
 	};
 
-	lua.doString(R"(
+	auto rez = lua.doString(R"lua(
 g = 123;
 
-aCppFunc('Hello C++');
 aDictionary = {
 	test1 = 123,
 	test2 = "Hello",
 	test3 = {
 		test31 = 123
+	},
+	test4 = {
+		k1 = 1,
+		k2 = 1,
+		k3 = 1,
+		k4 = 1,
 	}
 }
+aCppFunc('Hello C++', aDictionary, { k1 = 1, k2 = 2, k3 = 3});
+print(aDictionary.test3.fromCppFnc());
 
 test = aString .. " hello";
 print(test2.member2);
 function add(x, y)
 	return x + y, x, y;
 end
-)");
+)lua");
 	
 	std::string x = lua["test"];
 	auto add = lua["add"].func<int, int, int>();
@@ -58,18 +74,36 @@ end
 	print(sum, a, b);
 
 	int64_t g = lua["g"];
-	{
-		lua["aDictionary"]["test2"];
-		auto x = lua["aDictionary"]["test3"]["test31"];
-		int64_t y = x;
-	}
 
 	lua["aDictionary"]["test3"]["test32"] = L"hello";
 
 	PVX::JSON::Item dict = lua["aDictionary"];
-	std::wstring str = dict["test2"];
+	//std::wstring str = dict["test2"];
 
-	print((std::string)dict);
+	//print((std::string)dict);
 	print(PVX::JSON::stringify(dict, true));
+
+	lua.doString(R"lua(
+aCppFunc = nil;
+aDictionary = nil;
+collectgarbage();
+	)lua");
+
+	return 0;
+}
+
+int main2() {
+	using namespace PVX::Scripting;
+	Lua lua;
+	lua["aFunction"] = [](auto params, auto& ret) {
+		ret << "Hello from C++";
+	};
+	lua.doString(R"lua(
+print(aFunction())
+
+aFunction = nil;
+collectgarbage();
+
+	)lua");
 	return 0;
 }
