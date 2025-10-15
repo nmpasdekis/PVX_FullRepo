@@ -60,7 +60,16 @@ namespace PVX {
 			Broadcast = 0x0020,
 			UseLoopback = 0x0040,
 			Linger = 0x0080,
-			OobinLine = 0x0100
+			OobinLine = 0x0100,
+
+			SNDBUF = 0x1001,          /* send buffer size */
+			RCVBUF = 0x1002,         /* receive buffer size */
+			SNDLOWAT = 0x1003,         /* send low-water mark */
+			RCVLOWAT = 0x1004,         /* receive low-water mark */
+			SNDTIMEO = 0x1005,         /* send timeout */
+			RCVTIMEO = 0x1006,         /* receive timeout */
+			Error = 0x1007,         /* get error status and clear */
+			TYPE = 0x1008,         /* get socket type */
 		};
 
 		class TcpSocket {
@@ -81,6 +90,7 @@ namespace PVX {
 
 			int CanRead();
 			int CanReadAsync();
+			int CanReadAsync(uint32_t ms);
 			void Disconnect();
 			bool IsConnected();
 
@@ -100,6 +110,7 @@ namespace PVX {
 			template<typename T> T& GetInternalData() { return *(T*)SocketData.get(); }
 		protected:
 			TcpSocket(uint32_t*, const void*);
+			TcpSocket(uint32_t*, const void*, std::function<void(void*)> deleter);
 			std::shared_ptr<void> SocketData;
 			friend class TcpServer;
 		};
@@ -107,10 +118,13 @@ namespace PVX {
 		class TcpServer {
 		public:
 			TcpServer(const char* Port = "80", int ThreadCount = 0);
+			TcpServer(std::function<void(TcpSocket)> clb, const char* Port = "80", int ThreadCount = 0);
+			TcpServer(std::function<void(TcpSocket)> clb, std::function<void(TcpSocket&)> OnConnect, const char* Port = "80", int ThreadCount = 0);
 			~TcpServer();
 			void Serve(std::function<void(TcpSocket)> clb, std::function<void(TcpSocket&)> OnConnect = nullptr);
 			void Stop();
 		protected:
+			void init(int ThreadCount);
 			std::atomic_bool Running;
 			std::atomic_int Working = 0;
 			uint32_t* ServingSocket;

@@ -75,7 +75,9 @@ namespace {
 	public:
 		socketData() = default;
 		socketData(SOCKET s, const struct sockaddr addr) : Socket{ (SOCKET)s }, Address{ addr } {}
-		~socketData() { Actions->Release(this); }
+		~socketData() { 
+			Actions->Release(this); 
+		}
 
 		SOCKET Socket = socket(AF_INET, SOCK_STREAM, 0);
 		Callbacks* Actions = &StandartActions;
@@ -124,7 +126,8 @@ namespace PVX::Network {
 	int TcpSocket::SetOption(SocketOption Op, const void* Value, int ValueSize) {
 		return setsockopt(((socketData*)SocketData.get())->Socket, SOL_SOCKET, (int)Op, (const char*)Value, ValueSize);
 	}
-	TcpSocket::TcpSocket(uint32_t* socket, const void* addr) : SocketData{ (void*)new socketData(SOCKET((size_t)socket), *(const sockaddr*)addr), socketData_Deleter } {}
+	TcpSocket::TcpSocket(uint32_t* socket, const void* addr): SocketData{ (void*)new socketData(SOCKET((size_t)socket), *(const sockaddr*)addr), socketData_Deleter } {}
+	TcpSocket::TcpSocket(uint32_t* socket, const void* addr, std::function<void(void*)> deleter) : SocketData{ (void*)new socketData(SOCKET((size_t)socket), *(const sockaddr*)addr), deleter } {}
 
 	int TcpSocket::CanRead() {
 		fd_set sock{};
@@ -135,7 +138,13 @@ namespace PVX::Network {
 		struct timeval to { 0, 1 };
 		fd_set sock{};
 		FD_SET(((socketData*)SocketData.get())->Socket, &sock);
-		return select(0, &sock, 0, 0, &to);
+		return select(0, &sock, 0, &sock, &to);
+	}
+	int TcpSocket::CanReadAsync(uint32_t ms) {
+		struct timeval to { ms/1000, ms%1000 };
+		fd_set sock{};
+		FD_SET(((socketData*)SocketData.get())->Socket, &sock);
+		return select(0, &sock, 0, &sock, &to);
 	}
 	bool TcpSocket::IsConnected() {
 		int error = 0;
@@ -216,20 +225,55 @@ namespace PVX::Network {
 			ret.resize(cur + 1024);
 		}
 	}
+	//int64_t TcpSocket::Receive(std::vector<uint8_t>& Data) {
+	//	int64_t rsz;
+	//	size_t cur = Data.size();
+	//	Data.resize(cur + 1024);
+	//	for (;;) {
+	//		//if (CanRead() < 0 || (rsz = Receive(Data.data() + cur, 1024))<0) {
+	//		//	Data.clear();
+	//		//	return -1;
+	//		//}
+	//		//if (CanReadAsync() < 0 || (rsz = Receive(Data.data() + cur, 1024))<0) {
+	//		//	Data.clear();
+	//		//	return -1;
+	//		//}
+	//		if ((rsz = Receive(Data.data() + cur, 1024))<0) {
+	//			Data.clear();
+	//			return -1;
+	//		}
+	//		if (rsz < 1024) {
+	//			Data.resize(cur + rsz);
+	//			return int64_t(Data.size());
+	//		}
+	//		cur += 1024;
+	//		Data.resize(cur + 1024);
+	//	}
+	//}
 	int64_t TcpSocket::Receive(std::vector<uint8_t>& Data) {
 		int64_t rsz;
 		size_t cur = Data.size();
 		Data.resize(cur + 1024);
-		for (;;) {
-			//if (CanRead() < 0 || (rsz = Receive(Data.data() + cur, 1024))<0) {
-			//	Data.clear();
-			//	return -1;
-			//}
-			if ((rsz = Receive(Data.data() + cur, 1024))<0) {
+
+
+		//int testConnection;
+		//while(!(testConnection = CanReadAsync()));
+		//if(testConnection < 0) {
+		//	Data.clear();
+		//	return -1;
+		//}
+
+		//if(CanReadAsync(100)<=0) {
+		//	Data.clear();
+		//	return -1;
+		//}
+
+		for(;;) {
+			if((rsz = Receive(Data.data() + cur, 1024)) < 0) {
 				Data.clear();
 				return -1;
 			}
-			if (rsz < 1024) {
+			if(rsz < 1024) {
 				Data.resize(cur + rsz);
 				return int64_t(Data.size());
 			}
@@ -271,11 +315,10 @@ namespace PVX::Network {
 		return c;
 	}
 
-	TcpServer::TcpServer(const char* Port, int ThreadCount) :
-		ServingSocket{ (uint32_t*)(size_t)CreateListenSocket(Port) } {
+	void TcpServer::init(int ThreadCount) {
 		Running = ServingSocket != nullptr;
-		if (ThreadCount<=0)ThreadCount = std::max(1, (int)std::thread::hardware_concurrency() - 1);
-		for (auto i = 0; i<ThreadCount; i++) {
+		if (ThreadCount <= 0)ThreadCount = std::max(1, (int)std::thread::hardware_concurrency() - 1);
+		for (auto i = 0; i < ThreadCount; i++) {
 			Workers.push_back(std::thread([this] {
 				for (;;) {
 					std::function<void()> NextTask;
@@ -287,16 +330,30 @@ namespace PVX::Network {
 						if (Tasks.size()) {
 							NextTask = std::move(Tasks.front());
 							Tasks.pop();
-						} else continue;
+						}
+						else continue;
 					}
 					Working++;
 					NextTask();
 					Working--;
 					//TaskEnded.notify_one();
 				}
-			}));
+				}));
 		}
 	}
+
+	TcpServer::TcpServer(const char* Port, int ThreadCount) : ServingSocket{ (uint32_t*)(size_t)CreateListenSocket(Port) } {
+		init(ThreadCount);
+	}
+	TcpServer::TcpServer(std::function<void(TcpSocket)> clb, const char* Port, int ThreadCount) {
+		init(ThreadCount);
+		Serve(clb);
+	}
+	TcpServer::TcpServer(std::function<void(TcpSocket)> clb, std::function<void(TcpSocket&)> OnConnect, const char* Port, int ThreadCount) {
+		init(ThreadCount);
+		Serve(clb, OnConnect);
+	}
+
 	TcpServer::~TcpServer() {
 		Running = false;
 		closesocket((SOCKET)(size_t)ServingSocket);
@@ -344,17 +401,14 @@ namespace PVX::Network {
 						std::lock_guard<std::mutex> lock{ TaskMutex };
 						{
 							Tasks.push([ss, info, Event, Transform, this] {
-								TcpSocket mySocket{ (uint32_t*)(size_t)ss, (void*)&info };
-								if (Transform) Transform(mySocket);
-								//debugSocketCount++;
-								//printf("Begin Processing %d, (%d)\n", std::this_thread::get_id(), (int)debugSocketCount);
-								Event(mySocket);
-								//debugSocketCount--;
-								//printf("End Processing %d, (%d)\n", std::this_thread::get_id(), (int)debugSocketCount);
-								{
-									std::lock_guard<std::mutex> slock{ SocketGuard };
+								TcpSocket mySocket{ (uint32_t*)(size_t)ss, (void*)&info, [this, ss](void*ptr){
 									OpenSockets.erase((uint32_t*)(size_t)ss);
-								}
+									delete (socketData*)ptr;
+								}};
+								if(mySocket.CanReadAsync(100)<=0) return;
+								
+								if (Transform) Transform(mySocket);
+								Event(mySocket);
 							});
 						}
 						TaskAdded.notify_one();

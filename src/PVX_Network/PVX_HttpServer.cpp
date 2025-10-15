@@ -103,7 +103,15 @@ namespace PVX {
 			Request.Socket = s;
 			int rcvSize;
 			int EoH = -1;
-			while ((rcvSize = s.Receive(buffer)) > 0 && (EoH = FindEnd(buffer)) == -1);
+			while(true) {
+				rcvSize = s.Receive(buffer);
+				if(rcvSize<=0) 
+					break;
+				EoH = FindEnd(buffer);
+				if(EoH != -1) 
+					break;
+			}
+			//while ((rcvSize = s.Receive(buffer)) > 0 && (EoH = FindEnd(buffer)) == -1);
 
 			if (EoH != -1) {
 				size_t contentLength = 0;
@@ -372,6 +380,7 @@ namespace PVX {
 				HttpRequest Request;
 				std::vector<uint8_t> Buffer;
 				while (Running && GetRequest(Buffer, Socket, Request, Request.RawContent)) {
+
 					for (auto & r : Router) {
 						if (r.Match(Request.QueryString, Request.Variables, Request.Get)) {
 							HandleRequest(Socket, Request, r);
@@ -384,9 +393,9 @@ namespace PVX {
 						return;
 					}
 
-					HttpResponse r;
-					r.StatusCode = 500;
-					SendResponse(Socket, Request, r);
+					HttpResponse resp;
+					resp.StatusCode = 500;
+					SendResponse(Socket, Request, resp);
 				}
 			};
 		}
