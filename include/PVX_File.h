@@ -47,7 +47,7 @@ namespace PVX {
 			std::function<void(const std::filesystem::path&)> defaultClb;
 			std::function<void(const std::filesystem::path&)> onDeletedClb;
 		public:
-			ChangeEventer(bool Automatic, bool AutoRemove = false, std::function<void(const std::filesystem::path&)> defaulFunc = nullptr, std::function<void(const std::filesystem::path&)> onDelete = nullptr);
+			ChangeEventer(bool AutoStart = true, bool AutoRemove = false, std::function<void(const std::filesystem::path&)> defaulFunc = nullptr, std::function<void(const std::filesystem::path&)> onDelete = nullptr);
 			~ChangeEventer();
 			void Run();
 			inline void Pause() { Paused = true; }

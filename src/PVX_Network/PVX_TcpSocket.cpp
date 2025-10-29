@@ -402,8 +402,12 @@ namespace PVX::Network {
 						{
 							Tasks.push([ss, info, Event, Transform, this] {
 								TcpSocket mySocket{ (uint32_t*)(size_t)ss, (void*)&info, [this, ss](void*ptr){
-									OpenSockets.erase((uint32_t*)(size_t)ss);
-									delete (socketData*)ptr;
+									if (OpenSockets.size()) {
+										OpenSockets.erase((uint32_t*)(size_t)ss);
+										delete (socketData*)ptr;
+									} else {
+										DebugBreak();
+									}
 								}};
 								if(mySocket.CanReadAsync(100)<=0) return;
 								

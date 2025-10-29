@@ -36,40 +36,12 @@ namespace PVX::Scripting {
 	using luaCppFunction = std::function<void(const LuaParams& Params, LuaReturner&)>;
 	static int callback(lua_State* L);
 
+	enum class LuaBool {
+		False = false,
+		True = true
+	};
 
-	//template<typename T>
-	//class myContainer {
-	//	std::vector<std::optional<T>> Store;
-	//	std::vector<size_t> freelist;
-	//public:
-	//	std::tuple<size_t, T*> add(T&& t) {
-	//		if(!freelist.empty()) {
-	//			auto id = freelist.back();
-	//			freelist.pop_back();
-	//			auto & ret = Store[id] = t;
-	//			return std::tuple<size_t, T*>{ id, &ret.value() };
-	//		} else {
-	//			auto id = Store.size();
-	//			auto& ret = Store.emplace_back(t);
-	//			return std::tuple<size_t, T*>{ id, &ret.value() };
-	//		}
-	//	}
-	//	void remove(size_t id) {
-	//		Store[id].reset();
-	//		freelist.push_back(id);
-	//	}
-	//};
-	//template<typename T>
-	//class myContainer {
-	//	std::list<T> Store;
-	//public:
-	//	std::tuple<size_t, T*> add(T t) {
-	//		Store.push_back(t);
-	//		return std::tuple<size_t, T*>{ 0, &Store.back() };
-	//	}
-	//	void remove(size_t id) {
-	//	}
-	//};
+	std::string preprocess(std::string fn);
 
 	template<typename T>
 	class myContainer {
@@ -95,7 +67,7 @@ namespace PVX::Scripting {
 		}
 	};
 
-	myContainer<luaCppFunction> myFunctions;
+	extern myContainer<luaCppFunction> myFunctions;
 
 	namespace{
 		template<typename T>
@@ -105,7 +77,7 @@ namespace PVX::Scripting {
 			inline implicit(const T & v): data{ std::make_shared<T>(v) } {}
 			inline T& get() const { return *data.get(); }
 		};
-		using luaVarVariant = std::variant<nullptr_t, bool, int32_t, int64_t, float, double, std::string, implicit<LuaDictionary>, implicit<LuaArray>, luaCppFunction>;
+		using luaVarVariant = std::variant<nullptr_t, LuaBool, int32_t, int64_t, float, double, std::string, implicit<LuaDictionary>, implicit<LuaArray>, luaCppFunction>;
 		struct luaDictPair {
 			std::string key;
 			luaVarVariant value;
@@ -116,7 +88,7 @@ namespace PVX::Scripting {
 		};
 
 		inline void push(lua_State* L, nullptr_t) { lua_pushnil(L); }
-		inline void push(lua_State* L, bool v) { lua_pushboolean(L, v); }
+		inline void push(lua_State* L, LuaBool v) { lua_pushboolean(L, (bool)v); }
 		inline void push(lua_State* L, const char* s) { lua_pushstring(L, s); }
 		inline void push(lua_State* L, const std::string& s) { lua_pushlstring(L, s.c_str(), s.size()); }
 		inline void push(lua_State* L, const std::wstring& s) { auto s2 = PVX::Encode::UtfString(s); lua_pushlstring(L, s2.c_str(), s2.size()); }
@@ -439,6 +411,7 @@ namespace PVX::Scripting {
 		}
 
 		friend class LuaGlobal;
+		friend class Lua;
 		friend int callback(lua_State* L);
 		friend inline std::vector<std::string> getKeys(lua_State* L);
 		friend inline std::vector<LuaParam> getValues(lua_State* L);
@@ -527,6 +500,12 @@ namespace PVX::Scripting {
 		}
 		inline const PVX::JSON::Item& operator=(PVX::JSON::Item&& val) {
 			PVX_LuaSetValue(push_json);
+		}
+		inline bool operator=(LuaBool val) {
+			auto p = pushPathMinusOne();
+			lua_pushboolean(L, (bool)val);
+			p.set(L);
+			return (bool)val;
 		}
 		inline bool setBool(bool val) {
 			PVX_LuaSetValue(lua_pushboolean);
@@ -665,11 +644,21 @@ namespace PVX::Scripting {
 			lua_setglobal(L, name.c_str());
 			return v;
 		}
+		inline const luaVarVariant& operator=(const luaVarVariant& v) {
+			push(L, v);
+			lua_setglobal(L, name.c_str());
+			return v;
+		}
 
 		inline bool setBool(bool v) {
 			lua_pushboolean(L, v);
 			lua_setglobal(L, name.c_str());
 			return v;
+		}
+		inline bool operator=(LuaBool v) {
+			lua_pushboolean(L, (bool)v);
+			lua_setglobal(L, name.c_str());
+			return (bool)v;
 		}
 
 		inline const PVX::JSON::Item & operator=(const PVX::JSON::Item& v) {
@@ -707,10 +696,10 @@ namespace PVX::Scripting {
 
 	class Lua {
 		lua_State* L;
-		std::shared_ptr<std::list<luaCppFunction>> Functions;
+		std::unordered_map<std::string, int32_t> RegistryData;
 	public:
 		inline ~Lua() { lua_close(L); }
-		inline Lua(): L { luaL_newstate() }, Functions{ std::make_shared<std::list<luaCppFunction>>()} { 
+		inline Lua(): L { luaL_newstate() } { 
 			luaL_openlibs(L);
 			LuaFunctionType destroyer = [](lua_State* L) -> int {
 				auto id = static_cast<FuncUpvalue*>(lua_touserdata(L, -1))->id;
@@ -723,17 +712,37 @@ namespace PVX::Scripting {
 			lua_pushstring(L, "The Destroyer");
 			lua_setfield(L, -2, "__metatable");
 			lua_setfield(L, LUA_REGISTRYINDEX, "fncGC");
-
 		}
 		inline bool doString(const std::string& code) {
-			return luaL_dostring(L, code.c_str());
+			if (luaL_dostring(L, code.c_str()) != LUA_OK) {
+				const char* msg = lua_tostring(L, -1);
+				if (!msg) {
+					luaL_tolstring(L, -1, NULL);
+					msg = lua_tostring(L, -1);
+					lua_remove(L, -2);
+				}
+				printf("Lua error: %s\n\n%s\n\n", msg ? msg : "(unknown error)", code.c_str());
+				lua_pop(L, 1);
+				return true;
+			}
+			return false;
 		}
 		inline bool doFile(const std::filesystem::path& Filename) {
 			auto code = PVX::IO::ReadText(Filename);
-			return luaL_dostring(L, code.c_str());
+			return doString(code);
+		}
+		inline bool doStringPP(const std::string& code) {
+			return doString(preprocess(code));
+		}
+		inline bool doFilePP(const std::filesystem::path& Filename) {
+			auto code = preprocess(PVX::IO::ReadText(Filename));
+			return doString(code);
 		}
 		inline LuaGlobal operator[](std::string name) {
 			return LuaGlobal(L, std::move(name));
+		}
+		inline LuaParam Registry(std::string Name) {
+			return LuaParam{ L, LUA_REGISTRYINDEX, Name };
 		}
 		template<class... R>
 		LuaFunc<R...> func(std::string name) const {
@@ -744,12 +753,8 @@ namespace PVX::Scripting {
 
 	namespace {
 		using luaReturnVariant = std::variant<bool, int32_t, int64_t, double, std::string, luaCppFunction, PVX::JSON::Item, nullptr_t, luaVarVariant>;
-
-
 	}
 
-	
-		
 	class LuaReturner {
 		lua_State* L;
 		std::vector<luaReturnVariant> rets;

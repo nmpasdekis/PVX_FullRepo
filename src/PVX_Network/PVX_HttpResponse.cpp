@@ -164,6 +164,10 @@ namespace PVX::Network {
 		Content.WriteUTF(json);
 		Headers[L"content-type"] = L"application/json";
 	}
+	void HttpResponse::Json(const std::string & json) {
+		Content.WriteText(json);
+		Headers[L"content-type"] = L"application/json";
+	}
 
 	void HttpResponse::Json(const std::vector<unsigned char>& json) {
 		Content.SetData(json);

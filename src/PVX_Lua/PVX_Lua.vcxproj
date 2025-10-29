@@ -13,6 +13,9 @@
   <ItemGroup>
     <ClInclude Include="..\..\include\PVX_Lua.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="PVX_Lua.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

@@ -13,6 +13,8 @@
 namespace PVX::Windows {
 	inline int DefaultClose() { PostQuitMessage(0); return 0; }
 
+	using EventCallback = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
+
 	class Anchor {
 	public:
 		enum {
@@ -67,8 +69,15 @@ namespace PVX::Windows {
 		HWND Handle();
 		HWND Handle(int DialogResource);
 
-		void Override(unsigned int Message, std::function<LRESULT(HWND, WPARAM, LPARAM)> Event);
+		void Override(unsigned int Message, EventCallback Event);
+		void Override(unsigned int MinMessage, unsigned int MaxMessage, EventCallback Event);
+		void Override(const std::vector<uint32_t>& Messages, EventCallback Event);
 
+		void OnMouseEvent(std::function<int(unsigned int Message, int x, int y, int z)> lmd);
+		void OnMouseEventHWND(std::function<int(HWND, unsigned int Message, int x, int y, int z)> lmd);
+
+/*-------------------------------------------------------------------------------------------*/
+		
 		void OnLeftButtonDownHWND(std::function<void(HWND, int x, int y)> lmd);
 		void OnLeftButtonUpHWND(std::function<void(HWND, int x, int y)> lmd);
 		void OnRightButtonDownHWND(std::function<void(HWND, int x, int y)> lmd);
@@ -76,7 +85,17 @@ namespace PVX::Windows {
 		void OnMiddleButtonDownHWND(std::function<void(HWND, int x, int y)> lmd);
 		void OnMiddleButtonUpHWND(std::function<void(HWND, int x, int y)> lmd);
 		void OnMouseWheelHWND(std::function<void(HWND, int x, int y, int delta)> lmd);
-		void OnMouseMoveHWND(std::function<void(HWND, unsigned int Button, int x, int y)> lmd);
+		
+		void OnLeftButtonDownHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		void OnLeftButtonUpHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		void OnRightButtonDownHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		void OnRightButtonUpHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		void OnMiddleButtonDownHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		void OnMiddleButtonUpHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		void OnMouseWheelHWND(std::function<void(HWND, unsigned int Buttons, int x, int y, int delta)> lmd);
+		
+		void OnMouseMoveHWND(std::function<void(HWND, unsigned int Buttons, int x, int y)> lmd);
+		
 		void OnWindowActiveHWND(std::function<void(HWND, int Active)> lmd);
 		void OnCloseHWND(std::function<void(HWND)> lmd);
 		void OnResizeHWND(std::function<void(HWND, int Width, int Height)> lmd);
@@ -86,6 +105,11 @@ namespace PVX::Windows {
 		void OnVirtualKeyDownHWND(std::function<void(HWND, UCHAR)> lmd);
 		void OnVirtualKeyUpHWND(std::function<void(HWND, UCHAR)> lmd);
 
+		void OnMoveHWND(std::function<void(HWND, int x, int y)> lmd);
+		void OnMovingHWND(std::function<int(HWND, RECT& rc)> lmd);
+
+/*-------------------------------------------------------------------------------------------*/
+
 		void OnLeftButtonDown(std::function<void(int x, int y)> lmd);
 		void OnLeftButtonUp(std::function<void(int x, int y)> lmd);
 		void OnRightButtonDown(std::function<void(int x, int y)> lmd);
@@ -93,23 +117,41 @@ namespace PVX::Windows {
 		void OnMiddleButtonDown(std::function<void(int x, int y)> lmd);
 		void OnMiddleButtonUp(std::function<void(int x, int y)> lmd);
 		void OnMouseWheel(std::function<void(int x, int y, int delta)> lmd);
+
+		void OnLeftButtonDown(std::function<void(unsigned int Buttons, int x, int y)> lmd);
+		void OnLeftButtonUp(std::function<void(unsigned int Buttons, int x, int y)> lmd);
+		void OnRightButtonDown(std::function<void(unsigned int Buttons, int x, int y)> lmd);
+		void OnRightButtonUp(std::function<void(unsigned int Buttons, int x, int y)> lmd);
+		void OnMiddleButtonDown(std::function<void(unsigned int Buttons, int x, int y)> lmd);
+		void OnMiddleButtonUp(std::function<void(unsigned int Buttons, int x, int y)> lmd);
+		void OnMouseWheel(std::function<void(unsigned int Buttons, int x, int y, int delta)> lmd);
+
 		void OnMouseMove(std::function<void(unsigned int Button, int x, int y)> lmd);
+		
 		void OnWindowActive(std::function<void(int Active)> lmd);
 		void OnClose(std::function<int()> lmd);
 		void OnResize(std::function<void(int Width, int Height)> lmd);
 		void OnResizing(std::function<void(int Type, RECT * Rectangle)> lmd);
 		void OnResizeClient(std::function<void(int Width, int Height)> lmd);
+		void OnResizeClientRC(std::function<void(const RECT& cl)> lmd);
 		void OnPaint(std::function<void()> lmd);
 		void OnButton(unsigned int ControlId, std::function<void()> lmd);
 		void OnNotification(unsigned int ControlId, unsigned int Notification, std::function<void(HWND control)> lmd);
 		void OnVirtualKeyDown(std::function<void(UCHAR)> lmd);
 		void OnVirtualKeyUp(std::function<void(UCHAR)> lmd);
 
+		void OnMove(std::function<void(int x, int y)> lmd);
+		void OnMoving(std::function<int(RECT& rc)> lmd);
+
+/*-------------------------------------------------------------------------------------------*/
+
 		void OnRawInput(std::function<void(const RAWINPUT&)> lmd);
 		void GetRawInput(std::function<void(const RAWINPUT&)> lmd);
 		void RegisterRawInput(bool Mouse, bool Keyboard);
 
+
 		void OnMouseRelative(std::function<void(int, int, int, unsigned int)> clb);
+		void OnMouseRelative(std::function<bool(uint32_t Buttons)> Enable, std::function<void(int, int, int, unsigned int)> clb);
 
 
 		inline void DefaultOnClose() { 
@@ -161,6 +203,7 @@ namespace PVX::Windows {
 		void Resize(int Width, int Height);
 		void ResizeClient(int Width, int Height);
 		RECT ClientRect();
+		void InvalidateClient(bool erase = true);
 		RECT GetWindowRectangle();
 
 		Eventer& MakeEventer(int DialogItem);

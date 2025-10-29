@@ -7,7 +7,8 @@
 #include <map>
 #include <PVX_Reflect.h>
 #include <PVX_Animation.h>
-#include <PVX_BinSaver.h>
+#include <PVX_BinSaver.h> 
+#include <filesystem>
 
 
 namespace PVX::Object3D {
@@ -133,6 +134,6 @@ namespace PVX::Object3D {
 		static Object Load(const std::string& Filename);
 	};
 
-	Object LoadFbx(const std::string& Filename);
+	Object LoadFbx(const std::filesystem::path& Filename);
 	size_t Reindex(std::vector<unsigned char>& VertexData, std::vector<int>& Index, int Stride);
 }

@@ -12,7 +12,7 @@ namespace PVX::Object3D {
 
 
 	size_t Reindex(std::vector<unsigned char>& VertexData, std::vector<int>& Index, int Stride) {
-		size_t VertexCount = 0;
+		int VertexCount = 0;
 		std::vector<unsigned char> out;
 		out.reserve(VertexData.size());
 		std::vector<int> IndexOut;
@@ -54,7 +54,7 @@ namespace PVX::Object3D {
 		float Weight;
 	} Influence;
 
-	enum class VertexItemType_Primitive {
+	enum class VertexItemType_Primitive : uint32_t {
 		VertexItemType_Bool,
 		VertexItemType_Int,
 		VertexItemType_UInt,
@@ -677,7 +677,7 @@ namespace PVX::Object3D {
 	float GetPropertyFloat(FbxSurfaceMaterial* mat, const char* propName) {
 		const auto prop = mat->FindProperty(propName);
 		if (prop.IsValid())
-			return prop.Get<double>();
+			return float(prop.Get<double>());
 		return {};
 	}
 	std::string GetPropertyTexture(FbxSurfaceMaterial* mat, const char* propName) {
@@ -723,13 +723,13 @@ namespace PVX::Object3D {
 			stdMat.Textures.Specular = GetPropertyTexture(mat, FbxSurfaceMaterial::sSpecular);
 
 			if (auto pbr = mat->FindProperty("Metalness"); pbr.IsValid()) {
-				stdMat.Metallic = pbr.Get<double>();
+				stdMat.Metallic = float(pbr.Get<double>());
 			} else {
 				stdMat.Metallic = 0;
 			}
 
 			if (auto pbr = mat->FindProperty("Roughness"); pbr.IsValid()) {
-				stdMat.Roughness = pbr.Get<double>();
+				stdMat.Roughness = float(pbr.Get<double>());
 			} else {
 				stdMat.Roughness = 1.0f - stdMat.SpecularFactor /(stdMat.AmbientFactor + stdMat.DiffuseFactor + stdMat.SpecularFactor + 1e-9);
 			}
@@ -1094,11 +1094,11 @@ namespace PVX::Object3D {
 	//		MakeTransform(t, Hier, ParentIndex);
 	//}
 
-	Object LoadFbx(const std::string& Filename) {
+	Object LoadFbx(const std::filesystem::path& Filename) {
 		FbxManager* Manager = FbxManager::Create();
 		FbxImporter* Importer = FbxImporter::Create(Manager, "");
-		Importer->Initialize(Filename.c_str());
-		FbxScene* fbxScene = FbxScene::Create(Manager, Filename.c_str());
+		Importer->Initialize(Filename.string().c_str());
+		FbxScene* fbxScene = FbxScene::Create(Manager, Filename.string().c_str());
 		int ret = Importer->Import(fbxScene);
 		Importer->Destroy(1);
 
@@ -1110,7 +1110,7 @@ namespace PVX::Object3D {
 		//MakeTransform(Tree, obj.Heirarchy, -1);
 
 		if (obj.Heirarchy[0].Name=="RootNode")
-			obj.Heirarchy[0].Name = Filename;
+			obj.Heirarchy[0].Name = Filename.string();
 
 		Manager->Destroy();
 

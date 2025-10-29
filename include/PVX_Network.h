@@ -210,6 +210,7 @@ namespace PVX {
 			void Json(const PVX::JSON::Item & json);
 			void Redirect(const std::wstring & Location, int Status = 303);
 			void Json(const std::wstring & json);
+			void Json(const std::string & json);
 			void Json(const std::vector<unsigned char> & json);
 			void Html(const std::wstring & html);
 			void Html(const std::string & html);
@@ -292,6 +293,7 @@ namespace PVX {
 			friend class HttpResponse;
 		public:
 			HttpServer();
+			HttpServer(TcpServer& srv);
 			~HttpServer();
 
 			std::function<void(TcpSocket)> GetHandler();
@@ -310,6 +312,11 @@ namespace PVX {
 			inline void Routes(const std::wstring& url, std::function<void(HttpResponse&)> Action) { Routes(url, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
 			inline void Routes(const std::wstring& url, std::function<void(HttpRequest&)> Action) { Routes(url, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
 			inline void Routes(const std::wstring& url, std::function<void()> Action) { Routes(url, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
+
+			inline void Routes(const std::string& utf8_url, std::function<void(HttpRequest&, HttpResponse&)> Action) { Routes(PVX::Decode::UTF(utf8_url), std::move(Action)); }
+			inline void Routes(const std::string& utf8_url, std::function<void(HttpRequest&)> Action) { Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
+			inline void Routes(const std::string& utf8_url, std::function<void(HttpResponse&)> Action) { Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
+			inline void Routes(const std::string& utf8_url, std::function<void()> Action) { Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest&, HttpResponse&) { Action(); }); }
 			
 			void Routes(const std::initializer_list<Route> & routes);
 
@@ -330,18 +337,29 @@ namespace PVX {
 				};
 			};
 
-			void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path) {
+			inline void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path) {
 				auto url = Url;
 				if (url.size() && url.front() != L'/')url = L"/" + url;
 				Routes({ url + L"/{Path}", ContentServer(Path) });
 			}
-			void DefaultRouteForContent(const std::filesystem::path& Path) {
+			inline void ContentRoutes(const std::filesystem::path& contentPath) {
+				namespace fs = std::filesystem;
+				fs::path path;
+				if (contentPath.is_relative()) path = fs::current_path() / contentPath;
+				else path = contentPath;
+				for (const auto &p : fs::directory_iterator(path)) {
+					if (p.is_directory()) {
+						ContentRoute(L"/" + p.path().filename().wstring(), p);
+					}
+				}
+			}
+			inline void DefaultRouteForContent(const std::filesystem::path& Path) {
 				SetDefaultRoute(ContentServer(Path));
 			}
-			void DefaultHtml(const std::filesystem::path& Filename) {
+			inline void DefaultHtml(const std::filesystem::path& Filename) {
 				SetDefaultRoute(HtmlFileRoute(Filename));
 			}
-			void ServeFile(const std::wstring& Url, const std::filesystem::path& File) {
+			inline void ServeFile(const std::wstring& Url, const std::filesystem::path& File) {
 				Routes(Url, [File](HttpResponse& resp) {
 					resp.ServeFile(File);
 				});

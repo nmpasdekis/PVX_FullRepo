@@ -24,6 +24,9 @@ namespace PVX {
 		HttpServer::HttpServer() :DefaultRoute{ L"/{Path}", ContentServer() }, Mime{
 #include "mime.inl"
 		} {}
+		HttpServer::HttpServer(TcpServer& srv): HttpServer{} {
+			srv.Serve(*this);
+		}
 
 		HttpServer::~HttpServer() {
 			Running = false;
