@@ -104,6 +104,9 @@
     <ClInclude Include="..\..\include\PVX_Container.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\PVX_Tokenizer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\include\MemoryLeak.inl">

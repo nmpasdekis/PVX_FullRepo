@@ -119,6 +119,7 @@
     <ClInclude Include="..\..\include\PVX_Regex.h" />
     <ClInclude Include="..\..\include\PVX_String.h" />
     <ClInclude Include="..\..\include\PVX_Threading.h" />
+    <ClInclude Include="..\..\include\PVX_Tokenizer.h" />
     <ClInclude Include="..\..\include\PVX_XML.h" />
   </ItemGroup>
   <ItemGroup>

@@ -12,7 +12,7 @@ namespace PVX::OpenGL {
 		OrbitDistance = 10.0f;
 		SetPerspective(30.0f, 0.1f, 100.0f);
 	}
-	Camera::Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* view, PVX::Matrix4x4* projection) : Width{ float(Width) }, Height{ float(Height) }, Storage{ 0 }, Position{ Storage.Position.Vec3 }, Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
+	Camera::Camera(int Width, int Height, float FovDeg, float Near, float Far, PVX::Matrix4x4* view, PVX::Matrix4x4* projection) : Width{ float(Width) }, Height{ float(Height) }, Storage{}, Position{ Storage.Position.Vec3 }, Rotation({ 0,0,0 }), OrbitCenter({ 0,0,0 }) {
 		_View = view ? view : &Storage.View;
 		_Perspective = projection ? projection : &Storage.Perspective;
 		Matrix4x4& View = *_View;
