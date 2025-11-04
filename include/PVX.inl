@@ -1,6 +1,4 @@
-#ifndef __PVX_INL__
-#define __PVX_INL__
-
+#pragma once
 #include <vector>
 #include <map>
 #include <functional>
@@ -472,5 +470,3 @@ namespace PVX {
 		return ret;
 	}
 }
-
-#endif

@@ -1,10 +1,10 @@
 #include <fbxsdk.h>
-#include <PVX_Object3D.h>
-#include <PVX_Animation.h>
-#include <PVX.inl>
+#include "..\..\include\PVX_Object3D.h"
+#include "..\..\include\PVX_Animation.h"
+#include "..\..\include\PVX.inl"
 #include <sstream>
 #include <map>
-#include <PVX_Encrypt.h>
+#include "..\..\include\PVX_Encrypt.h"
 
 //using namespace fbxsdk;
 

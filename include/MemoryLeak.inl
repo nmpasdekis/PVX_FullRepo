@@ -1,5 +1,4 @@
-#ifndef _MEMORY_LEAK_DETECT_
-#define _MEMORY_LEAK_DETECT_
+#pragma once
 #ifdef _DEBUG
 
 #ifndef _CRTDBG_MAP_ALLOC 
@@ -30,7 +29,5 @@
 #endif
 
 
-
-#endif
 // 
 // _NORMAL_BLOCK

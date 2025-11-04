@@ -206,11 +206,9 @@ namespace PVX{
 		std::string ReplaceOne(const std::string& Text, const std::string& pattern, const std::string& newWord) {
 			std::string ret(Text);
 			auto osz = pattern.size();
-			auto nsz = newWord.size();
 			auto index = ret.find(pattern, 0);
-			while (index != std::string::npos) {
+			if (index != std::string::npos) {
 				ret.replace(index, osz, newWord);
-				index = ret.find(pattern, index + nsz);
 			}
 			return ret;
 		}

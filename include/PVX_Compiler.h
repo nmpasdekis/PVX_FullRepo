@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include <string_view>
-#include <PVX_json.h>
+#include "PVX_json.h"
 
 namespace PVX::Script {
 	class Variant {

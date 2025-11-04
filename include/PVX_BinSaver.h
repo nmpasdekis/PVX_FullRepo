@@ -1,5 +1,4 @@
-#ifndef __BIN_SAVER_H__
-#define __BIN_SAVER_H__
+#pragma once
 
 #include<vector>
 #include<string>
@@ -7,7 +6,7 @@
 #include<map>
 #include<functional>
 #include<fstream>
-#include<PVX_Math3D.h>
+#include "PVX_Math3D.h"
 
 namespace PVX {
 	class BinSaver {
@@ -186,4 +185,3 @@ namespace PVX {
 		}
 	};
 }
-#endif

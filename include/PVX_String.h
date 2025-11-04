@@ -7,7 +7,7 @@
 #include <regex>
 #include <string>
 #include <array>
-#include <PVX_Regex.h>
+#include "PVX_Regex.h"
 
 namespace PVX {
 	namespace String {

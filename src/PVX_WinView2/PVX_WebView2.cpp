@@ -8,7 +8,7 @@
 #include <queue>
 #include <functional>
 #include <mutex>
-#include <PVX_WebView2.h>
+#include "..\..\include\PVX_WebView2.h"
 
 #include <shellscalingapi.h>   // SetProcessDpiAwareness
 #pragma comment(lib, "Shcore.lib")

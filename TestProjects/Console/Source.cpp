@@ -2,7 +2,7 @@
 #include <PVX_Tokenizer.h>
 
 int main() {
-	PVX::PVX_CppTokenizer tokenizer(R"code(
+	PVX::CppTokenizer tokenizer(R"code(
 
 #pragma once
 #include <string>

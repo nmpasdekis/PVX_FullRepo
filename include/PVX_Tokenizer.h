@@ -8,7 +8,7 @@
 
 
 namespace PVX {
-	class PVX_Tokenizer {
+	class Tokenizer {
 		enum class State {
 			None,
 			Identifier,
@@ -16,11 +16,8 @@ namespace PVX {
 			Float,
 			String,
 			Char,
-			Operator,
-			Comment_SingleLine,
-			Comment_MultiLine
+			Operator
 		};
-		State state = State::None;
 		std::vector<std::string> operators;
 		std::unordered_map<char, std::unordered_map<char, std::unordered_set<char>>> opNext3;
 		std::unordered_map<char, std::unordered_set<char>> opNext2;
@@ -149,10 +146,10 @@ namespace PVX {
 		inline size_t GetPosition() {
 			return cur;
 		}
-		friend class PVX_CppTokenizer;
+		friend class CppTokenizer;
 	public:
 		struct Token {
-			std::string Value;
+			std::string Value = {};
 			enum class Type {
 				Unknown,
 				End,
@@ -160,16 +157,32 @@ namespace PVX {
 				Operator,
 				Number,
 				String,
-			} TokenType;
+
+				Special,
+				Function,
+				Function1
+			} TokenType = Type::Unknown;
+			static inline Token makeString(const std::string& str) { return Token{ .Value = str, .TokenType = Type::String }; }
+			static inline Token makeNumber(int64_t num) { return Token{ .Value = std::to_string(num), .TokenType = Type::Number }; }
+			static inline Token makeNumber(float num) { return Token{ .Value = std::to_string(num) + "f", .TokenType = Type::Number}; }
+			static inline Token makeNumber(double num) { return Token{ .Value = std::to_string(num), .TokenType = Type::Number }; }
 		};
-		PVX_Tokenizer(const char * code) : code{ code, std::strlen(code) }, operators { { "+", "-", "*", "/", "%", "++", "--", "=", "+=", "-=", "*=", "/=", "%=", "&", "|", "^", "~", "&=", "|=", "^=", "<<", ">>", "<<=", ">>=", "!", "!=", "&&", "||", "==", "<", ">", "<=", ">=", "<=>", ".", "->", ".*", "->*", "::", "?", ":", ",", ";", "...", "(", ")", "[", "]", "{", "}", "#", "##" } } {
+		Tokenizer(const char * code) : code{ code, std::strlen(code) }, operators { { "+", "-", "*", "/", "%", "++", "--", "=", "+=", "-=", "*=", "/=", "%=", "&", "|", "^", "~", "&=", "|=", "^=", "<<", ">>", "<<=", ">>=", "!", "!=", "&&", "||", "==", "<", ">", "<=", ">=", "<=>", ".", "->", ".*", "->*", "::", "?", ":", ",", ";", "...", "(", ")", "[", "]", "{", "}", "#", "##" } } {
 			initOps();
 		}
-		PVX_Tokenizer(const char * code, std::vector<std::string> operators) : code{ code, std::strlen(code) }, operators{ operators } {
+		Tokenizer(const char * code, std::vector<std::string> operators) : code{ code, std::strlen(code) }, operators{ operators } {
+			initOps();
+		}
+		Tokenizer(std::vector<std::string> operators): operators{ operators } {
 			initOps();
 		}
 
-		Token GetTokenWithSemantics() {
+		inline Tokenizer& reset(const char * code) {
+			this->code = std::string_view{ code, std::strlen(code) };
+			cur = 0;
+			return *this;
+		}
+		inline Token GetTokenWithSemantics() {
 			if (!skipSpaces()) return { "", Token::Type::End };
 			if (code[cur] == '/' && more() && code[cur + 1] == '/') {
 				SkipSingleLineComment();
@@ -194,10 +207,10 @@ namespace PVX {
 			if (code[cur] == '"' || code[cur] == '\'') return { getString(), Token::Type::String };
 			return { "", Token::Type::Unknown };
 		}
-		std::string GetToken() {
+		inline std::string GetToken() {
 			return GetTokenWithSemantics().Value;
 		}
-		std::vector<std::string> Tokenize() {
+		inline std::vector<std::string> Tokenize() {
 			std::vector<std::string> tokens;
 			Token token;
 			while ((token = GetTokenWithSemantics()).TokenType > Token::Type::End) {
@@ -206,7 +219,7 @@ namespace PVX {
 			tokens.shrink_to_fit();
 			return tokens;
 		}
-		std::vector<Token> TokenizeWithSemanticse() {
+		inline std::vector<Token> TokenizeWithSemanticse() {
 			std::vector<Token> tokens;
 			Token token;
 			Token lastToken;
@@ -220,7 +233,7 @@ namespace PVX {
 
 
 
-	class PVX_CppTokenizer {
+	class CppTokenizer {
 	public:
 		struct CppToken {
 			std::string Value;
@@ -233,11 +246,11 @@ namespace PVX {
 				Operator,
 				NumberLiteral,
 				StringLiteral,
-				Separator
+				Preprocessor
 			} TokenType;
 		};
 	protected:
-		PVX_Tokenizer tokenizer;
+		Tokenizer tokenizer;
 		std::unordered_set<std::string> keywords = {
 			"alignas", "alignof", "and", "and_eq", "asm",
 			"atomic_cancel", "atomic_commit", "atomic_noexcept", "auto",
@@ -266,18 +279,23 @@ namespace PVX {
 			CppToken cppToken;
 			cppToken.Value = token.Value;
 			switch (token.TokenType) {
-			case PVX_Tokenizer::Token::Type::Identifier:
+			case Tokenizer::Token::Type::Identifier:
 				if (keywords.count(token.Value)) return { token.Value, CppToken::Type::Keyword };
 				if (types.count(token.Value)) return { token.Value, CppToken::Type::Type };
 				cppToken.TokenType = CppToken::Type::Identifier;
 				break;
-			case PVX_Tokenizer::Token::Type::Operator:
-				cppToken.TokenType = CppToken::Type::Operator;
+			case Tokenizer::Token::Type::Operator:
+				if (cppToken.Value != "#") {
+					cppToken.TokenType = CppToken::Type::Operator;
+				} else {
+					cppToken.Value += tokenizer.GetToken();
+					cppToken.TokenType = CppToken::Type::Preprocessor;
+				}
 				break;
-			case PVX_Tokenizer::Token::Type::Number:
+			case Tokenizer::Token::Type::Number:
 				cppToken.TokenType = CppToken::Type::NumberLiteral;
 				break;
-			case PVX_Tokenizer::Token::Type::String:
+			case Tokenizer::Token::Type::String:
 				cppToken.TokenType = CppToken::Type::StringLiteral;
 				break;
 			default:
@@ -287,8 +305,8 @@ namespace PVX {
 			return cppToken;
 		}
 	public:
-		inline PVX_CppTokenizer(const char* code) : tokenizer(code) {}
-		std::vector<CppToken> Tokenize() {
+		inline CppTokenizer(const char* code) : tokenizer(code) {}
+		inline std::vector<CppToken> Tokenize() {
 			std::vector<CppToken> tokens;
 			CppToken token;
 			
@@ -311,6 +329,10 @@ namespace PVX {
 			}
 			tokens.shrink_to_fit();
 			return tokens;
+		}
+		inline CppTokenizer& reset(const char* code) {
+			tokenizer.reset(code);
+			return *this;
 		}
 	};
 }

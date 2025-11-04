@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-3.4.0;D:\MyGithub\PVX_FullRepo\include;D:\MyGithub\PVX_FullRepo\External;D:\MyGithub\PVX_FullRepo\External\eigen-3.4.0;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)include;$(SolutionDir)External\eigen-3.4.0;$(MyGithub)\PVX_FullRepo\include;$(MyGithub)\PVX_FullRepo\External;$(MyGithub)\PVX_FullRepo\External\eigen-3.4.0;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)lib64\$(Configuration);$(SolutionDir)$(Platform)\$(Configuration);D:\GitProjects2025\PVX_FullRepo\$(Platform)\$(Configuration);D:\GitProjects2025\PVX_FullRepo\lib64\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup />

@@ -1,5 +1,4 @@
-#ifndef __PVX_WINDOW_2019_H__
-#define __PVX_WINDOW_2019_H__
+#pragma once
 
 #define NOMINMAX
 
@@ -8,7 +7,7 @@
 #include <map>
 #include <string>
 #include <functional>
-#include <PVX.inl>
+#include "PVX.inl"
 
 namespace PVX::Windows {
 	inline int DefaultClose() { PostQuitMessage(0); return 0; }
@@ -231,5 +230,3 @@ namespace PVX::Windows {
 		HWND hWnd;
 	};
 }
-
-#endif
