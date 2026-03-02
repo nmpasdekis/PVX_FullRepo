@@ -3,25 +3,28 @@
 #include<vector>
 #include<string>
 //#include<stdio.h>
-#include<map>
+#include<unordered_map>
 #include<functional>
 #include<fstream>
 #include "PVX_Math3D.h"
+#include <filesystem>
 
 namespace PVX {
 	class BinSaver {
 		std::vector<std::streampos> SizePos;
 		//FILE* fout;
 		std::ofstream fout;
+		int Save();
 	public:
 		BinSaver(const char* Filename, const char* head);
 		BinSaver(const wchar_t* Filename, const char* head);
 		BinSaver(const std::string& Filename);
 		BinSaver(const char* Filename);
+		BinSaver(const std::filesystem::path& Filename, const char* head);
+		BinSaver(const std::filesystem::path& Filename);
 		~BinSaver();
 		void Begin(const char* Name);
 		void End();
-		int Save();
 		size_t write(const void* buffer, size_t size, size_t count);
 		size_t write(const std::vector<unsigned char>& Bytes);
 
@@ -93,13 +96,14 @@ namespace PVX {
 		size_t cur = 0;
 		size_t Size = 0;
 		BinLoader* Parent = nullptr;
-		std::map<unsigned int, std::function<void(BinLoader& bin)>> Loader;
+		std::unordered_map<unsigned int, std::function<void(BinLoader& bin)>> Loader;
 		std::function<void(BinLoader& bin, const char*)> AnyLoader = nullptr;
 		BinLoader(std::ifstream& fin, size_t Size, BinLoader* Parent);
 	public:
 		BinLoader(const char* fn, const char* header);
 		BinLoader(const wchar_t* fn, const char* header);
 		BinLoader(const std::string& fn);
+		BinLoader(const std::filesystem::path& fn, const char* header);
 		BinLoader(const char* fn);
 		~BinLoader();
 		void Process(const char* header, std::function<void(BinLoader&)> Loader);

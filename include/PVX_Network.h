@@ -72,6 +72,36 @@ namespace PVX {
 			TYPE = 0x1008,         /* get socket type */
 		};
 
+		class UdpSocket {
+			std::shared_ptr<void> SocketData;
+			template<typename T> T& GetInternalData() { return *(T*)SocketData.get(); }
+			friend class mDNS;
+		public:
+			UdpSocket(int Port);
+			int Receive(const void * data, int Size);
+			int Receive(std::vector<uint8_t>& ret);
+			int Receive(std::string & ret);
+			int Send(const void * data, int Size);
+			int Reply(const void * data, int Size);
+			void SetDestination(const char * Url, unsigned short Port);
+			void Release();
+			IN_ADDR getSenderIP();
+			uint16_t getSenderPort();
+			IN_ADDR getIP();
+			uint16_t getPort();
+
+			void mDNS();
+		};
+
+		class mDNS {
+			bool Running;
+			UdpSocket Socket;
+			std::thread mDNS_thread;
+		public:
+			mDNS(const std::string& domain);
+			~mDNS();
+		};
+
 		class TcpSocket {
 		public:
 			TcpSocket();

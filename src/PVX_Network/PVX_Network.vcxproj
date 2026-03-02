@@ -108,6 +108,7 @@
     <ClCompile Include="PVX_HttpResponse.cpp" />
     <ClCompile Include="PVX_HttpServer.cpp" />
     <ClCompile Include="PVX_TcpSocket.cpp" />
+    <ClCompile Include="PVX_UdpSocket.cpp" />
     <ClCompile Include="PVX_UtfHelper.cpp" />
     <ClCompile Include="PVX_WebSocket.cpp" />
   </ItemGroup>

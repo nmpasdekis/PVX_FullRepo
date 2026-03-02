@@ -2936,7 +2936,7 @@ namespace PVX {
 		Vector3D Rotation{};
 		float Width, Height, FOV, Near, Far;
 
-		VirtualCamera() {};
+		VirtualCamera() {}
 		VirtualCamera(VirtualCamera&&) = default;
 
 		VirtualCamera(float w, float h, float fov = 60.0f, float Near = 1.0, float Far = 100000.0f) {

@@ -15,6 +15,13 @@ namespace PVX {
 		if (!fout.is_open())return;
 		Begin(head);
 	}
+	BinSaver::BinSaver(const std::filesystem::path& Filename, const char* head):
+		fout{ Filename, std::ofstream::binary }
+	{
+		if (!fout.is_open())return;
+		Begin(head);
+	}
+	BinSaver::BinSaver(const std::filesystem::path& Filename): BinSaver(Filename, "PVXB") {}
 
 	BinSaver::BinSaver(const std::string& Filename) :BinSaver(Filename.c_str(), "PVXB") {}
 	BinSaver::BinSaver(const char* Filename) : BinSaver(Filename, "PVXB") {}
@@ -78,6 +85,18 @@ namespace PVX {
 		}
 		Parent = 0;
 	}
+	BinLoader::BinLoader(const std::filesystem::path& fn, const char* header):
+		__fin(fn, std::ifstream::binary), fin{ __fin } {
+		BinHeader hd;
+		if (fin.is_open()) {
+			fin.read((char*)&hd, sizeof(BinHeader));
+			cur = fin.tellg();
+			if (cur == sizeof(BinHeader) && hd.iName == (*(int*)header)) {
+				Size = hd.Size;
+			}
+		}
+		Parent = 0;
+	}
 	BinLoader::BinLoader(const wchar_t* fn, const char* header):
 #ifndef __linux
 		__fin(fn, std::ifstream::binary), fin{ __fin }
@@ -128,18 +147,32 @@ namespace PVX {
 	}
 	void BinLoader::Execute() {
 		BinHeader hd;
-		while (cur < Size) {
-			fin.read((char*)&hd, sizeof(BinHeader));
-			cur += fin.gcount();
-			if (Loader.find(hd.iName) != Loader.end()) {
+		if (AnyLoader == nullptr) {
+			while (cur < Size) {
+				fin.read((char*)&hd, sizeof(BinHeader));
+				cur += fin.gcount();
+				if (auto f = Loader.find(hd.iName); f != Loader.end()) {
+					BinLoader bl(fin, hd.Size, this);
+					f->second(bl);
+					//Loader[hd.iName](bl);
+				}
+				else {
+					fin.seekg(cur + hd.Size);
+					cur += hd.Size;
+				}
+			}
+		}
+		else {
+			while (cur < Size) {
+				fin.read((char*)&hd, sizeof(BinHeader));
+				cur += fin.gcount();
 				BinLoader bl(fin, hd.Size, this);
-				Loader[hd.iName](bl);
-			} else if (AnyLoader != nullptr) {
-				BinLoader bl(fin, hd.Size, this);
-				AnyLoader(bl, hd.sName);
-			} else {
-				fin.seekg(cur + hd.Size);
-				cur += hd.Size;
+				if (auto f = Loader.find(hd.iName); f != Loader.end()) {
+					f->second(bl);
+				}
+				else {
+					AnyLoader(bl, hd.sName);
+				}
 			}
 		}
 	}

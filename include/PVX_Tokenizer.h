@@ -6,7 +6,6 @@
 #include <unordered_set>
 #include <algorithm>
 
-
 namespace PVX {
 	class Tokenizer {
 		enum class State {
@@ -24,6 +23,8 @@ namespace PVX {
 		std::unordered_set<char> opNext1;
 		std::string buffer;
 		std::string_view code;
+		size_t line = 1;
+		size_t col = 1;
 		size_t cur = 0, last = 0;
 		inline void initOps() {
 			std::sort(operators.begin(), operators.end(), [](const std::string& a, const std::string& b) {
@@ -32,11 +33,9 @@ namespace PVX {
 			for (const auto& op : operators) {
 				if (op.size() == 3) {
 					opNext3[op[0]][op[1]].insert(op[2]);
-				}
-				else if (op.size() == 2) {
+				} else if (op.size() == 2) {
 					opNext2[op[0]].insert(op[1]);
-				}
-				else opNext1.insert(op[0]);
+				} else opNext1.insert(op[0]);
 			}
 		}
 		inline bool end() {
@@ -51,6 +50,18 @@ namespace PVX {
 		inline bool isAlpha(char c) {
 			return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 		}
+		inline bool isHex(char c) {
+			return (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || (c >= '0' && c <= '9') || c == '\'';
+		}
+		inline bool isBin(char c) {
+			return c == '0' || c == '1' || c == '\'';
+		}
+		inline bool isOct(char c) {
+			return c >= '0' && c <= '7' || c == '\'';
+		}
+		inline bool isDigit2(char c) {
+			return c >= '0' && c <= '9' || c == '\'';
+		}
 		inline bool isDigit(char c) {
 			return c >= '0' && c <= '9';
 		}
@@ -63,40 +74,60 @@ namespace PVX {
 		inline std::string getOperator() {
 			if (more(2) && opNext3.count(code[cur]) && opNext3.at(code[cur]).count(code[cur + 1]) && opNext3.at(code[cur]).at(code[cur + 1]).count(code[cur + 2])) {
 				cur += 3;
+				col += 3;
 				return std::string{ code.substr(cur - 3, 3) };
 			}
 			if (more() && opNext2.count(code[cur]) && opNext2.at(code[cur]).count(code[cur + 1])) {
 				cur += 2;
+				col += 2;
 				return std::string{ code.substr(cur - 2, 2) };
 			}
 			cur += 1;
+			col += 1;
 			return std::string{ code.substr(cur - 1, 1) };
 		}
 		inline bool skipSpaces() {
-			while (cur < code.size() && isSpace(code[cur])) cur++;
+			while (cur < code.size() && isSpace(code[cur])) {
+				if (code[cur] == '\n'){
+					line++;
+					col = 0;
+				}
+				cur++; col++;
+			}
 			return cur < code.size();
 		}
 		inline std::string getNumber() {
 			size_t start = cur;
-			if (code[cur] == '.') cur++;
-			while (cur < code.size() && isDigit(code[cur])) cur++;
-			if (cur < code.size() && code[cur] == '.') {
-				cur++;
-				while (cur < code.size() && isDigit(code[cur])) cur++;
+			if (code[cur] == '0' && cur + 1 < code.size() && (code[cur + 1]=='x'|| code[cur + 1] == 'X')) {
+				cur += 2; col += 2;
+				while (cur < code.size() && isHex(code[cur])) { cur++; col++; }
+			} else if (code[cur] == '0' && cur + 1 < code.size() && (code[cur + 1] == 'b' || code[cur + 1] == 'B')) {
+				cur += 2; col += 2;
+				while (cur < code.size() && isBin(code[cur])) { cur++; col++; }
+			} else if (code[cur] == '0' && cur + 1 < code.size() && isDigit(code[cur + 1])) {
+				cur += 2; col += 2;
+				while (cur < code.size() && isOct(code[cur])) { cur++; col++; }
+			} else {
+				if (code[cur] == '.') cur++;
+				while (cur < code.size() && isDigit2(code[cur])) { cur++; col++; }
+				if (cur < code.size() && code[cur] == '.') {
+					cur++; col++;
+					while (cur < code.size() && isDigit2(code[cur])) { cur++; col++; }
+				}
 				if (cur < code.size() && (code[cur] == 'e' || code[cur] == 'E')) {
 					cur++;
-					if (cur < code.size() && (code[cur] == '+' || code[cur] == '-')) cur++;
-					while (cur < code.size() && isDigit(code[cur])) cur++;
+					if (cur < code.size() && (code[cur] == '+' || code[cur] == '-')) { cur++; col++; }
+					while (cur < code.size() && isDigit(code[cur])) { cur++; col++; }
 				}
-				else if (cur < code.size() && (isAlpha(code[cur]))) {
-					while (isAlphaNumeric(code[cur])) cur++;
-				}
+			}
+			if (cur < code.size() && (isAlpha(code[cur]))) {
+				while (cur < code.size() && isAlphaNumeric(code[cur])) { cur++; col++; }
 			}
 			return std::string{ code.substr(start, cur - start) };
 		}
 		inline std::string getIdentifier() {
 			size_t start = cur;
-			while (cur < code.size() && isAlphaNumeric(code[cur])) cur++;
+			while (cur < code.size() && isAlphaNumeric(code[cur])) { cur++; col++; }
 			return std::string{ code.substr(start, cur - start) };
 		}
 		inline std::string getString() {
@@ -105,39 +136,52 @@ namespace PVX {
 			cur++;
 			while (cur < code.size()) {
 				if (code[cur] == '\\' && more()) {
-					cur += 2;
+					cur += 2; col += 2;
 				}
 				else if (code[cur] == quote) {
-					cur++;
+					cur++; col++;
 					break;
 				}
 				else {
-					cur++;
+					cur++; col++;
 				}
 			}
 			if (!end() && isAlpha(code[cur])) {
-				while (isAlphaNumeric(code[cur])) cur++;
+				while (isAlphaNumeric(code[cur])) { cur++; col++; }
 			}
 			return std::string{ code.substr(start, cur - start) };
 		}
 		inline std::string getRawString() {
 			using namespace std::string_literals;
 			size_t start = cur;
-			cur++;
+			cur++; col++;
 			auto paren = code.find('(', cur);
 			auto raw_end = ")"s + std::string(code.substr(cur, paren - cur)) + "\""s;
 			auto end_pos = code.find(raw_end, paren);
-			return std::string{ code.substr(start, end_pos + raw_end.size() - start) };
+			auto raw_size = end_pos + raw_end.size() - start;
+			for (auto i = 1; i < raw_size; i++, cur++, col++) {
+				if (code[cur] == '\n') {
+					line++;
+					col = 0;
+				}
+			}
+			while (isAlphaNumeric(code[cur])) { cur++; col++; }
+			return std::string{ code.substr(start, cur - start) };
 		}
 		inline void SkipSingleLineComment() {
 			cur += 2;
 			while (cur < code.size() && code[cur] != '\n') cur++;
+			cur++;
+			line++;
+			col = 1;
 		}
 		inline void SkipMultiLineComment() {
 			cur += 2;
+			col += 2;
 			while (cur + 1 < code.size()) {
-				if (code[cur] == '*' && code[cur + 1] == '/') { cur += 2; break; }
-				cur++;
+				if (code[cur] == '*' && code[cur + 1] == '/') { cur += 2; col += 2; break; }
+				if (code[cur] == '\n') { line++; col = 0; }
+				cur++; col++;
 			}
 		}
 		inline void SetPosition(size_t position) {
@@ -158,16 +202,22 @@ namespace PVX {
 				Number,
 				String,
 
-				Special,
+				Special1,
+				Special2,
+				Special3,
 				Function,
 				Function1
 			} TokenType = Type::Unknown;
+			size_t line;
+			size_t column;
+			char * Filename;
 			static inline Token makeString(const std::string& str) { return Token{ .Value = str, .TokenType = Type::String }; }
 			static inline Token makeNumber(int64_t num) { return Token{ .Value = std::to_string(num), .TokenType = Type::Number }; }
 			static inline Token makeNumber(float num) { return Token{ .Value = std::to_string(num) + "f", .TokenType = Type::Number}; }
 			static inline Token makeNumber(double num) { return Token{ .Value = std::to_string(num), .TokenType = Type::Number }; }
+			static inline Token makeNumber(std::string num) { return Token{ .Value = std::to_string(std::stoll(num, nullptr, 0)), .TokenType = Type::Number }; }
 		};
-		Tokenizer(const char * code) : code{ code, std::strlen(code) }, operators { { "+", "-", "*", "/", "%", "++", "--", "=", "+=", "-=", "*=", "/=", "%=", "&", "|", "^", "~", "&=", "|=", "^=", "<<", ">>", "<<=", ">>=", "!", "!=", "&&", "||", "==", "<", ">", "<=", ">=", "<=>", ".", "->", ".*", "->*", "::", "?", ":", ",", ";", "...", "(", ")", "[", "]", "{", "}", "#", "##" } } {
+		Tokenizer(const char * code) : code{ code, std::strlen(code) }, operators { { "+", "-", "*", "/", "%", "++", "--", "=", "+=", "-=", "*=", "/=", "%=", "&", "|", "^", "~", "&=", "|=", "^=", "<<", ">>", "<<=", ">>=", "!", "!=", "&&", "||", "==", "<", ">", "<=", ">=", "<=>", ".", "->", ".*", "->*", "::", "?", ":", ",", ";", "...", "(", ")", "[", "]", "{", "}", "#", "##" }} {
 			initOps();
 		}
 		Tokenizer(const char * code, std::vector<std::string> operators) : code{ code, std::strlen(code) }, operators{ operators } {
@@ -179,33 +229,49 @@ namespace PVX {
 
 		inline Tokenizer& reset(const char * code) {
 			this->code = std::string_view{ code, std::strlen(code) };
-			cur = 0;
+			cur = 0; line = 1; col = 1;
 			return *this;
 		}
 		inline Token GetTokenWithSemantics() {
-			if (!skipSpaces()) return { "", Token::Type::End };
-			if (code[cur] == '/' && more() && code[cur + 1] == '/') {
-				SkipSingleLineComment();
-				if (!skipSpaces()) return { "", Token::Type::End };
-			}
-			if (code[cur] == '/' && more() && code[cur + 1] == '*') {
-				SkipMultiLineComment();
-				if (!skipSpaces()) return { "", Token::Type::End };
-			}
-			if (code[cur] == '.' && more() && isDigit(code[cur + 1])) return { getNumber(),Token::Type::Number };
-			if (isOperator(code[cur])) return { getOperator(), Token::Type::Operator };
-			if (isDigit(code[cur])) return { getNumber(), Token::Type::Number };
-			if (isAlpha(code[cur])) {
-				auto id = getIdentifier();
-				if (!end() && (code[cur] == '"')) {
-					if (id.back() != 'R')
-						return { id + getRawString(), Token::Type::String };
-					return { id + getString(), Token::Type::String };
+			while (cur < code.size()) {
+				if (!skipSpaces()) return { "", Token::Type::End, line, col };
+				if (code[cur] == '/' && more() && code[cur + 1] == '/') {
+					SkipSingleLineComment();
+					continue;
 				}
-				return { id, Token::Type::Identifier };
+				if (code[cur] == '/' && more() && code[cur + 1] == '*') {
+					SkipMultiLineComment();
+					continue;
+				}
+				if (code[cur] == '.' && more() && isDigit(code[cur + 1])) return { getNumber(),Token::Type::Number };
+				if (isOperator(code[cur])) {
+					auto l = line;
+					auto c = col;
+					return { getOperator(), Token::Type::Operator, l, c };
+				}
+				if (isDigit(code[cur])) {
+					auto l = line;
+					auto c = col;
+					return { getNumber(), Token::Type::Number, l, c };
+				}
+				if (isAlpha(code[cur])) {
+					auto l = line;
+					auto c = col;
+					auto id = getIdentifier();
+					if (!end() && (code[cur] == '"')) {
+						if (id.back() == 'R')
+							return { id + getRawString(), Token::Type::String, l, c };
+						return { id + getString(), Token::Type::String, l, c };
+					}
+					return { id, Token::Type::Identifier, l, c };
+				}
+				if (code[cur] == '"' || code[cur] == '\'') {
+					auto l = line;
+					auto c = col;
+					return { getString(), Token::Type::String, l, c };
+				}
 			}
-			if (code[cur] == '"' || code[cur] == '\'') return { getString(), Token::Type::String };
-			return { "", Token::Type::Unknown };
+			return { "", Token::Type::Unknown, line, col };
 		}
 		inline std::string GetToken() {
 			return GetTokenWithSemantics().Value;
@@ -248,6 +314,10 @@ namespace PVX {
 				StringLiteral,
 				Preprocessor
 			} TokenType;
+			CppToken* close = nullptr;
+			size_t line;
+			size_t column;
+			char * Filename;
 		};
 	protected:
 		Tokenizer tokenizer;
@@ -280,8 +350,8 @@ namespace PVX {
 			cppToken.Value = token.Value;
 			switch (token.TokenType) {
 			case Tokenizer::Token::Type::Identifier:
-				if (keywords.count(token.Value)) return { token.Value, CppToken::Type::Keyword };
-				if (types.count(token.Value)) return { token.Value, CppToken::Type::Type };
+				if (keywords.count(token.Value)) return { token.Value, CppToken::Type::Keyword, 0 };
+				if (types.count(token.Value)) return { token.Value, CppToken::Type::Type, 0 };
 				cppToken.TokenType = CppToken::Type::Identifier;
 				break;
 			case Tokenizer::Token::Type::Operator:
