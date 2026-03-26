@@ -456,8 +456,9 @@ namespace PVX::Network {
 		}
 		this.SetAngularScope = function(element){t.$scope = angular.element(document.querySelector(element)).scope().$root;};
 		this.connect = function connect() {
-			if(angular)this.SetAngularScope("[ng-app]");
+			let that = this;
 			return new Promise(function(resolve, reject){
+				if(angular) that.SetAngularScope("[ng-app]");
 				if (t.ws) {
 					SetState("reconnecting");
 					t.ws.close();

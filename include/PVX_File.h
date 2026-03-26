@@ -144,6 +144,9 @@ namespace PVX {
 		inline int Write(const std::filesystem::path& fn, const std::vector<uint8_t>& Data) {
 			return Write(fn, Data.data(), Data.size());
 		}
+		inline int Write(const std::filesystem::path& fn, const std::string& Data) {
+			return Write(fn, Data.c_str(), Data.size());
+		}
 		int Write(const std::filesystem::path& fn, const PVX::JSON::Item& Data);
 
 		std::vector<uint8_t> ReadBinary(const std::filesystem::path& Filename);

@@ -156,6 +156,7 @@ namespace PVX::Network {
 
 
 	UdpSocket::UdpSocket(int Port): SocketData{ (void*)new udpData(Port), socketData_Deleter } {}
+
 	int UdpSocket::Receive(const void * data, int Size) {
 		return GetInternalData<udpData>().Receive(data, Size);
 	}
@@ -203,10 +204,10 @@ namespace PVX::Network {
 	uint16_t UdpSocket::getSenderPort() {
 		return GetInternalData<udpData>().From.sin_port;
 	}
-	IN_ADDR UdpSocket::getIP() {
+	IN_ADDR UdpSocket::getTargetIP() {
 		return GetInternalData<udpData>().To.sin_addr;
 	}
-	uint16_t UdpSocket::getPort() {
+	uint16_t UdpSocket::getTargetPort() {
 		return GetInternalData<udpData>().To.sin_port;
 	}
 
@@ -252,7 +253,7 @@ namespace PVX::Network {
 
 			Socket.mDNS();
 			Socket.SetDestination("224.0.0.251", 5353);
-			auto myIP = Socket.getIP();
+			//auto myIP = Socket.getIP();
 			std::vector<uint8_t> Data;
 			std::string in_sub_domain, in_domain;
 			in_sub_domain.resize(domain.size());
@@ -267,32 +268,38 @@ namespace PVX::Network {
 					memcpy(in_domain.data(), header.Data + 2 + domain.size(), 5);
 					if (in_sub_domain == domain && in_domain == "local") {
 						if (noIp) {
-							auto ip = Socket.GetInternalData<udpData>().WhoAmI();
-							memcpy(tail.Ip, &ip.S_un.S_un_b, 4);
+							myIp = Socket.GetInternalData<udpData>().WhoAmI();
+							memcpy(tail.Ip, &myIp.S_un.S_un_b, 4);
 
-							Socket.GetInternalData<udpData>().SetOption(IPPROTO_IP, IP_MULTICAST_IF, (char*)&ip.S_un.S_un_b, sizeof(ip));
+							Socket.GetInternalData<udpData>().SetOption(IPPROTO_IP, IP_MULTICAST_IF, (char*)&myIp.S_un.S_un_b, sizeof(myIp));
 							noIp = false;
 						}
 
-						auto otherIp = Socket.getSenderIP();
-						printf("responding to %d.%d.%d.%d\n", 
-							otherIp.S_un.S_un_b.s_b1, 
-							otherIp.S_un.S_un_b.s_b2, 
-							otherIp.S_un.S_un_b.s_b3, 
-							otherIp.S_un.S_un_b.s_b4);
+						//auto otherIp = Socket.getSenderIP();
+						//printf("responding to %d.%d.%d.%d from %d.%d.%d.%d\n", 
+						//	otherIp.S_un.S_un_b.s_b1, 
+						//	otherIp.S_un.S_un_b.s_b2, 
+						//	otherIp.S_un.S_un_b.s_b3, 
+						//	otherIp.S_un.S_un_b.s_b4,
+						//	myIp.S_un.S_un_b.s_b1,
+						//	myIp.S_un.S_un_b.s_b2,
+						//	myIp.S_un.S_un_b.s_b3,
+						//	myIp.S_un.S_un_b.s_b4);
 
 						auto& tail2 = *(mdnsResponce*)(header.Data + 2 + domain.size() + 6);
 						
 						h1.TransactionID = header.TransactionID;
 						h1.Flags = 0x0084 | header.Flags;
 
-						//Socket.Reply(response.data(), response.size());
-						Socket.Send(response.data(), response.size());
+						Socket.Reply(response.data(), response.size());
+						//Socket.Send(response.data(), response.size());
 					}
 				}
 			}
 		}
-	} {}
+	} {
+		TcpSocket().Connect((domain + ".local").c_str(), "80");
+	}
 	mDNS::~mDNS() {
 		Running = false;
 		Socket.Release();

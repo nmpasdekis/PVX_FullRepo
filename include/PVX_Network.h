@@ -87,8 +87,8 @@ namespace PVX {
 			void Release();
 			IN_ADDR getSenderIP();
 			uint16_t getSenderPort();
-			IN_ADDR getIP();
-			uint16_t getPort();
+			IN_ADDR getTargetIP();
+			uint16_t getTargetPort();
 
 			void mDNS();
 		};
@@ -96,11 +96,14 @@ namespace PVX {
 		class mDNS {
 			bool Running;
 			UdpSocket Socket;
+			IN_ADDR myIp;
 			std::thread mDNS_thread;
 		public:
 			mDNS(const std::string& domain);
 			~mDNS();
 		};
+
+		struct socketData;
 
 		class TcpSocket {
 		public:
@@ -136,12 +139,13 @@ namespace PVX {
 			}
 			int SetOption(SocketOption Op, const void* Value, int ValueSize);
 
+			inline long refCount() { return SocketData.use_count(); };
 			// Internal Use Only
-			template<typename T> T& GetInternalData() { return *(T*)SocketData.get(); }
+			//template<typename T> T& GetInternalData() { return *(T*)SocketData.get(); }
 		protected:
 			TcpSocket(uint32_t*, const void*);
 			TcpSocket(uint32_t*, const void*, std::function<void(void*)> deleter);
-			std::shared_ptr<void> SocketData;
+			std::shared_ptr<socketData> SocketData;
 			friend class TcpServer;
 		};
 
@@ -161,9 +165,10 @@ namespace PVX {
 			std::unique_ptr<std::thread> ServingThread;
 			std::vector<std::thread> Workers;
 			std::mutex TaskMutex, SocketGuard;
-			std::condition_variable TaskAdded, TaskEnded;
+			std::condition_variable TaskAdded;
 			std::queue<std::function<void()>> Tasks;
-			std::set<uint32_t*> OpenSockets;
+			//std::set<uint32_t*> OpenSockets;
+			std::unordered_map<uint32_t*, TcpSocket> OpenSockets;
 		};
 
 		class UtfHelper {
@@ -360,26 +365,26 @@ namespace PVX {
 			const std::string & GetMime(const std::string & extension) const;
 
 			// Route must contain {Path} Variable
-			std::function<void(HttpRequest&, HttpResponse&)> ContentServer(const std::filesystem::path& ContentPath = L"");
+			std::function<void(HttpRequest&, HttpResponse&)> ContentServer(const std::filesystem::path& ContentPath = L"", size_t thresshold = 1024 * 1024);
 			std::function<void(HttpRequest&, HttpResponse&)> HtmlFileRoute(const std::filesystem::path& Filename) {
 				return [Filename](HttpRequest& req, HttpResponse& resp) {
 					resp.ServeFile(Filename, "text/html");
 				};
 			};
 
-			inline void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path) {
+			inline void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path, size_t thresshold = 1024 * 1024) {
 				auto url = Url;
 				if (url.size() && url.front() != L'/')url = L"/" + url;
-				Routes({ url + L"/{Path}", ContentServer(Path) });
+				Routes({ url + L"/{Path}", ContentServer(Path, thresshold) });
 			}
-			inline void ContentRoutes(const std::filesystem::path& contentPath) {
+			inline void ContentRoutes(const std::filesystem::path& contentPath, size_t thresshold = 1024*1024) {
 				namespace fs = std::filesystem;
 				fs::path path;
 				if (contentPath.is_relative()) path = fs::current_path() / contentPath;
 				else path = contentPath;
 				for (const auto &p : fs::directory_iterator(path)) {
 					if (p.is_directory()) {
-						ContentRoute(L"/" + p.path().filename().wstring(), p);
+						ContentRoute(L"/" + p.path().filename().wstring(), p, thresshold);
 					}
 				}
 			}
@@ -399,6 +404,10 @@ namespace PVX {
 
 			void BasicAuthentication(std::function<void(const std::wstring&, const std::wstring&)> clb);
 			void EnableWebToken(const std::string& Key);
+
+			void FileServer(const std::wstring& Url, const std::initializer_list<std::filesystem::path>& roots);
+
+			void Bundle(const std::wstring& name, const std::initializer_list<std::filesystem::path>& files);
 		protected:
 			int SendResponse(TcpSocket&, HttpRequest & http, HttpResponse&);
 			void HandleRequest(TcpSocket &, HttpRequest &, Route & );

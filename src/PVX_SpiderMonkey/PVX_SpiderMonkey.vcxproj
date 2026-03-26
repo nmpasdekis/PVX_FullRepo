@@ -11,22 +11,23 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>16.0</VCProjectVersion>
-    <ProjectGuid>{6388E6D9-12CD-40E8-ACFD-BBCDCEFCFF31}</ProjectGuid>
-    <RootNamespace>PVXNetwork</RootNamespace>
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{5ceb00b4-fec1-4ebb-b8f0-7743ea05cf4f}</ProjectGuid>
+    <RootNamespace>PVXSpiderMonkey</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>ClangCL</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>ClangCL</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -37,42 +38,44 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\PVX_FullRepo.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\PVX_FullRepo.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\..\include;$(SolutionDir)include;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
-    <LibraryPath>$(SolutionDir)lib64\$(Configuration);$(ProjectDir)..\..\External\zlibBuild\$(Configuration);$(SolutionDir)External\zlibBuild\$(Configuration);$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\mozilla\gecko-dev\obj-x86_64-pc-windows-msvc\dist\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\mozilla\gecko-dev\obj-x86_64-pc-windows-msvc\js\src\build;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\..\include;$(SolutionDir)include;$(IncludePath)</IncludePath>
-    <OutDir>$(SolutionDir)lib64\$(Configuration)\</OutDir>
-    <LibraryPath>$(SolutionDir)lib64\$(Configuration);$(ProjectDir)..\..\External\zlibBuild\$(Configuration);$(SolutionDir)External\zlibBuild\$(Configuration);$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\mozilla\gecko-dev\obj-x86_64-pc-windows-msvc\dist\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\mozilla\gecko-dev\obj-x86_64-pc-windows-msvc\js\src\build;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_WIN32;WIN32_LEAN_AND_MEAN;NOMINMAX;_WIN32_WINNT=0x0A00
+;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mozjs-142a1.lib;winmm.lib;
+psapi.lib;
+dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalLibraryDirectories>D:\mozilla\gecko-dev\obj-x86_64-pc-windows-msvc\dist\include</AdditionalLibraryDirectories>
     </Lib>
     <ProjectReference>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -81,40 +84,30 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mozjs-142a1.lib;winmm.lib;
+psapi.lib;
+dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\mozilla\gecko-dev\obj-x86_64-pc-windows-msvc\dist\include</AdditionalLibraryDirectories>
     </Lib>
     <ProjectReference>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="mime.inl" />
+    <ClCompile Include="PVX_SpiderMonkey.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="PVX_DataBuilder.cpp" />
-    <ClCompile Include="PVX_HttpClient.cpp" />
-    <ClCompile Include="PVX_HttpRequest.cpp" />
-    <ClCompile Include="PVX_HttpResponse.cpp" />
-    <ClCompile Include="PVX_HttpServer.cpp" />
-    <ClCompile Include="PVX_TcpSocket.cpp" />
-    <ClCompile Include="PVX_UdpSocket.cpp" />
-    <ClCompile Include="PVX_UtfHelper.cpp" />
-    <ClCompile Include="PVX_WebSocket.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\include\PVX_Network.h" />
+    <ClInclude Include="..\..\include\PVX_SpiderMonkey.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

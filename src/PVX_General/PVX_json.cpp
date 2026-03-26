@@ -853,6 +853,30 @@ namespace PVX {
 
 		static std::wregex EscapeReplacer(LR"regex(\\[\\\"tnr\'])regex", std::regex_constants::optimize);
 
+		static void HandleEscapes(std::wstring& Text) {
+			size_t inCur = 0;
+			size_t outCur = 0;
+			inCur = outCur = Text.find('\\', 0);
+			if (inCur == std::string::npos) return;
+			for (; inCur < Text.size(); inCur++, outCur++) {
+				if (Text[inCur] == '\\' && inCur + 1 < Text.size()) {
+					switch (Text[inCur + 1]) {
+						case 't': Text[outCur] = '\t'; break;
+						case 'n': Text[outCur] = '\n'; break;
+						case 'r': Text[outCur] = '\r'; break;
+						case 'f': Text[outCur] = '\f'; break;
+						default: Text[outCur] = Text[inCur + 1]; break;
+					}
+					inCur++;
+				}
+				else {
+					Text[outCur] = Text[inCur];
+				}
+			}
+			Text.resize(outCur);
+			Text.shrink_to_fit();
+		}
+
 		static std::wstring RemoveStrings(const std::wstring_view& text, std::vector<std::wstring>& Strings) {
 			std::wstring Text = text.data();
 			auto index = Text.find('"');
@@ -864,15 +888,28 @@ namespace PVX {
 
 				auto txt = Text.substr(index + 1, end - index - 1);
 
-				txt = PVX::Replace(txt, EscapeReplacer, [](const std::wstring& x) -> std::wstring {
-					auto c = x[1];
-					switch (c) {
-						case 't': return L"\t";
-						case 'n': return L"\n";
-						case 'r': return L"\r";
-					}
-					return x.c_str() + 1;
-				});
+				//txt = PVX::String::Replace(txt, L"\\t", L"\t");
+				//txt = PVX::String::Replace(txt, L"\\n", L"\n");
+				//txt = PVX::String::Replace(txt, L"\\r", L"\r");
+				//txt = PVX::String::Replace(txt, L"\\\"", L"\"");
+				//txt = PVX::String::Replace(txt, L"\\\\", L"\\");
+				//auto txt2 = PVX::String::Replace(txt, L"\\", L"");
+
+				//auto txt2 = PVX::Replace(txt, EscapeReplacer, [](const std::wstring& x) -> std::wstring {
+				//	auto c = x[1];
+				//	switch (c) {
+				//		case 't': return L"\t";
+				//		case 'n': return L"\n";
+				//		case 'r': return L"\r";
+				//	}
+				//	return x.c_str() + 1;
+				//});
+
+				HandleEscapes(txt);
+
+				//if (txt != txt2) {
+				//	int dbg = 0;
+				//}
 
 				Strings.push_back(txt);
 				Text = Text.replace(index, end - index + 1, L"\x01");

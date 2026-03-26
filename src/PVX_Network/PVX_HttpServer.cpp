@@ -12,6 +12,7 @@
 #include<signal.h>
 #include<PVX.inl>
 #include<memory>
+#include<iostream>
 
 using namespace std::chrono_literals;
 
@@ -240,29 +241,49 @@ namespace PVX {
 			return Mime.at("");
 		}
 
-		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::filesystem::path& ContentPath) {
+		std::function<void(HttpRequest&, HttpResponse&)> HttpServer::ContentServer(const std::filesystem::path& ContentPath, size_t thresshold) {
 			namespace io = PVX::IO;
 			namespace fs = std::filesystem;
 
 			auto cPath = fs::current_path() / ContentPath;
 
-			return [cPath](HttpRequest& req, HttpResponse& resp) {
+			return [cPath, thresshold](HttpRequest& req, HttpResponse& resp) {
 				auto path = cPath / (std::wstring&)req.Variables[L"Path"];
 
 				if (!path.is_absolute()) {
 					resp.StatusCode = 403;
 					return;
 				}
-				io::FileExists(path.wstring());
+				io::FileExists(path);
 
 				if (!fs::exists(path)) { resp.StatusCode = 404; return; }
 
-				if (fs::file_size(path) < 1024 * 1024) {
-					resp.ServeFile(path.wstring());
+				if (fs::file_size(path) < thresshold) {
+					resp.ServeFile(path);
 				} else {
-					resp.StreamFile(req, path.wstring());
+					resp.StreamFile(req, path);
 				}
 			};
+		}
+
+//#define isSpace(c) (c==' '||c=='\t'||c=='\n'||c=='\r')
+
+		void HttpServer::Bundle(const std::wstring& name, const std::initializer_list<std::filesystem::path>& files) {
+			auto bPath = std::filesystem::path(name).stem();
+			
+			if (!std::filesystem::exists(bPath)) {
+				std::stringstream bundle;
+				for (const auto& f : files) {
+					bundle << PVX::IO::ReadText(f) << "\r\n";
+				}
+				PVX::IO::Write(bPath, bundle.str());
+				Routes(name, [b = bundle.str()](HttpResponse& resp) {
+					resp.Content.WriteText(b);
+				});
+			}
+			else Routes(name, [b = PVX::IO::ReadText(name)](HttpResponse& resp) {
+				resp.Content.WriteText(b);
+			});
 		}
 
 		std::wstring HttpServer::MakeSession() {
@@ -312,6 +333,36 @@ namespace PVX {
 			AddFilter(std::bind(&HttpServer::HandleWebToken, this, _1, _2));
 		}
 
+		void HttpServer::FileServer(const std::wstring & Url, const std::initializer_list<std::filesystem::path>& roots) {
+			namespace fs = std::filesystem;
+			std::wstring url = Url.back() == L'/' ? Url.substr(0, Url.length() - 1) : Url;
+			std::unordered_map<fs::path, fs::path> Roots;
+
+			for (const auto& r : roots) {
+				auto name = r.filename();
+				Roots[name] = r.parent_path();
+			}
+
+			this->Routes(url + L"/{Path}", [Roots](HttpRequest& req, HttpResponse& resp) {
+				std::filesystem::path p = req.Variables[L"Path"]();
+				auto r = p;
+				while (r.has_parent_path()) r = r.parent_path();
+				if (Roots.count(r)) {
+					auto fn = Roots.at(r) / p;
+					if (fs::is_directory(fn)) {
+						auto ls = PVX::Network::ls(fn);
+						ls["Files"] = ls["Files"].filter([](const PVX::JSON::Item& file) {
+							fs::path filename = file.String();
+							return (filename.extension() == ".mp4");
+						});
+						resp.Json(ls);
+					}
+					else
+						resp.StreamFile(req, fn);
+				}
+			});
+		}
+
 		int CompressContent(PVX_DataBuilder & Content) {
 			Content.SetData(PVX::Compress::Deflate(Content.GetDataVector()));
 			return 1;
@@ -331,30 +382,8 @@ namespace PVX {
 			for (auto & s : resp.Streams) 
 				ContentLength += s.Size;
 
-
 			resp.SendHeader(ContentLength);
 
-			//PVX_DataBuilder Response;
-			//Response << StatusCodes[resp.StatusCode];
-			//resp.Headers[L"date"] = GetDate();
-
-
-			//if (ContentLength) {
-			//	wchar_t tmp[128];
-			//	_ui64tow_s(ContentLength, tmp, 128, 10);
-			//	resp.Headers[L"content-length"] = tmp;
-			//}
-
-			//for (auto & h : resp.Headers)
-			//	Response << h.first << ": " << h.second << "\r\n";
-
-			//for(auto & h : resp.MoreHeaders)
-			//	Response << h.Name << ": " << h.Value << "\r\n";
-
-			//Response << "\r\n";
-
-
-			//if (Socket.Send(Response.GetDataVector()) < 0)return 1;
 			if (resp.Content.GetLength() && Socket.SendFragmented(resp.Content.GetDataVector()) < resp.Content.GetLength()) return 1;
 			for (auto & s : resp.Streams) {
 				s.Func(Socket);
@@ -386,6 +415,7 @@ namespace PVX {
 
 					for (auto & r : Router) {
 						if (r.Match(Request.QueryString, Request.Variables, Request.Get)) {
+							//std::wcout << Request.QueryString << "\n";
 							HandleRequest(Socket, Request, r);
 							return;
 						}
