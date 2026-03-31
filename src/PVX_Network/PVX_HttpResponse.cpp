@@ -13,10 +13,6 @@ namespace PVX::Network {
 		*buf = *localtime(timer);
 		return buf;
 	}
-	//inline struct tm* localtime_r(struct tm* buf, const time_t* timer) {
-	//	*buf = *localtime(timer);
-	//	return buf;
-	//}
 #endif
 
 	UtfHelper & HttpResponse::operator[](const std::wstring & Name) {

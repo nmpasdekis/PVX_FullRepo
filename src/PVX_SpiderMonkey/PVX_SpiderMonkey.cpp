@@ -21,10 +21,14 @@
 #include <js/Object.h>
 #include <js/PropertyAndElement.h>
 #include <jsfriendapi.h>
+#include <js/JSON.h>
 
 using NativeFunction = std::variant<
 	std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, std::vector<PVX::Javascript::jValue>)>,
-	std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>
+	std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>,
+	std::function<void(PVX::Javascript::Engine&, std::vector<PVX::Javascript::jValue>)>,
+	std::function<void(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>
+
 > ;
 
 struct ContextNode {
@@ -35,6 +39,7 @@ struct ContextNode {
 	ContextNode* next = nullptr;
 	PVX::Javascript::Engine* Engine;
 	std::vector<NativeFunction> Functions;
+	RefPtr<JS::Stencil> stencil = nullptr;
 	ContextNode() {
 		JS::InitSelfHostedCode(ctx.get());
 	}
@@ -49,6 +54,7 @@ namespace {
 			JS_ShutDown();
 		}
 	} SpiderMonkeyInit_;
+
 
 	static JSClass globalClass = {
 		"global",
@@ -94,6 +100,10 @@ namespace PVX::Javascript {
 		jValueData(JSContext* cx): val(cx) {}
 	};
 
+	std::wstring StencilCode;
+	void SetStencilCode(const std::wstring& code) {
+		StencilCode = code;
+	}
 	struct JSHelper {
 		static jValue makeJValue(const ContextNode* c, const std::shared_ptr<jValueData>& d) {
 			return jValue(c, d);
@@ -119,11 +129,8 @@ namespace PVX::Javascript {
 			if (JS_IsExceptionPending(c->ctx.get())) {
 				if (JS_GetPendingException(c->ctx.get(), &data->val)) {
 					JS_ClearPendingException(c->ctx.get());
-					auto keys = err.keys();
 					auto msg = err["message"].String();
 					auto stack = err["stack"].String();
-					auto fileName = err["fileName"].String();
-					auto lineNumber = err["lineNumber"].Integer();
 					return std::runtime_error(PVX::Encode::ToString(msg + L"\n" + stack));
 				}
 			}
@@ -131,9 +138,6 @@ namespace PVX::Javascript {
 		}
 		static JS::PersistentRooted<JS::Value> fromProxy(const ContextNode* c, const jValueProxy& v) {
 			JSContext* cx = c->ctx.get();
-			//auto data = std::make_shared<jValueData>(cx);
-			//auto& val = data->val;
-			//auto ret = jValue(c, data);
 			JS::PersistentRooted<JS::Value> val(cx);
 			switch (v.Type) {
 				case jValueProxy::jType::Null: val.set(JS::NullValue()); break;
@@ -160,6 +164,37 @@ namespace PVX::Javascript {
 				} break;
 			}
 			return val;
+		}
+		static void ApplyStencil(ContextNode& c) {
+			JSContext* cx = c.ctx.get();
+
+			if (!c.stencil) {
+				if (StencilCode.empty()) return;
+
+				JS::SourceText<char16_t> source;
+				if (!source.init(cx,
+					reinterpret_cast<const char16_t*>(StencilCode.c_str()),
+					StencilCode.size(),
+					JS::SourceOwnership::Borrowed))
+					throw std::runtime_error("Stencil source init failed");
+
+				JS::CompileOptions options(cx);
+				options.setFileAndLine("stencil", 1);
+
+				c.stencil = JS::CompileGlobalScriptToStencil(cx, options, source);
+				if (!c.stencil)
+					throw std::runtime_error("Stencil compilation failed");
+			}
+
+			JS::InstantiateOptions instantiateOptions;
+			JS::RootedScript script(cx,
+				JS::InstantiateGlobalStencil(cx, instantiateOptions, c.stencil));
+			if (!script)
+				throw std::runtime_error("Stencil instantiation failed");
+
+			JS::RootedValue rval(cx);
+			if (!JS_ExecuteScript(cx, script, &rval))
+				throw std::runtime_error("Stencil execution failed");
 		}
 	};
 
@@ -188,6 +223,23 @@ namespace PVX::Javascript {
 				if constexpr (std::is_same_v<T, std::function<jValue(Engine&, std::vector<jValue>)>>) {
 					return f(*node->Engine, jArgs);
 				}
+				else if constexpr(std::is_same_v<T, std::function<void(Engine&, std::vector<jValue>)>>) {
+					f(*node->Engine, jArgs);
+
+					auto data = std::make_shared<jValueData>(cx);
+					data->val.setUndefined();
+					return JSHelper::makeJValue(node, data);
+				}
+				else if constexpr(std::is_same_v<T, std::function<void(Engine&, jValue, std::vector<jValue>)>>) {
+					auto thisData = std::make_shared<jValueData>(cx);
+					thisData->val.set(args.thisv());
+					jValue thisVal = JSHelper::makeJValue(node, thisData);
+					f(*node->Engine, thisVal, jArgs);
+
+					auto data = std::make_shared<jValueData>(cx);
+					data->val.setUndefined();
+					return JSHelper::makeJValue(node, data);
+				} 
 				else {
 					auto thisData = std::make_shared<jValueData>(cx);
 					thisData->val.set(args.thisv());
@@ -215,32 +267,37 @@ namespace PVX::Javascript {
 		return jFunc(node, id, data);
 	}
 
-	jFunc Engine::Function(std::function<jValue(Engine&, std::vector<jValue>)> fn) {
+	jFunc Engine::Function_with_result(std::function<jValue(Engine&, std::vector<jValue>)> fn) {
 		int id = (int)Context->Functions.size();
 		Context->Functions.push_back(std::move(fn));
 		return MakeJFunc(Context, id);
 	}
 
-	jFunc Engine::Function(std::function<jValue(Engine&, jValue, std::vector<jValue>)> fn) {
+	jFunc Engine::Function_with_result(std::function<jValue(Engine&, jValue, std::vector<jValue>)> fn) {
+		int id = (int)Context->Functions.size();
+		Context->Functions.push_back(std::move(fn));
+		return MakeJFunc(Context, id);
+	}
+	jFunc Engine::Function(std::function<void(Engine&, std::vector<jValue>)> fn) {
 		int id = (int)Context->Functions.size();
 		Context->Functions.push_back(std::move(fn));
 		return MakeJFunc(Context, id);
 	}
 
-	void Init(int ContextCount) {
-		//Contexts.clear();
-		//Contexts.resize(ContextCount);
-		//for (auto i = 1; i < Contexts.size(); i++) {
-		//	Contexts[i - 1].next = &Contexts[i];
-		//}
-		//NextContext = &Contexts[0];
+	jFunc Engine::Function(std::function<void(Engine&, jValue, std::vector<jValue>)> fn) {
+		int id = (int)Context->Functions.size();
+		Context->Functions.push_back(std::move(fn));
+		return MakeJFunc(Context, id);
 	}
 
 	std::function<void(Engine&)> initFunction = nullptr;
+	std::function<void(Engine&)> initFunction2 = nullptr;
 
-	void Init(std::function<void(Engine&)> init, int ContextCount) {
+	void Init(std::function<void(Engine&)> init) {
 		initFunction = init;
-		Init(ContextCount);
+	}
+	void Init2(std::function<void(Engine&)> init) {
+		initFunction2 = init;
 	}
 	Engine::Engine(): Context{ Acquire() } {
 		ContextNode& c = *Context;
@@ -248,9 +305,6 @@ namespace PVX::Javascript {
 		JS::RealmOptions options;
 		c.global.emplace(c.ctx.get(), JS_NewGlobalObject(c.ctx.get(), &globalClass, nullptr,
 			JS::FireOnNewGlobalHook, options));
-		//c.global.init(c.ctx.get(),
-		//	JS_NewGlobalObject(c.ctx.get(), &globalClass, nullptr,
-		//		JS::FireOnNewGlobalHook, options));
 		JS::SetReservedSlot(c.global->get(), 0, JS::PrivateValue(Context));
 		c.realm = new JSAutoRealm(c.ctx.get(), c.global.value());
 		JS::InitRealmStandardClasses(c.ctx.get());
@@ -259,16 +313,17 @@ namespace PVX::Javascript {
 		data->val.set(JS::ObjectValue(*c.global.value().get()));
 		Global.emplace(jValue(Context, data));
 		if (initFunction) initFunction(*this);
+		JSHelper::ApplyStencil(c);
+		if (initFunction2) initFunction2(*this);
 	}
 	Engine::~Engine() {
+		Global.reset();
 		ContextNode& c = *Context;
 		c.Functions.clear();
-		delete c.realm;
 		c.global.value().reset();
 		c.global.reset();
-		//c.global.~PersistentRooted();
-		//new (&c.global) JS::PersistentRooted<JSObject*>();
-		Release(&c);
+		delete c.realm;
+		c.realm = nullptr;
 	}
 
 
@@ -283,27 +338,26 @@ namespace PVX::Javascript {
 		source.init(ctx, (char16_t*)src.c_str(), src.size(), JS::SourceOwnership::Borrowed);
 
 		JS::CompileOptions opts(ctx);
-		JS::Evaluate(ctx, opts, source, &(ret.Data->val));
+		if(!JS::Evaluate(ctx, opts, source, &(ret.Data->val)))
+			throw JSHelper::jsException(Context, "Fail to run");
 		return ret;
 	}
 	jValue Engine::RunFile(const std::filesystem::path& filename) {
 		auto src = L"//# sourceURL=" + filename.wstring() + L"\n" + PVX::IO::ReadUtf(filename);
 		ContextNode& c = *Context;
 		auto ctx = c.ctx.get();
-		//JS::RootedValue result(ctx);
 		auto ret = Global->New();
 
-		//JS::SourceText<mozilla::Utf8Unit> source;
 		JS::SourceText<char16_t> source;
 		source.init(ctx, (char16_t*)src.c_str(), src.size(), JS::SourceOwnership::Borrowed);
 
 		JS::CompileOptions opts(ctx);
-		JS::Evaluate(ctx, opts, source, &(ret.Data->val));
+		if(!JS::Evaluate(ctx, opts, source, &(ret.Data->val)))
+			throw JSHelper::jsException(Context, "Fail to run");
 		return ret;
 	}
 
 	namespace {
-
 		JS::Value resolvePath(
 			JSContext* cx,
 			JS::Value root,
@@ -372,6 +426,46 @@ namespace PVX::Javascript {
 			return true;
 		}
 	}
+
+	jValue Engine::ParseJSON(const std::wstring& json) {
+		JSContext* cx = Context->ctx.get();
+		JS::RootedValue result(cx);
+		if (!JS_ParseJSON(cx,
+			reinterpret_cast<const char16_t*>(json.c_str()),
+			json.size(),
+			&result))
+			throw std::runtime_error("JSON parse failed");
+		auto data = std::make_shared<jValueData>(cx);
+		data->val.set(result);
+		return JSHelper::makeJValue(Context, data);
+	}
+
+	std::wstring Engine::StringifyJSON(const jValue& value, bool format) {
+		JSContext* cx = Context->ctx.get();
+		JS::Value resolved = resolvePath(cx, value.Data->val.get(), value.path);
+		JS::RootedValue val(cx, resolved);
+
+		std::wstring result;
+		auto callback = [](const char16_t* buf, uint32_t len, void* data) -> bool {
+			auto* out = static_cast<std::wstring*>(data);
+			out->append(reinterpret_cast<const wchar_t*>(buf), len);
+			return true;
+		};
+
+		JS::RootedValue space(cx);
+		if (format) {
+			JS::RootedString tab(cx, JS_NewStringCopyZ(cx, "\t"));
+			space.setString(tab);
+		}
+		else {
+			space.setUndefined();
+		}
+		if (!JS_Stringify(cx, &val, nullptr, space, callback, &result))
+			throw std::runtime_error("JSON stringify failed");
+
+		return result;
+	}
+
 
 	jValue::jValue(const ContextNode* c, const std::shared_ptr<jValueData>& j)
 		: ctx(c), Data(j) {}
@@ -450,7 +544,6 @@ namespace PVX::Javascript {
 			}
 			else if constexpr (std::is_same_v<T, jValueProxy>) {
 				newData->val.set(JSHelper::fromProxy(ctx, v));
-				//newData->val.set(JSHelper::getData(rr)->val);
 			}
 		}, arg.Value);
 		return ret;
@@ -490,7 +583,6 @@ namespace PVX::Javascript {
 			throw std::runtime_error("Cannot invoke: parent is not an object");
 		JS::RootedObject parent(cx, &parentVal.toObject());
 
-		// Convert args to JS::Values via New()
 		std::vector<JS::Value> argVals;
 		argVals.reserve(args.size());
 		for (auto& arg : args)
@@ -576,8 +668,8 @@ namespace PVX::Javascript {
 			throw std::runtime_error("Value is not a string");
 		JS::RootedString str(ctx->ctx.get(), resolved.toString());
 		JS::UniqueChars chars = JS_EncodeStringToUTF8(ctx->ctx.get(), str);
-		// convert UTF-8 to wstring using your existing conversion function
-		return PVX::Decode::UTF(chars.get(), strlen(chars.get()));
+		std::wstring ret = PVX::Decode::UTF(chars.get(), strlen(chars.get()));
+		return ret;
 	}
 
 	jValue Engine::operator[](const std::string& name) {

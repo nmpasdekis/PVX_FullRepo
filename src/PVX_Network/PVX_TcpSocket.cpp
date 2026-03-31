@@ -6,6 +6,7 @@
 #ifndef __linux
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <processthreadsapi.h>
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "fwpuclnt.lib")
@@ -205,6 +206,7 @@ namespace PVX::Network {
 
 	int64_t TcpSocket::ReceiveAsync(void* data, size_t Size) {
 		auto cr = CanReadAsync();
+		//auto cr = CanRead();
 		if (cr > 0) {
 			return Receive(data, Size);
 		}
@@ -343,7 +345,10 @@ namespace PVX::Network {
 		Running = ServingSocket != nullptr;
 		if (ThreadCount <= 0) ThreadCount = std::max(1, (int)std::thread::hardware_concurrency() - 1);
 		for (auto i = 0; i < ThreadCount; i++) {
-			Workers.push_back(std::thread([this] {
+			Workers.push_back(std::thread([this, i] {
+#ifndef __linux
+				SetThreadDescription(GetCurrentThread(), (L"HttpWorker " + std::to_wstring(i)).c_str());
+#endif
 				for (;;) {
 					std::function<void()> NextTask;
 					{

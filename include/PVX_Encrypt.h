@@ -9,7 +9,8 @@ namespace PVX::Encrypt {
 	class CRC32_Algorithm {
 		unsigned int CRC32 = 0;
 	public:
-		enum{ BlockSize = 4, OutputSize = 4, Cycles = 1 };
+		enum{ BlockSize = 4, OutputSize = 4, Cycles = 1, Bits = 32 };
+		const char* alg = "CRC32";
 		CRC32_Algorithm& Update(const void* Message, size_t MessageSize);
 		std::array<unsigned char, 4> operator()();
 		unsigned int Get() { return CRC32; }
@@ -32,7 +33,8 @@ namespace PVX::Encrypt {
 	protected:
 		void ProcessBlock(void* Block);
 	public:
-		enum { BlockSize = 64, OutputSize = 20, Cycles = 80 };
+		enum { BlockSize = 64, OutputSize = 20, Cycles = 80, Bits = 128 };
+		const char* alg = "SHA1";
 		SHA1_Algorithm& Update(const void* Message, size_t MessageSize);
 		std::array<unsigned char, 20> operator()();
 		template<typename T>
@@ -56,7 +58,8 @@ namespace PVX::Encrypt {
 	protected:
 		void ProcessBlock(void* Block);
 	public:
-		enum { BlockSize = 64, OutputSize = 32, Cycles = 64 };
+		enum { BlockSize = 64, OutputSize = 32, Cycles = 64, Bits = 256 };
+		const char* alg = "SHA256";
 		SHA256_Algorithm& Update(const void* Message, size_t MessageSize);
 		std::array<unsigned char, 32> operator()();
 		template<typename T>
@@ -80,7 +83,8 @@ namespace PVX::Encrypt {
 	protected:
 		void ProcessBlock(void* Block);
 	public:
-		enum { BlockSize = 128, OutputSize = 64, Cycles = 80 };
+		enum { BlockSize = 128, OutputSize = 64, Cycles = 80, Bits = 512 };
+		const char* alg = "SHA512";
 		SHA512_Algorithm& Update(const void* Message, size_t MessageSize);
 		std::array<unsigned char, OutputSize> operator()();
 		template<typename T>

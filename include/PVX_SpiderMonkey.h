@@ -10,8 +10,6 @@
 
 struct ContextNode;
 namespace PVX::Javascript {
-	void Init(int ContextCount = 1);
-
 	class jValue;
 	struct jValueData;
 	struct jsBool {
@@ -72,6 +70,14 @@ namespace PVX::Javascript {
 		inline jValueProxy(double v): value{ v }, Type{ jType::Float } {};
 		inline jValueProxy(const wchar_t* v): value{ std::wstring(v) }, Type{ jType::String } {};
 		inline jValueProxy(const std::wstring& v): value{ std::wstring(v) }, Type{ jType::String } {};
+
+		inline jValueProxy& operator=(nullptr_t) { value = nullptr; Type = jType::Null; return *this; };
+		inline jValueProxy& operator=(jsUndefined) { value = nullptr; Type = jType::Undefined; return *this; };
+		inline jValueProxy& operator=(bool v) { value = v; Type = jType::Bool; return *this; };
+		inline jValueProxy& operator=(int v) { value = v; Type = jType::Integer; return *this; };
+		inline jValueProxy& operator=(double v) { value = v; Type = jType::Float; return *this; };
+		inline jValueProxy& operator=(const wchar_t* v) { value = std::wstring(v); Type = jType::String; return *this; };
+		inline jValueProxy& operator=(const std::wstring& v) { value = v; Type = jType::String; return *this; };
 	};
 
 	struct jArg {
@@ -159,8 +165,15 @@ namespace PVX::Javascript {
 		jValue Run(const std::wstring& source);
 		jValue RunFile(const std::filesystem::path& source);
 
-		jFunc Function(std::function<jValue(PVX::Javascript::Engine&, std::vector<jValue>)> fn);
-		jFunc Function(std::function<jValue(PVX::Javascript::Engine&, jValue, std::vector<jValue>)> fn);
+		jFunc Function_with_result(std::function<jValue(PVX::Javascript::Engine&, std::vector<jValue>)> fn);
+		jFunc Function_with_result(std::function<jValue(PVX::Javascript::Engine&, jValue, std::vector<jValue>)> fn);
+		jFunc Function(std::function<void(PVX::Javascript::Engine&, std::vector<jValue>)> fn);
+		jFunc Function(std::function<void(PVX::Javascript::Engine&, jValue, std::vector<jValue>)> fn);
+
+		jValue ParseJSON(const std::wstring& json);
+		std::wstring StringifyJSON(const jValue& value, bool format = false);
 	};
-	void Init(std::function<void(Engine&)> init, int ContextCount = 1);
+	void Init(std::function<void(Engine&)> init);
+	void SetStencilCode(const std::wstring& code);
+	void Init2(std::function<void(Engine&)> init);
 }

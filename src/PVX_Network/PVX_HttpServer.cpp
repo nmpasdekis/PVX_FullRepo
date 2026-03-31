@@ -20,6 +20,12 @@ using namespace std::chrono_literals;
 
 namespace PVX {
 	namespace Network {
+#ifdef __linux
+		inline struct tm* localtime_s(struct tm* buf, const time_t* timer) {
+			*buf = *localtime(timer);
+			return buf;
+		}
+#endif
 		typedef unsigned char uchar;
 
 		HttpServer::HttpServer() :DefaultRoute{ L"/{Path}", ContentServer() }, Mime{
@@ -235,8 +241,7 @@ namespace PVX {
 		}
 
 		const std::string & HttpServer::GetMime(const std::string & extension) const {
-			auto f = Mime.find(extension);
-			if (f != Mime.end())
+			if (auto f = Mime.find(extension); f != Mime.end())
 				return f->second;
 			return Mime.at("");
 		}
@@ -306,6 +311,58 @@ namespace PVX {
 
 		std::string BasicAuthentication(const std::string& Username, const std::string& Password) {
 			return "basic " + PVX::Encode::Base64Url(Username + ":" + Password);
+		}
+		std::string MakeJavaWebToken(const std::vector<uint8_t>& secret, const std::initializer_list<std::pair<std::wstring, std::variant<std::wstring, int64_t>>>& data, int ExpireMinutes) {
+			using namespace PVX::Encrypt;
+			auto header = PVX::Encode::Base64Url(R"({"alg":"HS256","typ":"JWT"})", true);
+			std::wstringstream plData;
+
+			time_t t = time(0);
+			//struct tm dt;
+			//localtime_s(&dt, &t);
+
+			plData << L"{";
+			for (auto& d : data) {
+				plData << L'"' << d.first << LR"(":)";
+				if (d.second.index() == 0)
+					plData << L'"' << std::get<0>(d.second) << LR"(",)";
+				else
+					plData << std::get<1>(d.second) << L',';
+			}
+			if(ExpireMinutes > 0) {
+				plData << LR"("iat":)" << t << LR"(,"exp":)" << (t + ExpireMinutes * 60);
+			} else {
+				plData << LR"("iat":)" << t;
+			}
+
+			plData << L"}";
+			auto payload = PVX::Encode::Base64Url(PVX::Encode::UtfString(plData.str()), true);
+			auto message = header + "." + payload;
+
+			auto signature = HMAC<SHA256_Algorithm>(secret, message);
+
+			return message + "." + PVX::Encode::Base64Url(signature.data(), signature.size(), true);
+
+			//auto usr = PVX::Encode::UTF(PVX::JSON::stringify(User));
+			//usr.resize(3 * ((usr.size() + 32 + 2) / 3) - 32 + 1);
+			//auto hash = HMAC<SHA256_Algorithm>(secret, usr);
+			//std::vector<unsigned char> FullToken(32 + 1 + usr.size());
+			//memcpy(&FullToken[0], hash.data(), 32);
+			//memcpy(&FullToken[32 + 1], usr.data(), usr.size());
+			//return PVX::Encode::Base64Url(FullToken);
+		}
+
+		PVX::JSON::Item ValidateJavaWebToken(const std::vector<uint8_t>& secret, const std::string& token, bool expires) {
+			using namespace PVX::Encrypt;
+			auto sp = PVX::String::Split(token, ".");
+			auto message = sp[0] + '.' + sp[1];
+			auto signature = PVX::Encode::Base64Url(HMAC<SHA256_Algorithm>(secret, message), true);
+			if(signature == sp[2]) {
+				auto data = PVX::JSON::parse(PVX::Decode::Base64Url(sp[1]));
+				if(!expires || data["exp"].Int64() > time(0))
+					return data;
+			}
+			return nullptr;
 		}
 
 		void HttpServer::BasicAuthentication(std::function<void(const std::wstring&, const std::wstring&)> clb) {
@@ -403,6 +460,9 @@ namespace PVX {
 		}
 		std::function<void(TcpSocket)> HttpServer::GetHandler() {
 			return [this](TcpSocket Socket) {
+#ifndef __linux
+				SetThreadDescription(GetCurrentThread(), L"Http Server");
+#endif
 
 				// Catch Memory Exceptions (maybe)
 				signal(SIGSEGV, [](int Signal) {

@@ -50,17 +50,18 @@ namespace PVX::Network {
 		if (!HasMore)
 			Message.clear();
 		struct {
-			unsigned char Opcode, Size;
+			uint8_t Opcode, Size;
 		} Header{};
 
 		Header.Opcode &= 0x07;
-		unsigned char Bytes[8];
+		uint8_t Bytes[8];
 		size_t MessageSize = 0;
 
-		unsigned char * SizeBytes = (unsigned char*)&MessageSize;
-		unsigned char Mask[4];
+		uint8_t * SizeBytes = (uint8_t*)&MessageSize;
+		uint8_t Mask[4];
 
-		int sz = Socket.ReceiveAsync(&Header, 2);
+		//int sz = Socket.ReceiveAsync(&Header, 2);
+		int sz = Socket.Receive(&Header, 2);
 		if (sz == 2) {
 			Opcode = (WebSocker_Opcode)(Header.Opcode & 0x0f);
 			HasMore = !(Header.Opcode & 0x80);
@@ -145,6 +146,9 @@ namespace PVX::Network {
 	void WebSocketPacket::Run(const std::wstring & Function, const PVX::JSON::Item & Params) {
 		Json({ { Function, Params } });
 	}
+	void WebSocketPacket::Run(const std::wstring & Function) {
+		Json({ { Function, PVX::JSON::jsElementType::Array } });
+	}
 	void WebSocketPacket::Data(const void * data, size_t Size) {
 		Opcode = 2;
 		Content.resize(Size);
@@ -190,7 +194,7 @@ namespace PVX::Network {
 	}
 
 	void WebSocketServer::Send(const std::string & ConnectionId, std::function<void(WebSocketPacket&)> Event) {
-		std::vector<std::string> ToDelete;
+		bool disconnected = false;
 		{
 			std::shared_lock<std::shared_mutex> lock{ ConnectionMutex };
 			if (!Connections.count(ConnectionId))return;
@@ -201,12 +205,10 @@ namespace PVX::Network {
 
 			auto& Socket = Connections.at(ConnectionId);
 			if (Socket.Socket.Send(Header, HeaderSize) < 0 || Socket.Socket.Send(Content.Content) < 0)
-				ToDelete.push_back(ConnectionId);
+				disconnected = true;
 		}
-		if(ToDelete.size()) {
-			std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
-			for (auto& id : ToDelete)
-				CloseConnection(id);
+		if(disconnected) {
+			CloseConnection(ConnectionId);
 		}
 	}
 	void WebSocketServer::SendGroup(const std::string & GroupName, std::function<void(WebSocketPacket&)> Event) {
@@ -354,7 +356,7 @@ namespace PVX::Network {
 					WebSocket Socket = s;
 					for (;;) {
 						if (auto res = Socket.Receive(); res < 0 || Socket.Opcode == WebSocket::WebSocker_Opcode::Opcode_Close) {
-							std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
+							//std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
 							CloseConnection(key);
 							break;
 						} else if (res > 0) {
@@ -405,10 +407,13 @@ namespace PVX::Network {
 			{
 				std::unique_lock<std::mutex> lock{ ThreadCleanerMutex };
 				ServingThreads[key] = std::thread([s, key, this, clb] {
+#ifndef __linux
+					SetThreadDescription(GetCurrentThread(), (L"WebSocket Worker " + std::to_wstring(ServingThreads.size())).c_str());
+#endif
 					WebSocket Socket = s;
 					for (;;) {
 						if (auto res = Socket.Receive(); res < 0 || Socket.Opcode == WebSocket::WebSocker_Opcode::Opcode_Close) {
-							std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
+							//std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
 							CloseConnection(key);
 							break;
 						} else if (res > 0) {
@@ -534,7 +539,7 @@ namespace PVX::Network {
 		}
 		return {};
 	}
-	std::vector<std::string> WebSocketServer::GetConnectionsGroup(const std::string& Name) {
+	std::vector<std::string> WebSocketServer::GetConnectionsGroups(const std::string& Name) {
 		if (ConnectionGroups.count(Name)) {
 			auto& g = ConnectionGroups[Name];
 			std::vector<std::string> ret;
@@ -555,14 +560,16 @@ namespace PVX::Network {
 
 	void WebSocketServer::CloseConnection(const std::string & ConnectionId) {
 		auto str = ConnectionId;
-
-		if (ConnectionGroups.count(str)) {
-			for (auto& c : ConnectionGroups)
-				for (auto& g : c.second)
-					GroupConnections[g].erase(str);
-			ConnectionGroups.erase(str);
+		{
+			std::unique_lock<std::shared_mutex> lock{ ConnectionMutex };
+			if (ConnectionGroups.count(str)) {
+				for (auto& c : ConnectionGroups)
+					for (auto& g : c.second)
+						GroupConnections[g].erase(str);
+				ConnectionGroups.erase(str);
+			}
+			Connections.erase(str);
 		}
-		Connections.erase(str);
 
 		if (onDisconnect != nullptr)onDisconnect(str);
 		
