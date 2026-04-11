@@ -22,13 +22,13 @@
 #include <js/PropertyAndElement.h>
 #include <jsfriendapi.h>
 #include <js/JSON.h>
+#include <js/BigInt.h>
 
 using NativeFunction = std::variant<
 	std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, std::vector<PVX::Javascript::jValue>)>,
 	std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>,
 	std::function<void(PVX::Javascript::Engine&, std::vector<PVX::Javascript::jValue>)>,
 	std::function<void(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>
-
 > ;
 
 struct ContextNode {
@@ -39,9 +39,24 @@ struct ContextNode {
 	ContextNode* next = nullptr;
 	PVX::Javascript::Engine* Engine;
 	std::vector<NativeFunction> Functions;
+	std::vector<NativeFunction> TransientFunctions;
 	RefPtr<JS::Stencil> stencil = nullptr;
+	bool released = true;
+	bool first = true;
+	void ReleaseGlobal() {
+		Functions.clear();
+		global.value().reset();
+		global.reset();
+		delete realm;
+		realm = nullptr;
+		released = true;
+	}
 	ContextNode() {
 		JS::InitSelfHostedCode(ctx.get());
+	}
+	~ContextNode() {
+		if(!released)
+			ReleaseGlobal();
 	}
 };
 
@@ -62,33 +77,13 @@ namespace {
 		&JS::DefaultGlobalClassOps
 	};
 
-	//std::mutex ContextAcquisitionMutex;
-	//std::condition_variable WaitForContext;
-	//std::vector<ContextNode> Contexts;
-	//ContextNode* NextContext;
-
-	//ContextNode * Acquire() {
-	//	std::unique_lock<std::mutex> lock{ ContextAcquisitionMutex };
-	//	WaitForContext.wait(lock, [] { return NextContext != nullptr; });
-	//	auto ret = NextContext;
-	//	NextContext = NextContext->next;
-	//	return ret;
-	//}
-
-	//void Release(ContextNode* ctx) {
-	//	{
-	//		std::lock_guard<std::mutex> lock{ ContextAcquisitionMutex };
-	//		ctx->next = NextContext;
-	//		NextContext = ctx;
-	//	}
-	//	WaitForContext.notify_one();
-	//}
-
 	ContextNode * Acquire() {
 		thread_local ContextNode ctx;
 		return &ctx;
 	}
 	void Release(ContextNode* ctx) {}
+
+	bool globalSharesEnginesLifetime = false;
 }
 
 
@@ -152,15 +147,18 @@ namespace PVX::Javascript {
 				case jValueProxy::jType::Object: {
 					JS::RootedObject obj(cx, JS_NewPlainObject(cx));
 					val.set(JS::ObjectValue(*obj));
-					for (auto& [k, v] : v.obj) //ret[k] = fromProxy(c, v);
+					for (auto& [k, v] : v.obj)
 						JS_SetProperty(cx, obj, k.c_str(), fromProxy(c, v));
 				} break;
 				case jValueProxy::jType::Array: {
 					JS::RootedObject obj(cx, JS::NewArrayObject(cx, v.arr.size()));
 					val.set(JS::ObjectValue(*obj));
 					int i = 0;
-					for (auto& v : v.arr) //ret[i++] = fromProxy(c, v);
+					for (auto& v : v.arr)
 						JS_SetElement(cx, obj, i++, fromProxy(c, v));
+				} break;
+				case jValueProxy::jType::Function: {
+					val.set(std::get<jFunc*>(v.value)->Data->val.get());
 				} break;
 			}
 			return val;
@@ -196,9 +194,54 @@ namespace PVX::Javascript {
 			if (!JS_ExecuteScript(cx, script, &rval))
 				throw std::runtime_error("Stencil execution failed");
 		}
+		static PVX::JSON::Item toJSON(JSContext* cx, const JS::Value& r) {
+			if(r.isNumeric()) {
+				if(r.isInt32()) return r.toInt32();
+				else if(r.isDouble()) return r.toDouble();
+				else if(r.isBigInt()) return JS::ToBigInt64(r.toBigInt());
+			} else if(r.isBoolean()) return r.toBoolean();
+			else if(r.isObject()) {
+				JS::RootedObject obj(cx, &r.toObject());
+				bool isArray = false;
+				JS::IsArrayObject(cx, obj, &isArray);
+				if(isArray) {
+					PVX::JSON::Item ret = PVX::JSON::jsElementType::Array;
+					uint32_t length;
+					JS::GetArrayLength(cx, obj, &length);
+					JS::RootedValue elem(cx);
+					for(auto i = 0; i < length; i++) {
+						if(!JS_GetElement(cx, obj, i, &elem)) continue;
+						ret.push(toJSON(cx, elem));
+					}
+				} else {
+					PVX::JSON::Item ret = PVX::JSON::jsElementType::Object;
+					JS::RootedIdVector props(cx);
+					if(!js::GetPropertyKeys(cx, obj, JSITER_OWNONLY, &props))
+						throw std::runtime_error("forEach: could not get keys");
+
+					for(size_t i = 0; i < props.length(); i++) {
+						JS::RootedId id(cx, props[i]);
+						JS::RootedValue idVal(cx);
+						if(!JS_IdToValue(cx, id, &idVal)) continue;
+						if(!idVal.isString()) continue;
+						JS::RootedString str(cx, idVal.toString());
+						JS::UniqueChars chars = JS_EncodeStringToUTF8(cx, str);
+						std::string key(chars.get());
+
+						JS::RootedValue elem(cx);
+						if(!JS_GetProperty(cx, obj, key.c_str(), &elem)) continue;
+						auto it = toJSON(cx, elem);
+						if(!it.IsUndefined())
+							ret[key] = it;
+					}
+					return ret;
+				}
+			}
+			return PVX::JSON::jsElementType::Undefined;
+		}
 	};
 
-	static bool NativeFunctionCallback(JSContext* cx, unsigned int argc, JS::Value* vp) {
+	static bool NativeFunctionCallback_RetVal(JSContext* cx, unsigned int argc, JS::Value* vp) {
 		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
 		JS::RootedObject callee(cx, &args.callee());
 		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
@@ -207,91 +250,326 @@ namespace PVX::Javascript {
 		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
 		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
 
-		auto fn = node->Functions[id];
+		auto fn = std::get<0>(node->Functions[id]);
 
 		std::vector<jValue> jArgs;
 		jArgs.reserve(argc);
-		for (unsigned i = 0; i < argc; i++) {
+		for(unsigned i = 0; i < argc; i++) {
 			auto data = std::make_shared<jValueData>(cx);
 			data->val.set(args[i]);
 			jArgs.emplace_back(JSHelper::makeJValue(node, data));
 		}
 
 		try {
-			jValue result = std::visit([&](auto&& f) -> jValue {
-				using T = std::decay_t<decltype(f)>;
-				if constexpr (std::is_same_v<T, std::function<jValue(Engine&, std::vector<jValue>)>>) {
-					return f(*node->Engine, jArgs);
-				}
-				else if constexpr(std::is_same_v<T, std::function<void(Engine&, std::vector<jValue>)>>) {
-					f(*node->Engine, jArgs);
-
-					auto data = std::make_shared<jValueData>(cx);
-					data->val.setUndefined();
-					return JSHelper::makeJValue(node, data);
-				}
-				else if constexpr(std::is_same_v<T, std::function<void(Engine&, jValue, std::vector<jValue>)>>) {
-					auto thisData = std::make_shared<jValueData>(cx);
-					thisData->val.set(args.thisv());
-					jValue thisVal = JSHelper::makeJValue(node, thisData);
-					f(*node->Engine, thisVal, jArgs);
-
-					auto data = std::make_shared<jValueData>(cx);
-					data->val.setUndefined();
-					return JSHelper::makeJValue(node, data);
-				} 
-				else {
-					auto thisData = std::make_shared<jValueData>(cx);
-					thisData->val.set(args.thisv());
-					jValue thisVal = JSHelper::makeJValue(node, thisData);
-					return f(*node->Engine, thisVal, jArgs);
-				}
-			}, fn);
-
+			auto result = fn(*node->Engine, jArgs);
 			args.rval().set(JSHelper::getData(result)->val.get());
 			return true;
-		} catch (std::exception& e) {
-			JS_ReportErrorASCII(cx, e.what());
+		} catch(const std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+	static bool NativeFunctionCallback_ThisRetVal(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<1>(node->Functions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			auto thisData = std::make_shared<jValueData>(cx);
+			thisData->val.set(args.thisv());
+			jValue thisVal = JSHelper::makeJValue(node, thisData);
+			if(args.isConstructing()) {
+				fn(*node->Engine, thisVal, jArgs);
+				args.rval().set(args.thisv());
+				return true;
+			}
+			else {
+				jValue result = fn(*node->Engine, thisVal, jArgs);
+				args.rval().set(JSHelper::getData(result)->val.get());
+				return true;
+			}
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+	static bool NativeFunctionCallback_Void(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<2>(node->Functions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			fn(*node->Engine, jArgs);
+			return true;
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+	static bool NativeFunctionCallback_ThisVoid(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<3>(node->Functions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			auto thisData = std::make_shared<jValueData>(cx);
+			thisData->val.set(args.thisv());
+			jValue thisVal = JSHelper::makeJValue(node, thisData);
+			fn(*node->Engine, thisVal, jArgs);
+			if(args.isConstructing()) args.rval().set(args.thisv());
+			return true;
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
 			return false;
 		}
 	}
 
-	static jFunc MakeJFunc(ContextNode* node, int id) {
+	static bool Transient_NativeFunctionCallback_RetVal(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<0>(node->TransientFunctions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			auto result = fn(*node->Engine, jArgs);
+			args.rval().set(JSHelper::getData(result)->val.get());
+			return true;
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+	static bool Transient_NativeFunctionCallback_ThisRetVal(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<1>(node->TransientFunctions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			auto thisData = std::make_shared<jValueData>(cx);
+			thisData->val.set(args.thisv());
+			jValue thisVal = JSHelper::makeJValue(node, thisData);
+			if(args.isConstructing()) {
+				fn(*node->Engine, thisVal, jArgs);
+				args.rval().set(args.thisv());
+				return true;
+			} else {
+				jValue result = fn(*node->Engine, thisVal, jArgs);
+				args.rval().set(JSHelper::getData(result)->val.get());
+				return true;
+			}
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+	static bool Transient_NativeFunctionCallback_Void(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<2>(node->TransientFunctions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			fn(*node->Engine, jArgs);
+			return true;
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+	static bool Transient_NativeFunctionCallback_ThisVoid(JSContext* cx, unsigned int argc, JS::Value* vp) {
+		JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+		JS::RootedObject callee(cx, &args.callee());
+		JS::Value idSlot = JS::GetReservedSlot(callee, 0);
+		int id = idSlot.toInt32();
+
+		JS::RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
+		ContextNode* node = static_cast<ContextNode*>(JS::GetReservedSlot(global, 0).toPrivate());
+
+		auto fn = std::get<3>(node->TransientFunctions[id]);
+
+		std::vector<jValue> jArgs;
+		jArgs.reserve(argc);
+		for(unsigned i = 0; i < argc; i++) {
+			auto data = std::make_shared<jValueData>(cx);
+			data->val.set(args[i]);
+			jArgs.emplace_back(JSHelper::makeJValue(node, data));
+		}
+
+		try {
+			auto thisData = std::make_shared<jValueData>(cx);
+			thisData->val.set(args.thisv());
+			jValue thisVal = JSHelper::makeJValue(node, thisData);
+			fn(*node->Engine, thisVal, jArgs);
+			if(args.isConstructing()) args.rval().set(args.thisv());
+			return true;
+		} catch(std::exception& e) {
+			JS_ReportErrorASCII(cx, "%s", e.what());
+			return false;
+		}
+	}
+
+	//static void NativeFunctionFinalizer_RetVal(JS::GCContext* gcx, JSObject* obj) {
+	//	using FnType = std::function<jValue(Engine&, std::vector<jValue>)>;
+	//	auto* fn = static_cast<FnType*>(JS::GetReservedSlot(obj, 0).toPrivate());
+	//	delete fn;
+	//}
+
+	//static JSClassOps NativeFunctionClassOps_RetVal = {
+	//	nullptr, nullptr, nullptr, nullptr,
+	//	nullptr, nullptr,
+	//	NativeFunctionFinalizer_RetVal, nullptr, nullptr, nullptr
+	//};
+
+	//static JSClass NativeFunctionClass_RetVal = {
+	//	"NativeFunction_RetVal",
+	//	JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_BACKGROUND_FINALIZE,
+	//	&NativeFunctionClassOps_RetVal
+	//};
+
+
+	static jFunc MakeJFunc(ContextNode* node, int id, JSNative nat) {
 		JSContext* cx = node->ctx.get();
 		JS::RootedFunction jsFunc(cx,
-			JS_NewFunction(cx, NativeFunctionCallback, 0, 0, nullptr));
+			JS_NewFunction(cx, nat, 0, 0, nullptr));
 		JS::RootedObject fnObj(cx, JS_GetFunctionObject(jsFunc));
 		JS::SetReservedSlot(fnObj, 0, JS::Int32Value(id));
 		auto data = std::make_shared<jValueData>(cx);
 		data->val.set(JS::ObjectValue(*fnObj));
-		return jFunc(node, id, data);
+		return JSHelper::makeJFunc(node, id, data);
 	}
 
 	jFunc Engine::Function_with_result(std::function<jValue(Engine&, std::vector<jValue>)> fn) {
-		int id = (int)Context->Functions.size();
-		Context->Functions.push_back(std::move(fn));
-		return MakeJFunc(Context, id);
+		if(Context->first) {
+			int id = (int)Context->Functions.size();
+			Context->Functions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, NativeFunctionCallback_RetVal);
+		} else {
+			int id = (int)Context->TransientFunctions.size();
+			Context->TransientFunctions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, Transient_NativeFunctionCallback_RetVal);
+		}
 	}
 
 	jFunc Engine::Function_with_result(std::function<jValue(Engine&, jValue, std::vector<jValue>)> fn) {
-		int id = (int)Context->Functions.size();
-		Context->Functions.push_back(std::move(fn));
-		return MakeJFunc(Context, id);
+		if(Context->first) {
+			int id = (int)Context->Functions.size();
+			Context->Functions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, NativeFunctionCallback_ThisRetVal);
+		} else {
+			int id = (int)Context->TransientFunctions.size();
+			Context->TransientFunctions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, Transient_NativeFunctionCallback_ThisRetVal);
+		}
 	}
 	jFunc Engine::Function(std::function<void(Engine&, std::vector<jValue>)> fn) {
-		int id = (int)Context->Functions.size();
-		Context->Functions.push_back(std::move(fn));
-		return MakeJFunc(Context, id);
+		if(Context->first) {
+			int id = (int)Context->Functions.size();
+			Context->Functions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, NativeFunctionCallback_Void);
+		} else {
+			int id = (int)Context->TransientFunctions.size();
+			Context->TransientFunctions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, Transient_NativeFunctionCallback_Void);
+		}
 	}
 
 	jFunc Engine::Function(std::function<void(Engine&, jValue, std::vector<jValue>)> fn) {
-		int id = (int)Context->Functions.size();
-		Context->Functions.push_back(std::move(fn));
-		return MakeJFunc(Context, id);
+		if(Context->first) {
+			int id = (int)Context->Functions.size();
+			Context->Functions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, NativeFunctionCallback_ThisVoid);
+		} else {
+			int id = (int)Context->TransientFunctions.size();
+			Context->TransientFunctions.push_back(std::move(fn));
+			return MakeJFunc(Context, id, Transient_NativeFunctionCallback_ThisVoid);
+		}
 	}
 
 	std::function<void(Engine&)> initFunction = nullptr;
 	std::function<void(Engine&)> initFunction2 = nullptr;
+	std::function<void(Engine&)> onCreateEngine = nullptr;
 
 	void Init(std::function<void(Engine&)> init) {
 		initFunction = init;
@@ -299,31 +577,47 @@ namespace PVX::Javascript {
 	void Init2(std::function<void(Engine&)> init) {
 		initFunction2 = init;
 	}
-	Engine::Engine(): Context{ Acquire() } {
+	void OnCreateEngine(std::function<void(Engine&)> init) {
+		onCreateEngine = init;
+	}
+
+	void GlobalSharesEnginesLifetime(bool value) {
+		globalSharesEnginesLifetime = value;
+	}
+
+	Engine::Engine(): Context{ Acquire() }, release{ globalSharesEnginesLifetime } {
 		ContextNode& c = *Context;
 		c.Engine = this;
-		JS::RealmOptions options;
-		c.global.emplace(c.ctx.get(), JS_NewGlobalObject(c.ctx.get(), &globalClass, nullptr,
-			JS::FireOnNewGlobalHook, options));
-		JS::SetReservedSlot(c.global->get(), 0, JS::PrivateValue(Context));
-		c.realm = new JSAutoRealm(c.ctx.get(), c.global.value());
-		JS::InitRealmStandardClasses(c.ctx.get());
+		if(c.released) {
+			JS::RealmOptions options;
+			c.global.emplace(c.ctx.get(), JS_NewGlobalObject(c.ctx.get(), &globalClass, nullptr,
+				JS::FireOnNewGlobalHook, options));
+			JS::SetReservedSlot(c.global->get(), 0, JS::PrivateValue(Context));
+			c.realm = new JSAutoRealm(c.ctx.get(), c.global.value());
+			JS::InitRealmStandardClasses(c.ctx.get());
+		}
 
 		auto data = std::make_shared<jValueData>(c.ctx.get());
 		data->val.set(JS::ObjectValue(*c.global.value().get()));
 		Global.emplace(jValue(Context, data));
-		if (initFunction) initFunction(*this);
-		JSHelper::ApplyStencil(c);
-		if (initFunction2) initFunction2(*this);
+
+		if(c.released) {
+			if(initFunction) initFunction(*this);
+			JSHelper::ApplyStencil(c);
+			if(initFunction2) initFunction2(*this);
+		}
+		c.released = false;
+		if(onCreateEngine) onCreateEngine(*this);
 	}
 	Engine::~Engine() {
 		Global.reset();
 		ContextNode& c = *Context;
-		c.Functions.clear();
-		c.global.value().reset();
-		c.global.reset();
-		delete c.realm;
-		c.realm = nullptr;
+		c.Engine = nullptr;
+
+		if(release) {
+			c.ReleaseGlobal();
+		}
+		c.TransientFunctions.clear();
 	}
 
 
@@ -335,7 +629,8 @@ namespace PVX::Javascript {
 
 		//JS::SourceText<mozilla::Utf8Unit> source;
 		JS::SourceText<char16_t> source;
-		source.init(ctx, (char16_t*)src.c_str(), src.size(), JS::SourceOwnership::Borrowed);
+		if(!source.init(ctx, (char16_t*)src.c_str(), src.size(), JS::SourceOwnership::Borrowed))
+			throw JSHelper::jsException(Context, "Fail to read code??");
 
 		JS::CompileOptions opts(ctx);
 		if(!JS::Evaluate(ctx, opts, source, &(ret.Data->val)))
@@ -349,7 +644,8 @@ namespace PVX::Javascript {
 		auto ret = Global->New();
 
 		JS::SourceText<char16_t> source;
-		source.init(ctx, (char16_t*)src.c_str(), src.size(), JS::SourceOwnership::Borrowed);
+		if(!source.init(ctx, (char16_t*)src.c_str(), src.size(), JS::SourceOwnership::Borrowed))
+			throw JSHelper::jsException(Context, "Fail to read code??");
 
 		JS::CompileOptions opts(ctx);
 		if(!JS::Evaluate(ctx, opts, source, &(ret.Data->val)))
@@ -648,6 +944,12 @@ namespace PVX::Javascript {
 		return operator=(jArg(const_cast<jValue*>(&value)));
 	}
 
+	PVX::JSON::Item jValue::toJSON() {
+		auto cx = ctx->ctx.get();
+		JS::Value r = resolvePath(cx, Data->val.get(), path);
+		return JSHelper::toJSON(cx, r);
+	}
+
 	int64_t jValue::Integer() {
 		JS::Value resolved = resolvePath(ctx->ctx.get(), Data->val.get(), path);
 		if (!resolved.isNumber())
@@ -670,6 +972,40 @@ namespace PVX::Javascript {
 		JS::UniqueChars chars = JS_EncodeStringToUTF8(ctx->ctx.get(), str);
 		std::wstring ret = PVX::Decode::UTF(chars.get(), strlen(chars.get()));
 		return ret;
+	}
+
+	jValueProxy jValueProxy::FromJSON(const PVX::JSON::Item& val) {
+		switch(val.Type()) {
+		case PVX::JSON::jsElementType::Null:
+			return nullptr;
+		case PVX::JSON::jsElementType::Integer:
+			return val.NumberSafeInteger();
+		case PVX::JSON::jsElementType::Float:
+			return val.Double();
+		case PVX::JSON::jsElementType::String:
+			return val.String();
+		case PVX::JSON::jsElementType::Boolean:
+			return val.Boolean();
+		case PVX::JSON::jsElementType::Array:
+		{
+			jValueProxy ret(jType::Array);
+			for(auto& i : val.Array()) ret.arr.emplace_back(FromJSON(i));
+			return ret;
+		}
+		case PVX::JSON::jsElementType::Object:
+		{
+			jValueProxy ret(jType::Object);
+			for(auto& [k, v] : val.Object()) {
+				auto& vv = *v.get();
+				if(!vv.IsUndefined()) ret.obj.emplace(PVX::Encode::ToString(k), FromJSON(vv));
+			}
+			return ret;
+		}
+		case PVX::JSON::jsElementType::Undefined:
+			//return jsUndefined::Undefined;
+		default:
+			return jsUndefined::Undefined;
+		}
 	}
 
 	jValue Engine::operator[](const std::string& name) {
@@ -699,15 +1035,21 @@ namespace PVX::Javascript {
 	bool jValue::isNumber() const {
 		return resolvePath(ctx->ctx.get(), Data->val.get(), path).isNumber();
 	}
+	bool jValue::isInteger() const {
+		return resolvePath(ctx->ctx.get(), Data->val.get(), path).isInt32();
+	}
+	bool jValue::isFloat() const {
+		return resolvePath(ctx->ctx.get(), Data->val.get(), path).isDouble();
+	}
 
 	bool jValue::isString() const {
 		return resolvePath(ctx->ctx.get(), Data->val.get(), path).isString();
 	}
 
 	bool jValue::isObject() const {
-		auto v = resolvePath(ctx->ctx.get(), Data->val.get(), path);
-		if (!v.isObject()) return false;
 		JSContext* cx = ctx->ctx.get();
+		auto v = resolvePath(cx, Data->val.get(), path);
+		if (!v.isObject()) return false;
 		JS::RootedObject obj(cx, &v.toObject());
 		bool result = false;
 		JS::IsArrayObject(cx, obj, &result);
@@ -715,9 +1057,9 @@ namespace PVX::Javascript {
 	}
 
 	bool jValue::isArray() const {
-		auto v = resolvePath(ctx->ctx.get(), Data->val.get(), path);
-		if (!v.isObject()) return false;
 		JSContext* cx = ctx->ctx.get();
+		auto v = resolvePath(cx, Data->val.get(), path);
+		if (!v.isObject()) return false;
 		JS::RootedObject obj(cx, &v.toObject());
 		bool result = false;
 		JS::IsArrayObject(cx, obj, &result);
@@ -726,7 +1068,7 @@ namespace PVX::Javascript {
 	
 	bool jValue::operator!() const {
 		JSContext* cx = ctx->ctx.get();
-		auto v = resolvePath(ctx->ctx.get(), Data->val.get(), path);
+		auto v = resolvePath(cx, Data->val.get(), path);
 		if (v.isNull() || v.isUndefined()) return true;
 		if (v.isBoolean()) return !v.toBoolean();
 		if (v.isNumber()) return v.toNumber() == 0.0 || std::isnan(v.toNumber());

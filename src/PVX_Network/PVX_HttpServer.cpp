@@ -187,16 +187,16 @@ namespace PVX {
 			return 0;
 		}
 
-		void HttpServer::Routes(const Route & r) {
-			Router.push_back(r);
+		Route& HttpServer::Routes(const Route & r) {
+			return Router.emplace_back(r);
 		}
-		void HttpServer::Routes(const std::wstring & Url, std::function<void(HttpRequest&, HttpResponse&)> Action) {
+		Route& HttpServer::Routes(const std::wstring & Url, std::function<void(HttpRequest&, HttpResponse&)> Action) {
 			auto url = Url;
 			if (url.front() != L'/')url = L"/" + url;
-			Router.push_back({ url, Action });
+			return Router.emplace_back( url, Action);
 		}
-		void HttpServer::Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action) {
-			Router.push_back({ url, Names, Action });
+		Route& HttpServer::Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action) {
+			return Router.emplace_back(url, Names, Action);
 		}
 
 		void HttpServer::Routes(const std::initializer_list<Route>& routes) {
@@ -318,8 +318,6 @@ namespace PVX {
 			std::wstringstream plData;
 
 			time_t t = time(0);
-			//struct tm dt;
-			//localtime_s(&dt, &t);
 
 			plData << L"{";
 			for (auto& d : data) {
@@ -342,25 +340,19 @@ namespace PVX {
 			auto signature = HMAC<SHA256_Algorithm>(secret, message);
 
 			return message + "." + PVX::Encode::Base64Url(signature.data(), signature.size(), true);
-
-			//auto usr = PVX::Encode::UTF(PVX::JSON::stringify(User));
-			//usr.resize(3 * ((usr.size() + 32 + 2) / 3) - 32 + 1);
-			//auto hash = HMAC<SHA256_Algorithm>(secret, usr);
-			//std::vector<unsigned char> FullToken(32 + 1 + usr.size());
-			//memcpy(&FullToken[0], hash.data(), 32);
-			//memcpy(&FullToken[32 + 1], usr.data(), usr.size());
-			//return PVX::Encode::Base64Url(FullToken);
 		}
 
 		PVX::JSON::Item ValidateJavaWebToken(const std::vector<uint8_t>& secret, const std::string& token, bool expires) {
 			using namespace PVX::Encrypt;
 			auto sp = PVX::String::Split(token, ".");
-			auto message = sp[0] + '.' + sp[1];
-			auto signature = PVX::Encode::Base64Url(HMAC<SHA256_Algorithm>(secret, message), true);
-			if(signature == sp[2]) {
-				auto data = PVX::JSON::parse(PVX::Decode::Base64Url(sp[1]));
-				if(!expires || data["exp"].Int64() > time(0))
-					return data;
+			if(sp.size() == 3) {
+				auto message = sp[0] + '.' + sp[1];
+				auto signature = PVX::Encode::Base64Url(HMAC<SHA256_Algorithm>(secret, message), true);
+				if(signature == sp[2]) {
+					auto data = PVX::JSON::parse(PVX::Decode::Base64Url(sp[1]));
+					if(!expires || data["exp"].Int64() > time(0))
+						return data;
+				}
 			}
 			return nullptr;
 		}
@@ -390,7 +382,7 @@ namespace PVX {
 			AddFilter(std::bind(&HttpServer::HandleWebToken, this, _1, _2));
 		}
 
-		void HttpServer::FileServer(const std::wstring & Url, const std::initializer_list<std::filesystem::path>& roots) {
+		Route& HttpServer::FileServer(const std::wstring & Url, const std::initializer_list<std::filesystem::path>& roots) {
 			namespace fs = std::filesystem;
 			std::wstring url = Url.back() == L'/' ? Url.substr(0, Url.length() - 1) : Url;
 			std::unordered_map<fs::path, fs::path> Roots;
@@ -400,7 +392,7 @@ namespace PVX {
 				Roots[name] = r.parent_path();
 			}
 
-			this->Routes(url + L"/{Path}", [Roots](HttpRequest& req, HttpResponse& resp) {
+			return this->Routes(url + L"/{Path}", [Roots](HttpRequest& req, HttpResponse& resp) {
 				std::filesystem::path p = req.Variables[L"Path"]();
 				auto r = p;
 				while (r.has_parent_path()) r = r.parent_path();
@@ -408,10 +400,10 @@ namespace PVX {
 					auto fn = Roots.at(r) / p;
 					if (fs::is_directory(fn)) {
 						auto ls = PVX::Network::ls(fn);
-						ls["Files"] = ls["Files"].filter([](const PVX::JSON::Item& file) {
-							fs::path filename = file.String();
-							return (filename.extension() == ".mp4");
-						});
+						//ls["Files"] = ls["Files"].filter([](const PVX::JSON::Item& file) {
+						//	fs::path filename = file.String();
+						//	return (filename.extension() == ".mp4");
+						//});
 						resp.Json(ls);
 					}
 					else
@@ -457,6 +449,9 @@ namespace PVX {
 
 		void HttpServer::AddFilter(std::function<int(HttpRequest&, HttpResponse&)> Filter) {
 			Filters.push_back(Filter);
+		}
+		void HttpServer::AddNamedFilter(const std::string& Name, std::function<int(HttpRequest&, HttpResponse&, const PVX::JSON::Item&)> Filter) {
+			NamedFilters.emplace(Name, Filter);
 		}
 		std::function<void(TcpSocket)> HttpServer::GetHandler() {
 			return [this](TcpSocket Socket) {

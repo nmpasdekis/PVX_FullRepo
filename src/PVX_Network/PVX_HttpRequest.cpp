@@ -142,6 +142,13 @@ namespace PVX::Network {
 				}
 			}
 
+			for(auto& n : route.Filters) {
+				if(NamedFilters.count(n.first) && !NamedFilters.at(n.first)(http, Response, n.second)) {
+					SendResponse(Socket, http, Response);
+					return;
+				}				
+			}
+
 			route.Run(http, Response);
 			if (!Response.Handled)
 				SendResponse(Socket, http, Response);

@@ -156,11 +156,11 @@ namespace PVX::Network {
 		StatusCode = Status;
 	}
 
-	void HttpResponse::Json(const std::wstring & json) {
+	void HttpResponse::JsonString(const std::wstring & json) {
 		Content.WriteUTF(json);
 		Headers[L"content-type"] = L"application/json";
 	}
-	void HttpResponse::Json(const std::string & json) {
+	void HttpResponse::JsonString(const std::string & json) {
 		Content.WriteText(json);
 		Headers[L"content-type"] = L"application/json";
 	}

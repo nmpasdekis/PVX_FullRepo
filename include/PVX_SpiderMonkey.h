@@ -6,10 +6,12 @@
 #include<optional>
 #include<functional>
 #include<filesystem>
+#include<PVX_JSON.h>
 
 
 struct ContextNode;
 namespace PVX::Javascript {
+	class Engine;
 	class jValue;
 	struct jValueData;
 	struct jsBool {
@@ -17,6 +19,13 @@ namespace PVX::Javascript {
 		jsBool(bool b): val(b) {}
 	};
 	enum class jsUndefined { Undefined };
+
+	using NativeFunction = std::variant<
+		std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, std::vector<PVX::Javascript::jValue>)>,
+		std::function<PVX::Javascript::jValue(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>,
+		std::function<void(PVX::Javascript::Engine&, std::vector<PVX::Javascript::jValue>)>,
+		std::function<void(PVX::Javascript::Engine&, PVX::Javascript::jValue, std::vector<PVX::Javascript::jValue>)>
+	>;
 
 	class jFunc {
 	public:
@@ -32,7 +41,6 @@ namespace PVX::Javascript {
 			: ctx(c), id(id), Data(d) {}
 		friend class Engine;
 		friend class jValue;
-		friend jFunc MakeJFunc(ContextNode*, int);
 		friend struct JSHelper;
 	};
 
@@ -46,12 +54,13 @@ namespace PVX::Javascript {
 		jValueProxy() = default;
 		jValueProxy(const jValueProxy&) = default;
 		jValueProxy(jValueProxy&&) = default;
-		using vTypes = std::variant<nullptr_t, jsUndefined, jsBool, int64_t, double, std::wstring>;
-		enum class jType { Null, Undefined, Bool, Integer, Float, String, Object, Array } Type;
+		using vTypes = std::variant<nullptr_t, jsUndefined, jsBool, int64_t, double, std::wstring, jFunc*>;
+		enum class jType { Null, Undefined, Bool, Integer, Float, String, Object, Array, Function } Type;
 		vTypes value;
 		std::unordered_map<std::string, jValueProxy> obj;
 		std::vector<jValueProxy> arr;
 
+		inline jValueProxy(enum class jType t): Type{ t } {}
 		inline jValueProxy(const std::initializer_list<std::pair<const char*, jValueProxy>>& t): Type{ jType::Object } {
 			for (auto& [k, v] : t) {
 				obj.emplace(std::string(k), v);
@@ -70,14 +79,19 @@ namespace PVX::Javascript {
 		inline jValueProxy(double v): value{ v }, Type{ jType::Float } {};
 		inline jValueProxy(const wchar_t* v): value{ std::wstring(v) }, Type{ jType::String } {};
 		inline jValueProxy(const std::wstring& v): value{ std::wstring(v) }, Type{ jType::String } {};
+		inline jValueProxy(const jFunc& v): value{ &v }, Type{ jType::Function } {};
 
 		inline jValueProxy& operator=(nullptr_t) { value = nullptr; Type = jType::Null; return *this; };
 		inline jValueProxy& operator=(jsUndefined) { value = nullptr; Type = jType::Undefined; return *this; };
 		inline jValueProxy& operator=(bool v) { value = v; Type = jType::Bool; return *this; };
+		inline jValueProxy& operator=(int64_t v) { value = v; Type = jType::Integer; return *this; };
 		inline jValueProxy& operator=(int v) { value = v; Type = jType::Integer; return *this; };
 		inline jValueProxy& operator=(double v) { value = v; Type = jType::Float; return *this; };
 		inline jValueProxy& operator=(const wchar_t* v) { value = std::wstring(v); Type = jType::String; return *this; };
 		inline jValueProxy& operator=(const std::wstring& v) { value = v; Type = jType::String; return *this; };
+		inline jValueProxy& operator=(const jFunc& v) { value = &v; Type = jType::Function; return *this; };
+		
+		static jValueProxy FromJSON(const PVX::JSON::Item& val);
 	};
 
 	struct jArg {
@@ -100,11 +114,6 @@ namespace PVX::Javascript {
 		jArgVar& operator()() { return Value; };
 	};
 	
-	//using jArg = std::variant<nullptr_t, jsUndefined, jsBool, int64_t, double, std::wstring, jValue*, jFunc>;
-	//using jArg = jArg2;
-
-	
-
 	class jValue {
 	public:
 		int64_t Integer();
@@ -140,6 +149,7 @@ namespace PVX::Javascript {
 		void forEach(std::function<void(int, jValue)> fn);
 		void forEach(std::function<void(const std::string&, jValue)> fn);
 
+		PVX::JSON::Item toJSON();
 	private:
 		const ContextNode* ctx;
 		std::shared_ptr<jValueData> Data;
@@ -155,6 +165,7 @@ namespace PVX::Javascript {
 	class Engine {
 		ContextNode * Context;
 		std::optional<jValue> Global;
+		bool release;
 	public:
 		Engine();
 		~Engine();
@@ -176,4 +187,6 @@ namespace PVX::Javascript {
 	void Init(std::function<void(Engine&)> init);
 	void SetStencilCode(const std::wstring& code);
 	void Init2(std::function<void(Engine&)> init);
+	void OnCreateEngine(std::function<void(Engine&)> init);
+	void GlobalSharesEnginesLifetime(bool value);
 }

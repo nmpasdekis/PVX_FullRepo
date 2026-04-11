@@ -3,12 +3,13 @@
 
 #include <functional>
 #include <vector>
+#include <unordered_map>
 #include <string>
 #include <atomic>
 #include <thread>
 #include <set>
 #include <regex>
-#include <map>
+//#include <map>
 #include <PVX_DataBuilder.h>
 #include <PVX_Threading.h>
 #include <PVX_File.h>
@@ -243,8 +244,8 @@ namespace PVX::Network {
 		PVX_DataBuilder Content;
 		void Json(const PVX::JSON::Item & json);
 		void Redirect(const std::wstring & Location, int Status = 303);
-		void Json(const std::wstring & json);
-		void Json(const std::string & json);
+		void JsonString(const std::wstring & json);
+		void JsonString(const std::string & json);
 		void Json(const std::vector<unsigned char> & json);
 		void Html(const std::wstring & html);
 		void Html(const std::string & html);
@@ -308,11 +309,14 @@ namespace PVX::Network {
 		int Match(const std::wstring & url, std::map<std::wstring, UtfHelper> & Vars, UtfHelper & Query);
 		int Run(HttpRequest &, HttpResponse &);
 		void ResetAction(std::function<void(HttpRequest&, HttpResponse&)> Action);
+		inline Route& Filter(const std::string& name, const PVX::JSON::Item& Params = PVX::JSON::jsElementType::Undefined) { Filters.emplace_back(name, Params); return *this; }
 	private:
 		//std::wstring OriginalRoute;
 		std::vector<std::wstring> Names;
 		std::function<void(HttpRequest&, HttpResponse&)> Action;
 		std::wregex Matcher;
+		std::vector<std::pair<std::string, PVX::JSON::Item>> Filters;
+		friend class HttpServer;
 	};
 
 	typedef struct HttpContext {
@@ -335,26 +339,27 @@ namespace PVX::Network {
 			return GetHandler();
 		}
 
-		void Routes(const Route & routes);
+		Route& Routes(const Route & routes);
 
-		void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action);
-		inline void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpResponse&)> Action) { Routes(url, Names, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
-		inline void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&)> Action) { Routes(url, Names, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
-		inline void Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void()> Action) { Routes(url, Names, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
+		Route& Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&, HttpResponse&)> Action);
+		inline Route& Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpResponse&)> Action) { return Routes(url, Names, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
+		inline Route& Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void(HttpRequest&)> Action) { return Routes(url, Names, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
+		inline Route& Routes(std::wregex url, const std::vector<std::wstring>& Names, std::function<void()> Action) { return Routes(url, Names, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
 
-		void Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
-		inline void Routes(const std::wstring& url, std::function<void(HttpResponse&)> Action) { Routes(url, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
-		inline void Routes(const std::wstring& url, std::function<void(HttpRequest&)> Action) { Routes(url, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
-		inline void Routes(const std::wstring& url, std::function<void()> Action) { Routes(url, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
+		Route& Routes(const std::wstring& url, std::function<void(HttpRequest&, HttpResponse&)> Action);
+		inline Route& Routes(const std::wstring& url, std::function<void(HttpResponse&)> Action) { return Routes(url, [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
+		inline Route& Routes(const std::wstring& url, std::function<void(HttpRequest&)> Action) { return Routes(url, [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
+		inline Route& Routes(const std::wstring& url, std::function<void()> Action) { return Routes(url, [Action](HttpRequest&, HttpResponse&) { Action(); }); }
 
-		inline void Routes(const std::string& utf8_url, std::function<void(HttpRequest&, HttpResponse&)> Action) { Routes(PVX::Decode::UTF(utf8_url), std::move(Action)); }
-		inline void Routes(const std::string& utf8_url, std::function<void(HttpRequest&)> Action) { Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
-		inline void Routes(const std::string& utf8_url, std::function<void(HttpResponse&)> Action) { Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
-		inline void Routes(const std::string& utf8_url, std::function<void()> Action) { Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest&, HttpResponse&) { Action(); }); }
+		inline Route& Routes(const std::string& utf8_url, std::function<void(HttpRequest&, HttpResponse&)> Action) { return Routes(PVX::Decode::UTF(utf8_url), std::move(Action)); }
+		inline Route& Routes(const std::string& utf8_url, std::function<void(HttpRequest&)> Action) { return Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest& req, HttpResponse&) { Action(req); }); }
+		inline Route& Routes(const std::string& utf8_url, std::function<void(HttpResponse&)> Action) { return Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest&, HttpResponse& resp) { Action(resp); }); }
+		inline Route& Routes(const std::string& utf8_url, std::function<void()> Action) { return Routes(PVX::Decode::UTF(utf8_url), [Action](HttpRequest&, HttpResponse&) { Action(); }); }
 			
 		void Routes(const std::initializer_list<Route> & routes);
 
 		void AddFilter(std::function<int(HttpRequest&, HttpResponse&)> Filter);
+		void AddNamedFilter(const std::string& Name, std::function<int(HttpRequest&, HttpResponse&, const PVX::JSON::Item&)> Filter);
 
 		void SetDefaultRoute(std::function<void(HttpRequest&, HttpResponse&)> Action);
 		void Start();
@@ -371,10 +376,10 @@ namespace PVX::Network {
 			};
 		};
 
-		inline void ContentRoute(const std::wstring & Url, const std::filesystem::path& Path, size_t thresshold = 1024 * 1024) {
+		inline Route& ContentRoute(const std::wstring & Url, const std::filesystem::path& Path, size_t thresshold = 1024 * 1024) {
 			auto url = Url;
 			if (url.size() && url.front() != L'/')url = L"/" + url;
-			Routes({ url + L"/{Path}", ContentServer(Path, thresshold) });
+			return Routes({ url + L"/{Path}", ContentServer(Path, thresshold) });
 		}
 		inline void ContentRoutes(const std::filesystem::path& contentPath, size_t thresshold = 1024*1024) {
 			namespace fs = std::filesystem;
@@ -393,8 +398,8 @@ namespace PVX::Network {
 		inline void DefaultHtml(const std::filesystem::path& Filename) {
 			SetDefaultRoute(HtmlFileRoute(Filename));
 		}
-		inline void ServeFile(const std::wstring& Url, const std::filesystem::path& File) {
-			Routes(Url, [File](HttpResponse& resp) {
+		inline Route& ServeFile(const std::wstring& Url, const std::filesystem::path& File) {
+			return Routes(Url, [File](HttpResponse& resp) {
 				resp.ServeFile(File);
 			});
 		}
@@ -404,7 +409,7 @@ namespace PVX::Network {
 		void BasicAuthentication(std::function<void(const std::wstring&, const std::wstring&)> clb);
 		void EnableWebToken(const std::string& Key);
 
-		void FileServer(const std::wstring& Url, const std::initializer_list<std::filesystem::path>& roots);
+		Route& FileServer(const std::wstring& Url, const std::initializer_list<std::filesystem::path>& roots);
 
 		void Bundle(const std::wstring& name, const std::initializer_list<std::filesystem::path>& files);
 	protected:
@@ -422,6 +427,7 @@ namespace PVX::Network {
 		//std::vector<SimpleTuple> DefaultHeader;
 		std::unordered_map<std::wstring, std::wstring>  DefaultHeader;
 		std::vector<std::function<int(HttpRequest&, HttpResponse&)>> Filters;
+		std::unordered_map<std::string, std::function<int(HttpRequest&, HttpResponse&, const PVX::JSON::Item&)>> NamedFilters;
 		std::set<std::wstring> Sessions;
 		std::string TokenKey;
 		std::atomic_bool Running = true;
