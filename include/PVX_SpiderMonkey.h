@@ -35,10 +35,9 @@ namespace PVX::Javascript {
 		jFunc& operator=(const jFunc&) = delete;
 	private:
 		const ContextNode* ctx;
-		int id;
 		std::shared_ptr<jValueData> Data;
-		jFunc(const ContextNode* c, int id, const std::shared_ptr<jValueData>& d)
-			: ctx(c), id(id), Data(d) {}
+		jFunc(const ContextNode* c, const std::shared_ptr<jValueData>& d)
+			: ctx(c), Data(d) {}
 		friend class Engine;
 		friend class jValue;
 		friend struct JSHelper;
@@ -109,7 +108,6 @@ namespace PVX::Javascript {
 		inline jArg(jValue && v): Value{ &v } {};
 		inline jArg(jFunc && v): Value{ &v } {};
 		inline jArg(const jValueProxy& v): Value { std::move(v) } {};
-		//inline jArg2(const jFunc* v): Value{ *v } {};
 		operator jArgVar() { return Value; };
 		jArgVar& operator()() { return Value; };
 	};
