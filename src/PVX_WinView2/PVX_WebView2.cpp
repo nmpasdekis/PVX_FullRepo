@@ -17,6 +17,23 @@
 #define WM_RUN_CREATE (WM_APP+1)
 
 namespace PVX::WebView{
+	struct internalPanel {
+		HWND hWnd;
+		double scale = 1.0f;
+
+		Microsoft::WRL::ComPtr<ICoreWebView2CompositionController> controller3;
+		Microsoft::WRL::ComPtr<ICoreWebView2Controller2> controller2;
+		Microsoft::WRL::ComPtr<ICoreWebView2Controller> controller;
+		Microsoft::WRL::ComPtr<ICoreWebView2> view;
+
+		Microsoft::WRL::ComPtr<IDCompositionDevice>		  dcompDevice;
+		Microsoft::WRL::ComPtr<IDCompositionTarget>		  dcompTarget;
+		Microsoft::WRL::ComPtr<IDCompositionVisual>		  rootVisual;
+		Microsoft::WRL::ComPtr<IDCompositionVisual>		  webviewContainer;
+
+		std::mutex lockQueue;
+		std::queue<std::function<void()>> Messages;
+	};
 	namespace {
 		void SetDpiAwarenessPerMonitorV2() {
 			// Best effort, try newest first
@@ -33,24 +50,6 @@ namespace PVX::WebView{
 		//Microsoft::WRL::ComPtr<ICoreWebView2Environment> environment;
 		Microsoft::WRL::ComPtr<ICoreWebView2Environment3> environment3;
 
-		struct internalPanel {
-			HWND hWnd;
-			double scale = 1.0f;
-
-			Microsoft::WRL::ComPtr<ICoreWebView2CompositionController> controller3;
-			Microsoft::WRL::ComPtr<ICoreWebView2Controller2> controller2;
-			Microsoft::WRL::ComPtr<ICoreWebView2Controller> controller;
-			Microsoft::WRL::ComPtr<ICoreWebView2> view;
-
-			Microsoft::WRL::ComPtr<IDCompositionDevice>		  dcompDevice;
-			Microsoft::WRL::ComPtr<IDCompositionTarget>		  dcompTarget;
-			Microsoft::WRL::ComPtr<IDCompositionVisual>		  rootVisual;
-			Microsoft::WRL::ComPtr<IDCompositionVisual>		  webviewContainer;
-
-			std::mutex lockQueue;
-			std::queue<std::function<void()>> Messages;
-		};
-
 		std::unordered_map<HWND, std::unique_ptr<internalPanel>> panelStore;
 		std::queue<std::pair<HWND, std::function<void()>>> CreationQueue;
 
@@ -63,17 +62,16 @@ namespace PVX::WebView{
 		}
 	};
 
-	View::View(void* ptr):ptr{ptr} {}
+	View::View(internalPanel* ptr):internal{ptr} {}
 	void View::NavigateTo(std::wstring url) {
-		auto p = ((internalPanel*)ptr);
-		PVX_PostMessage(p, [p, url]() {
-			p->view->Navigate(url.c_str());
+		//auto p = ((internalPanel*)ptr);
+		PVX_PostMessage(internal, [this, url]() {
+			internal->view->Navigate(url.c_str());
 		});
 	}
 	void View::Reload() {
-		auto p = ((internalPanel*)ptr);
-		PVX_PostMessage(p, [p]() {
-			p->view->Reload();
+		PVX_PostMessage(internal, [this]() {
+			internal->view->Reload();
 		});
 	}
 
@@ -212,13 +210,25 @@ namespace PVX::WebView{
 	//		CloseHandle(ev);
 	//	}
 	//}
-	void View::OnWebMessageReceived(std::function<void(std::wstring msg)> clb) {
+	void View::OnWebMessageReceived(std::function<void(const std::wstring& msg)> clb) {
 		Creation([this, clb] {
 			EventRegistrationToken token{};
-			(*(internalPanel*)ptr).view->add_WebMessageReceived(Microsoft::WRL::Callback<ICoreWebView2WebMessageReceivedEventHandler>([clb](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) {
+			internal->view->add_WebMessageReceived(Microsoft::WRL::Callback<ICoreWebView2WebMessageReceivedEventHandler>([clb](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) {
 				wil::unique_cotaskmem_string json;
 				if (SUCCEEDED(args->get_WebMessageAsJson(&json)) && json) {
-					clb(json.get());
+					clb(std::wstring(json.get()));
+				}
+				return S_OK;
+			}).Get(), &token);
+		});
+	}
+	void View::OnWebMessageReceived_JSON(std::function<void(const PVX::JSON::Item& msg)> clb) {
+		Creation([this, clb] {
+			EventRegistrationToken token{};
+			internal->view->add_WebMessageReceived(Microsoft::WRL::Callback<ICoreWebView2WebMessageReceivedEventHandler>([clb](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) {
+				wil::unique_cotaskmem_string json;
+				if(SUCCEEDED(args->get_WebMessageAsJson(&json)) && json) {
+					clb(PVX::JSON::parse(json.get()));
 				}
 				return S_OK;
 			}).Get(), &token);
@@ -250,9 +260,8 @@ namespace PVX::WebView{
 	}
 
 	void View::Creation(std::function<void()> fnc) {
-		auto p = (internalPanel*)ptr;
 		auto sz = CreationQueue.size();
-		CreationQueue.push({ p->hWnd, fnc });
+		CreationQueue.push({ internal->hWnd, fnc });
 		if(!sz) PostMessage(CreationQueue.front().first, WM_RUN_CREATE, 0, 0);
 	}
 
@@ -329,7 +338,7 @@ namespace PVX::WebView{
 					//});
 
 					win.Override({ WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEWHEEL, WM_MOUSEHWHEEL, WM_MOUSELEAVE }, [&panel](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-						ForwardMouseMessageToWebView(panel->controller3.Get(), hWnd, msg, wParam, lParam, panel->scale, 0, 0);
+						ForwardMouseMessageToWebView(panel->controller3.Get(), hWnd, msg, wParam, lParam, float(panel->scale), 0, 0);
 						return 0;
 					});
 				}
@@ -369,7 +378,9 @@ namespace PVX::WebView{
 				panel->controller = ctl;
 				panel->controller->get_CoreWebView2(panel->view.ReleaseAndGetAddressOf());
 
-				win.OnCloseHWND([](HWND hWnd) { panelStore.erase(hWnd); });
+				win.OnDestroyHWND([](HWND hWnd) {
+					panelStore.erase(hWnd); 
+				});
 				win.OnResizeClientRC([&panel](const RECT& rc) {
 					panel->controller->put_Bounds(rc);
 				});

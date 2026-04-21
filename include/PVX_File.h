@@ -16,6 +16,7 @@
 #include <filesystem>
 #include "PVX_Encode.h"
 #include<optional>
+#include<vector>
 
 namespace PVX {
 	namespace IO {
@@ -23,6 +24,9 @@ namespace PVX {
 		constexpr wchar_t otherSep = [] { return sep == L'\\' ? L'/' : L'\\'; }();
 		constexpr wchar_t sepString[2]{ sep, 0 };
 		constexpr wchar_t otherSepString[2]{ otherSep, 0 };
+
+		std::vector<std::filesystem::path> allFiles(const std::filesystem::path& p);
+		void allFiles(const std::filesystem::path & p, std::function<void(const std::filesystem::path&)> clb);
 
 		class ChangeTracker {
 			std::filesystem::path Filename;

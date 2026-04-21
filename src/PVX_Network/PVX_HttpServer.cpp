@@ -286,7 +286,7 @@ namespace PVX {
 					resp.Content.WriteText(b);
 				});
 			}
-			else Routes(name, [b = PVX::IO::ReadText(name)](HttpResponse& resp) {
+			else Routes(name, [b = PVX::IO::ReadText(bPath)](HttpResponse& resp) {
 				resp.Content.WriteText(b);
 			});
 		}

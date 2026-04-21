@@ -97,6 +97,25 @@ namespace PVX {
 			fs::create_directories(Directory);
 		}
 
+		std::vector<std::filesystem::path> allFiles(const std::filesystem::path & p) {
+			namespace fs = std::filesystem;
+			std::vector<fs::path> ret;
+			if(fs::is_directory(p)) {
+				for(const auto& entry : fs::recursive_directory_iterator(p)) if(!fs::is_directory(entry)) {
+					ret.push_back(entry);
+				}
+			}
+			return ret;
+		}
+		void allFiles(const std::filesystem::path & p, std::function<void(const fs::path&)> clb) {
+			namespace fs = std::filesystem;
+			if(fs::is_directory(p)) {
+				for(const auto& entry : fs::recursive_directory_iterator(p)) if(!fs::is_directory(entry)) {
+					clb(entry);
+				}
+			}
+		}
+
 		std::wstring ReadUtf(const std::filesystem::path& Filename) {
 			auto bin = ReadBinary(Filename.c_str());
 			return PVX::Decode::UTF(bin);

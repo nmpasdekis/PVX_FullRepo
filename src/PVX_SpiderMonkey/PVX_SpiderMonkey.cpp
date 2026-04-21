@@ -40,13 +40,9 @@ struct ContextNode {
 	JSAutoRealm* realm = nullptr;
 	ContextNode* next = nullptr;
 	PVX::Javascript::Engine* Engine;
-	//std::vector<NativeFunction> Functions;
-	//std::vector<NativeFunction> TransientFunctions;
 	RefPtr<JS::Stencil> stencil = nullptr;
 	bool released = true;
-	//bool first = true;
 	void ReleaseGlobal() {
-		//Functions.clear();
 		global.value().reset();
 		global.reset();
 		delete realm;
@@ -829,16 +825,10 @@ namespace PVX::Javascript {
 					throw std::runtime_error("Assignment failed");
 			}
 		}
-
 		return *this;
 	}
 
 	jValue& jValue::operator=(const jValue& value) {
-		//auto vv = resolvePath(ctx->ctx.get(), value.Data->val.get(), value.path);
-		//Data = std::make_shared<jValueData>(ctx->ctx.get());
-		//Data->val.set(vv);
-		//path.clear();
-		//return *this;
 		return operator=(jArg(const_cast<jValue*>(&value)));
 	}
 
@@ -900,7 +890,7 @@ namespace PVX::Javascript {
 			return ret;
 		}
 		case PVX::JSON::jsElementType::Undefined:
-			//return jsUndefined::Undefined;
+			return jsUndefined::Undefined;
 		default:
 			return jsUndefined::Undefined;
 		}
@@ -974,7 +964,7 @@ namespace PVX::Javascript {
 			JS::RootedString str(cx, v.toString());
 			return JS_GetStringLength(str) == 0;
 		}
-		return false; // objects and functions are always truthy
+		return false;
 	}
 
 	bool jValue::isFunction() const {

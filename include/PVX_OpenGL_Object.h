@@ -145,6 +145,7 @@ namespace PVX {
 		InterleavedArrayObject MakeCubeWithUVW();
 		InterleavedArrayObject MakeCubeWithUV(int Width, int Height = 0);
 		InterleavedArrayObject MakeSquareWithUV();
+		InterleavedArrayObject MakeSquareWithUV_Zero();
 		InterleavedArrayObject MakeSquareWithUV_Flipped();
 		InterleavedArrayObject MakeGrid(int size = 100, float dist = 1.0f);
 		InterleavedArrayObject MakeAxis(float size = 1.0f);

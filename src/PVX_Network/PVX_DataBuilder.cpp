@@ -44,7 +44,7 @@ PVX_DataBuilder & PVX_DataBuilder::operator<<(int64_t Number) {
 PVX_DataBuilder & PVX_DataBuilder::operator<<(const std::string & Str){
 	auto start = Data.size();
 	std::wstring str = PVX::Decode::Windows1253(Str.c_str());
-	int sz = PVX::Encode::UTF_Length(str);
+	auto sz = PVX::Encode::UTF_Length(str);
 	Data.resize(start + sz);
 	PVX::Encode::UTF(&Data[start], str.c_str());
 	return *this;

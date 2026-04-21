@@ -1,6 +1,8 @@
 #include <functional>
 #include <vector>
+#include <span>
 #include <random>
+#include <memory>
 
 namespace PVX {
 	namespace Solvers {
@@ -86,6 +88,16 @@ namespace PVX {
 			int GenId;
 			float GenPc;
 		}; 
+
+		struct LM_internalData;
+		class LevenbergMarquardt {
+		public:
+			LevenbergMarquardt(std::span<float> Params, size_t residualCount, std::function<void(std::span<const float>, std::span<float>)> ErrorFunction);
+			float Iterate(float dt = 0);
+		private:
+			std::unique_ptr<LM_internalData> Data;
+		};
+
 		std::vector<std::vector<float>> kMean(const std::vector<std::vector<float>>& vecs, size_t nClusters);
 		std::vector<size_t> kMean_Classify(const std::vector<std::vector<float>>& Clusters, const std::vector<std::vector<float>>& vecs);
 	}

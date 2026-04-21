@@ -24,6 +24,9 @@
     <ClCompile Include="PVX_kMean.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\include\PVX_Solvers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\PVX_Solvers.h">

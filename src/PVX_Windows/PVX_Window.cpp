@@ -20,17 +20,17 @@
 
 
 namespace PVX::Windows {
+	struct WindowPrivate {
+		HWND hWnd = 0;
+		uint32_t Flags = 0;
+		std::map<uint32_t, std::vector<EventCallback>> Events;
+		std::map<WPARAM, std::vector<std::function<void(LPARAM)>>> Command;
+	};
 	namespace {
 		static int WindowCount = 0;
 		static bool Closing = false;
 		std::thread EventThread;
 
-		struct WindowPrivate {
-			HWND hWnd = 0;
-			unsigned int Flags = 0;
-			std::map<unsigned int, std::vector<EventCallback>> Events;
-			std::map<WPARAM, std::vector<std::function<void(LPARAM)>>> Command;
-		};
 		INT_PTR PVX_DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			WindowPrivate& ov = *(WindowPrivate*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			if (&ov) {
@@ -95,22 +95,20 @@ namespace PVX::Windows {
 	static int Inited;
 
 	Eventer::Eventer(HWND hWnd) {
-		WindowPrivate* win = new WindowPrivate();
-		WindowData = (void*)win;
+		WindowData = new WindowPrivate();
 		WindowCount++;
-		win->hWnd = hWnd;
-		SetWindowLongPtr(win->hWnd, GWLP_USERDATA, (LONG_PTR)win);
-		SetWindowLongPtr(win->hWnd, GWLP_WNDPROC, (LONG_PTR)PVX_WndProc);
+		WindowData->hWnd = hWnd;
+		SetWindowLongPtr(WindowData->hWnd, GWLP_USERDATA, (LONG_PTR)WindowData);
+		SetWindowLongPtr(WindowData->hWnd, GWLP_WNDPROC, (LONG_PTR)PVX_WndProc);
 	}
 	Eventer::~Eventer() {
 		SetWindowLongPtr(this->Handle(), GWLP_USERDATA, (LONG_PTR)0);
-		delete ((WindowPrivate*)WindowData);
+		delete WindowData;
 	}
 
 
 	Window::Window(int DialogResource) {
-		WindowPrivate* win = new WindowPrivate();
-		WindowData = (void*)win;
+		WindowPrivate* win = WindowData = new WindowPrivate();
 		WindowCount++;
 		win->hWnd = CreateDialogParamW(GetModuleHandle(NULL), MAKEINTRESOURCEW(DialogResource), GetDesktopWindow(), PVX_DlgProc, 0);
 		SetWindowLongPtr(win->hWnd, GWLP_USERDATA, (LONG_PTR)win);
@@ -118,8 +116,7 @@ namespace PVX::Windows {
 
 	void Window::Init(int w, int h, const wchar_t* className) {
 		WindowCount++;
-		WindowPrivate* win = new WindowPrivate();
-		WindowData = (void*)win;
+		WindowPrivate* win = WindowData = new WindowPrivate();
 		if (!Inited) {
 			WNDCLASSEXW wcex = { 0 };
 			wcex.cbSize = sizeof(WNDCLASSEX);
@@ -149,16 +146,16 @@ namespace PVX::Windows {
 	}
 
 	void Window::Show() {
-		ShowWindow(((WindowPrivate*)WindowData)->hWnd, SW_SHOW);
+		ShowWindow(WindowData->hWnd, SW_SHOW);
 	}
 
 	void Window::Hide() {
-		ShowWindow(((WindowPrivate*)WindowData)->hWnd, SW_HIDE);
+		ShowWindow(WindowData->hWnd, SW_HIDE);
 	}
 
 	void Window::Resize(int Width, int Height) {
 		RECT rc;
-		auto h = ((WindowPrivate*)WindowData)->hWnd;
+		auto h = WindowData->hWnd;
 		GetWindowRect(h, &rc);
 		MoveWindow(h, rc.left, rc.top, Width, Height, 1);
 	}
@@ -166,29 +163,28 @@ namespace PVX::Windows {
 	void Window::ResizeClient(int Width, int Height) {
 		RECT rc, rc2 = { 0, 0, Width, Height };
 		AdjustWindowRect(&rc2, WS_OVERLAPPEDWINDOW, FALSE);
-		auto h = ((WindowPrivate*)WindowData)->hWnd;
+		auto h = WindowData->hWnd;
 		GetWindowRect(h, &rc);
 		MoveWindow(h, rc.left, rc.top, rc2.right - rc2.left, rc2.bottom - rc2.top, 1);
 	}
 	void Window::InvalidateClient(bool erase) {
-		auto& win = *((WindowPrivate*)WindowData);
 		RECT cl;
-		GetClientRect(win.hWnd, &cl);
-		InvalidateRect(win.hWnd, &cl, erase);
+		GetClientRect(WindowData->hWnd, &cl);
+		InvalidateRect(WindowData->hWnd, &cl, erase);
 	}
 	RECT Window::ClientRect() {
 		RECT cl;
-		GetClientRect(((WindowPrivate*)WindowData)->hWnd, &cl);
+		GetClientRect(WindowData->hWnd, &cl);
 		return cl;
 	}
 	RECT Window::GetWindowRectangle() {
 		RECT rc;
-		GetWindowRect(((WindowPrivate*)WindowData)->hWnd, &rc);
+		GetWindowRect(WindowData->hWnd, &rc);
 		return rc;
 	}
 
 	Eventer& Window::MakeEventer(int DialogItem) {
-		return MakeEventer(GetDlgItem(((WindowPrivate*)WindowData)->hWnd, DialogItem));
+		return MakeEventer(GetDlgItem(WindowData->hWnd, DialogItem));
 	}
 
 	Eventer& Window::MakeEventer(HWND hWnd) {
@@ -289,28 +285,28 @@ namespace PVX::Windows {
 	}
 
 	bool Eventer::PostMsg(UINT Msg, WPARAM wParam, LPARAM lParam) {
-		return PostMessage(((WindowPrivate*)WindowData)->hWnd, Msg, wParam, lParam);
+		return PostMessage(WindowData->hWnd, Msg, wParam, lParam);
 	}
 
 	HWND Eventer::Handle() {
-		return ((WindowPrivate*)WindowData)->hWnd;
+		return WindowData->hWnd;
 	}
 	HWND Eventer::Handle(int DialogResource) {
-		return GetDlgItem(((WindowPrivate*)WindowData)->hWnd, DialogResource);
+		return GetDlgItem(WindowData->hWnd, DialogResource);
 	}
-	void Eventer::Override(unsigned int Message, EventCallback Event) {
-		(*(WindowPrivate*)WindowData).Events[Message].push_back(Event);
-		(*(WindowPrivate*)WindowData).Flags |= (Message == WM_COMMAND);
+	void Eventer::Override(uint32_t Message, EventCallback Event) {
+		WindowData->Events[Message].push_back(Event);
+		WindowData->Flags |= (Message == WM_COMMAND);
 	}
-	void Eventer::Override(unsigned int MinMessage, unsigned int MaxMessage, EventCallback Event) {
-		auto & win = (*(WindowPrivate*)WindowData);
+	void Eventer::Override(uint32_t MinMessage, uint32_t MaxMessage, EventCallback Event) {
+		auto & win = *WindowData;
 		for (auto Message = MinMessage; Message <= MaxMessage; Message++) {
 			win.Events[Message].push_back(Event);
 			win.Flags |= (Message == WM_COMMAND);
 		}
 	}
 	void Eventer::Override(const std::vector<uint32_t>& Messages, EventCallback Event) {
-		auto & win = (*(WindowPrivate*)WindowData);
+		auto & win = *WindowData;
 		for (auto Message : Messages) {
 			win.Events[Message].push_back(Event);
 			win.Flags |= (Message == WM_COMMAND);
@@ -350,14 +346,21 @@ namespace PVX::Windows {
 		});
 	}
 
-	void Eventer::OnMouseEvent(std::function<int(unsigned int Message, int, int, int)> lmd) {
+	void Eventer::OnDestroyHWND(std::function<void(HWND)> lmd) {
+		Override(WM_DESTROY, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
+			lmd(hWnd);
+			return 0;
+		});
+	}
+
+	void Eventer::OnMouseEvent(std::function<int(uint32_t Message, int, int, int)> lmd) {
 		for (auto msg = WM_MOUSEFIRST; msg <= WM_MOUSELAST; msg++) {
 			Override(WM_LBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 				return lmd(msg, GET_X_LPARAM(l), GET_Y_LPARAM(l), GET_WHEEL_DELTA_WPARAM(w));
 			});
 		}
 	}
-	void Eventer::OnMouseEventHWND(std::function<int(HWND, unsigned int Message, int, int, int)> lmd) {
+	void Eventer::OnMouseEventHWND(std::function<int(HWND, uint32_t Message, int, int, int)> lmd) {
 		for (auto msg = WM_MOUSEFIRST; msg <= WM_MOUSELAST; msg++) {
 			Override(WM_LBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 				return lmd(hWnd, msg, GET_X_LPARAM(l), GET_Y_LPARAM(l), GET_WHEEL_DELTA_WPARAM(w));
@@ -413,43 +416,43 @@ namespace PVX::Windows {
 
 
 
-	void Eventer::OnLeftButtonDownHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnLeftButtonDownHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_LBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnLeftButtonUpHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnLeftButtonUpHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_LBUTTONUP, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnRightButtonDownHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnRightButtonDownHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_RBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnRightButtonUpHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnRightButtonUpHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_RBUTTONUP, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnMiddleButtonDownHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnMiddleButtonDownHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_MBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnMiddleButtonUpHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnMiddleButtonUpHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_MBUTTONUP, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnMouseWheelHWND(std::function<void(HWND, unsigned int, int x, int y, int delta)> lmd) {
+	void Eventer::OnMouseWheelHWND(std::function<void(HWND, uint32_t, int x, int y, int delta)> lmd) {
 		Override(WM_MOUSEWHEEL, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l), GET_WHEEL_DELTA_WPARAM(w));
 			return 0;
@@ -461,7 +464,7 @@ namespace PVX::Windows {
 
 
 
-	void Eventer::OnMouseMoveHWND(std::function<void(HWND, unsigned int, int, int)> lmd) {
+	void Eventer::OnMouseMoveHWND(std::function<void(HWND, uint32_t, int, int)> lmd) {
 		Override(WM_MOUSEMOVE, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			lmd(hWnd, GET_KEYSTATE_WPARAM(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
@@ -512,16 +515,14 @@ namespace PVX::Windows {
 		});
 	}
 
-	void Eventer::OnButton(unsigned int ControlId, std::function<void()> lmd) {
-		WindowPrivate* ov = (WindowPrivate*)WindowData;
-		ov->Command[ControlId | (BN_CLICKED << 16)].push_back([lmd](LPARAM l) {
+	void Eventer::OnButton(uint32_t ControlId, std::function<void()> lmd) {
+		WindowData->Command[ControlId | (BN_CLICKED << 16)].push_back([lmd](LPARAM l) {
 			lmd();
 		});
 	}
 
-	void Eventer::OnNotification(unsigned int ControlId, unsigned int Notification, std::function<void(HWND control)> lmd) {
-		WindowPrivate* ov = (WindowPrivate*)WindowData;
-		ov->Command[ControlId | (Notification << 16)].push_back([lmd](LPARAM l) {
+	void Eventer::OnNotification(uint32_t ControlId, uint32_t Notification, std::function<void(HWND control)> lmd) {
+		WindowData->Command[ControlId | (Notification << 16)].push_back([lmd](LPARAM l) {
 			lmd((HWND)l);
 		});
 	}
@@ -578,23 +579,23 @@ namespace PVX::Windows {
 			rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
 			rid.usUsage = HID_USAGE_GENERIC_MOUSE;
 			rid.dwFlags = RIDEV_INPUTSINK;
-			rid.hwndTarget = ((WindowPrivate*)WindowData)->hWnd;
+			rid.hwndTarget = WindowData->hWnd;
 		}
 		if (Keyboard) {
 			auto& rid = Rid[Count++];
 			rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
 			rid.usUsage = HID_USAGE_GENERIC_KEYBOARD;
 			rid.dwFlags = RIDEV_INPUTSINK;
-			rid.hwndTarget = ((WindowPrivate*)WindowData)->hWnd;
+			rid.hwndTarget = WindowData->hWnd;
 		}
 		//if (Count) {
 		RegisterRawInputDevices(Rid, Count, sizeof(RAWINPUTDEVICE));
 	//}
 	}
 
-	void Eventer::OnMouseRelative(std::function<void(int, int, int, unsigned int)> clb) {
+	void Eventer::OnMouseRelative(std::function<void(int, int, int, uint32_t)> clb) {
 		static POINT Start{ -1,-1 }, Screen;
-		static unsigned int btns = 0;
+		static uint32_t btns = 0;
 
 		HWND w = Handle();
 		auto down = [w](int x, int y) {
@@ -614,7 +615,7 @@ namespace PVX::Windows {
 		OnMiddleButtonUp(up);
 		OnMouseWheel([clb](int, int, int d) { clb(0, 0, d, btns); });
 
-		OnMouseMove([&, w, clb](unsigned int btn, int x, int y) {
+		OnMouseMove([&, w, clb](uint32_t btn, int x, int y) {
 			btns = btn;
 			if (Start.x != -1 && btn) {
 				clb(x-Start.x, y-Start.y, 0, btn);
@@ -623,13 +624,13 @@ namespace PVX::Windows {
 		});
 	}
 
-	void Eventer::OnMouseRelative(std::function<bool(uint32_t Buttons)> Enable, std::function<void(int, int, int, unsigned int)> clb) {
+	void Eventer::OnMouseRelative(std::function<bool(uint32_t Buttons)> Enable, std::function<void(int, int, int, uint32_t)> clb) {
 		static POINT Start{ -1,-1 }, Screen;
-		static unsigned int btns = 0;
+		static uint32_t btns = 0;
 		//static bool& Enable = *En;
 
 		HWND w = Handle();
-		auto down = [w, Enable](unsigned int Buttons, int x, int y) {
+		auto down = [w, Enable](uint32_t Buttons, int x, int y) {
 			if (!Enable(Buttons))
 				return;
 			if (Start.x == -1) {
@@ -639,16 +640,16 @@ namespace PVX::Windows {
 				ClientToScreen(w, &Screen);
 			}
 		};
-		auto up = [](unsigned int Buttons, int x, int y) { if (Start.x != -1) ShowCursor(true); Start.x = -1; };
+		auto up = [](uint32_t Buttons, int x, int y) { if (Start.x != -1) ShowCursor(true); Start.x = -1; };
 		OnRightButtonDown(down);
 		OnRightButtonUp(up);
 		OnLeftButtonDown(down);
 		OnLeftButtonUp(up);
 		OnMiddleButtonDown(down);
 		OnMiddleButtonUp(up);
-		OnMouseWheel([clb](unsigned int, int, int, int d) { clb(0, 0, d, btns); });
+		OnMouseWheel([clb](uint32_t, int, int, int d) { clb(0, 0, d, btns); });
 
-		OnMouseMove([&, w, clb](unsigned int btn, int x, int y) {
+		OnMouseMove([&, w, clb](uint32_t btn, int x, int y) {
 			btns = btn;
 			if (Start.x != -1 && btn) {
 				clb(x - Start.x, y - Start.y, 0, btn);
@@ -662,6 +663,13 @@ namespace PVX::Windows {
 
 	void Eventer::OnClose(std::function<int()> lmd) {
 		Override(WM_CLOSE, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
+			if (lmd())
+				DestroyWindow(hWnd);
+			return 0;
+		});
+	}
+	void Eventer::OnDestroy(std::function<int()> lmd) {
+		Override(WM_DESTROY, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
 			if (lmd())
 				DestroyWindow(hWnd);
 			return 0;
@@ -711,53 +719,53 @@ namespace PVX::Windows {
 		});
 	}
 
-	void Eventer::OnLeftButtonDown(std::function<void(unsigned int Buttons, int, int)> lmd) {
+	void Eventer::OnLeftButtonDown(std::function<void(uint32_t Buttons, int, int)> lmd) {
 		Override(WM_LBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnLeftButtonUp(std::function<void(unsigned int Buttons, int, int)> lmd) {
+	void Eventer::OnLeftButtonUp(std::function<void(uint32_t Buttons, int, int)> lmd) {
 		Override(WM_LBUTTONUP, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnRightButtonDown(std::function<void(unsigned int Buttons, int, int)> lmd) {
+	void Eventer::OnRightButtonDown(std::function<void(uint32_t Buttons, int, int)> lmd) {
 		Override(WM_RBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnRightButtonUp(std::function<void(unsigned int Buttons, int, int)> lmd) {
+	void Eventer::OnRightButtonUp(std::function<void(uint32_t Buttons, int, int)> lmd) {
 		Override(WM_RBUTTONUP, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnMiddleButtonDown(std::function<void(unsigned int Buttons, int, int)> lmd) {
+	void Eventer::OnMiddleButtonDown(std::function<void(uint32_t Buttons, int, int)> lmd) {
 		Override(WM_MBUTTONDOWN, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnMiddleButtonUp(std::function<void(unsigned int Buttons, int, int)> lmd) {
+	void Eventer::OnMiddleButtonUp(std::function<void(uint32_t Buttons, int, int)> lmd) {
 		Override(WM_MBUTTONUP, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
-	void Eventer::OnMouseWheel(std::function<void(unsigned int Buttons, int x, int y, int delta)> lmd) {
+	void Eventer::OnMouseWheel(std::function<void(uint32_t Buttons, int x, int y, int delta)> lmd) {
 		Override(WM_MOUSEWHEEL, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd(w, GET_X_LPARAM(l), GET_Y_LPARAM(l), GET_WHEEL_DELTA_WPARAM(w));
+			lmd(uint32_t(w), GET_X_LPARAM(l), GET_Y_LPARAM(l), GET_WHEEL_DELTA_WPARAM(w));
 			return 0;
 		});
 	}
 
 
-	void Eventer::OnMouseMove(std::function<void(unsigned int, int, int)> lmd) {
+	void Eventer::OnMouseMove(std::function<void(uint32_t, int, int)> lmd) {
 		Override(WM_MOUSEMOVE, [lmd](HWND hWnd, UINT msg, WPARAM w, LPARAM l)->LRESULT {
-			lmd((unsigned int)w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
+			lmd((uint32_t)w, GET_X_LPARAM(l), GET_Y_LPARAM(l));
 			return 0;
 		});
 	}
@@ -955,6 +963,38 @@ namespace PVX::Windows {
 					clb(Dragging, rx, ry);
 				}
 			});
+		}
+	}
+	void Window::EnterFullscreen() {
+		if(!Fullscreen.isFullscreen) {
+			auto hWnd = WindowData->hWnd;
+			GetWindowPlacement(hWnd, &Fullscreen.prev);
+			Fullscreen.style = GetWindowLong(hWnd, GWL_STYLE);
+			Fullscreen.exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
+
+			MONITORINFO mi = { sizeof(mi) };
+
+			HMONITOR hMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+			GetMonitorInfo(hMon, &mi);
+
+			SetWindowLong(hWnd, GWL_STYLE, Fullscreen.style & ~(WS_OVERLAPPEDWINDOW));
+			SetWindowPos(hWnd, HWND_TOP,
+				mi.rcMonitor.left,
+				mi.rcMonitor.top,
+				mi.rcMonitor.right - mi.rcMonitor.left,
+				mi.rcMonitor.bottom - mi.rcMonitor.top,
+				SWP_FRAMECHANGED);
+			Fullscreen.isFullscreen = true;
+		}
+	}
+	void Window::ExitFullscreen() {
+		if(Fullscreen.isFullscreen) {
+			auto hwnd = WindowData->hWnd;
+			SetWindowLong(hwnd, GWL_STYLE, Fullscreen.style);
+			SetWindowPlacement(hwnd, &Fullscreen.prev);
+			SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+				SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+			Fullscreen.isFullscreen = false;
 		}
 	}
 }

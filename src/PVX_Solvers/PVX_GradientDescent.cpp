@@ -1,4 +1,5 @@
 #include <PVX_Solvers.h>
+#include <Eigen/Eigen>
 
 namespace PVX::Solvers {
 
@@ -101,4 +102,93 @@ namespace PVX::Solvers {
 		iRMSprop{ 1.0f - RMSprop },
 		Error{ ErrorFunction() }
 	{ LastError = Error; }
+
+	struct LM_internalData {
+		size_t N; // param count
+		size_t M; // residual count
+
+		std::span<float> params;
+		std::function<void(std::span<const float>, std::span<float>)> errorFunc;
+
+		// Buffers
+		Eigen::VectorXf r;      // current residual
+		Eigen::VectorXf r_tmp;  // temp residual
+		Eigen::MatrixXf J;      // Jacobian
+		Eigen::MatrixXf A;      // J^T J
+		Eigen::VectorXf g;      // J^T r
+		Eigen::VectorXf delta;  // step
+
+		float lambda = 1e-3f;
+		float nu = 10.0f;
+		float epsilon = 1e-6f;
+	};
+
+	LevenbergMarquardt::LevenbergMarquardt(
+		std::span<float> Params,
+		size_t residualCount,
+		std::function<void(std::span<const float>, std::span<float>)> ErrorFunction
+	) {
+		Data = std::make_unique<LM_internalData>();
+
+		Data->params = Params;
+		Data->N = Params.size();
+		Data->M = residualCount;
+		Data->errorFunc = ErrorFunction;
+
+		Data->r.resize(Data->M);
+		Data->r_tmp.resize(Data->M);
+		Data->J.resize(Data->M, Data->N);
+		Data->A.resize(Data->N, Data->N);
+		Data->g.resize(Data->N);
+		Data->delta.resize(Data->N);
+
+		// Initial residual
+		Data->errorFunc(Data->params, std::span<float>(Data->r.data(), Data->M));
+	}
+	float LevenbergMarquardt::Iterate(float dt_override) {
+		auto& d = *Data;
+
+		float dt;
+
+		for(size_t i = 0; i < d.N; ++i) {
+			float orig = d.params[i];
+			dt = dt_override > 0 ? dt_override : d.epsilon * std::max(1.0f, std::abs(orig));
+			d.params[i] = orig + dt;
+			d.errorFunc(d.params, std::span<float>(d.r_tmp.data(), d.M));
+			Eigen::VectorXf r_plus = d.r_tmp;
+			d.params[i] = orig - dt;
+			d.errorFunc(d.params, std::span<float>(d.r_tmp.data(), d.M));
+			Eigen::VectorXf r_minus = d.r_tmp;
+			d.params[i] = orig;
+			d.J.col(i) = (r_plus - r_minus) / (2.0f * dt);
+		}
+
+		d.A = d.J.transpose() * d.J;
+		d.g = d.J.transpose() * d.r;
+
+		Eigen::MatrixXf A_damped = d.A;
+		A_damped.diagonal() += d.lambda * d.A.diagonal();
+
+		d.delta = -A_damped.ldlt().solve(d.g);
+		std::vector<float> backup(d.params.begin(), d.params.end());
+		for(size_t i = 0; i < d.N; ++i)
+			d.params[i] += d.delta[i];
+
+		d.errorFunc(d.params, std::span<float>(d.r_tmp.data(), d.M));
+
+		float oldError = d.r.squaredNorm();
+		float newError = d.r_tmp.squaredNorm();
+
+		if(newError < oldError) {
+			d.r = d.r_tmp;
+			d.lambda /= d.nu;
+		} else {
+			for(size_t i = 0; i < d.N; ++i)
+				d.params[i] = backup[i];
+
+			d.lambda *= d.nu;
+		}
+
+		return d.r.squaredNorm();
+	}
 }

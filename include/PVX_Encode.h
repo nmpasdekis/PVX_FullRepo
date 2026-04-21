@@ -33,6 +33,9 @@ namespace PVX::Encode {
 	std::string UriEncode(const std::vector<unsigned char> & s);
 	std::string Uri(const std::wstring & s);
 	std::string Windows1253_Greek(const std::wstring & data);
+
+	std::string ToHex(const uint8_t* Data, size_t sz);
+	std::string ToHexUpper(const uint8_t* Data, size_t sz);
 	std::string ToHex(const std::vector<unsigned char>& Data);
 	std::string ToHexUpper(const std::vector<unsigned char>& Data);
 	std::wstring wToHex(const std::vector<unsigned char>& Data);

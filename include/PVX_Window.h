@@ -10,6 +10,7 @@
 #include "PVX.inl"
 
 namespace PVX::Windows {
+	struct WindowPrivate;
 	inline int DefaultClose() { PostQuitMessage(0); return 0; }
 
 	using EventCallback = std::function<LRESULT(HWND, UINT, WPARAM, LPARAM)>;
@@ -97,6 +98,7 @@ namespace PVX::Windows {
 		
 		void OnWindowActiveHWND(std::function<void(HWND, int Active)> lmd);
 		void OnCloseHWND(std::function<void(HWND)> lmd);
+		void OnDestroyHWND(std::function<void(HWND)> lmd);
 		void OnResizeHWND(std::function<void(HWND, int Width, int Height)> lmd);
 		void OnResizingHWND(std::function<void(HWND, int Type, RECT * Rectangle)> lmd);
 		void OnResizeClientHWND(std::function<void(HWND, int Width, int Height)> lmd);
@@ -129,6 +131,7 @@ namespace PVX::Windows {
 		
 		void OnWindowActive(std::function<void(int Active)> lmd);
 		void OnClose(std::function<int()> lmd);
+		void OnDestroy(std::function<int()> lmd);
 		void OnResize(std::function<void(int Width, int Height)> lmd);
 		void OnResizing(std::function<void(int Type, RECT * Rectangle)> lmd);
 		void OnResizeClient(std::function<void(int Width, int Height)> lmd);
@@ -161,7 +164,7 @@ namespace PVX::Windows {
 		}
 	protected:
 		Eventer() {};
-		void* WindowData = nullptr;
+		WindowPrivate* WindowData = nullptr;
 	};
 
 	class ComboBox {
@@ -214,6 +217,8 @@ namespace PVX::Windows {
 		std::pair<int, int> GetLockedRelative();
 
 		void OnLockedDrag(int Dragging, std::function<void(int btn, int x, int y)> clb);
+		void EnterFullscreen();
+		void ExitFullscreen();
 	protected:
 		void Init(int w, int h, const wchar_t* className);
 		std::vector<Eventer*> Eventers;
@@ -224,6 +229,12 @@ namespace PVX::Windows {
 			int locked;
 			int Dragging;
 		} lockCursor;
+		struct Fullscreen_t {
+			bool isFullscreen = false;
+			uint32_t style;
+			uint32_t exStyle;
+			WINDOWPLACEMENT prev = { sizeof(prev) };
+		} Fullscreen;
 	};
 
 	class RawInput {
